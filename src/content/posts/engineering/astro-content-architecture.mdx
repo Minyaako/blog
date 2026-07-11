@@ -1,0 +1,25 @@
+---
+id: engineering-astro-content-architecture
+title: Astro 内容架构：从稳定标识到可扩展分类
+description: 解释博客如何用稳定 ID、领域与子类组织长期内容。
+publishedAt: 2026-07-12
+domain: engineering
+subcategory: devlogs
+tags: [Astro, 内容架构]
+collections: [博客构建记录]
+cover:
+  url: /images/posts/engineering-cover.svg
+  alt: 琥珀色技术几何封面
+  credit: Minyako
+authors: [Minyako]
+draft: false
+featured: true
+lang: zh-CN
+translationKey: engineering-astro-content-architecture
+license: CC-BY-4.0
+contentWarning: { type: none, message: '', scope: none }
+---
+
+一个长期博客首先需要稳定的文章身份，其次才是方便浏览的分类。文章可以移动领域、调整标题，但评论与引用不应因此失去关联。
+
+这篇构建记录会解释 Astro Content Collections、永久 ID 和配置驱动子类之间的关系，并逐步展示工程实现。

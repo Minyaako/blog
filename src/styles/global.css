@@ -164,9 +164,16 @@
 
 @media (max-width: 48rem) {
   .header-inner { grid-template-columns: 1fr auto; }
-  .primary-nav { grid-column: 1 / -1; justify-self: stretch; overflow-x: auto; }
-  .nav-list { justify-content: space-between; }
-  .nav-link { padding-inline: var(--space-2); }
+  .primary-nav { grid-column: 1 / -1; justify-self: stretch; }
+  .nav-list {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .nav-link {
+    justify-content: center;
+    padding-inline: var(--space-1);
+    font-size: 0.8rem;
+  }
   .footer-inner { align-items: flex-start; flex-direction: column; }
 }
 

@@ -1,0 +1,77 @@
+---
+import { SITE } from '../config/site'
+import AppIcon from './AppIcon.astro'
+---
+
+<section class="profile-strip" aria-labelledby="profile-name">
+  <img class="avatar" src="/images/profile/avatar-geometric.svg" alt="Minyako 头像" width="176" height="176" />
+  <div class="identity">
+    <div class="name-row">
+      <h1 id="profile-name">Minyako</h1>
+      <span>{SITE.id}</span>
+    </div>
+    <p>{SITE.description}</p>
+  </div>
+  <ul aria-label="个人平台">
+    {SITE.socials.map((social) => (
+      <li>
+        <a href={social.href} aria-label={social.label}>
+          <AppIcon name={social.icon} />
+          <span>{social.label}</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .profile-strip {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-5);
+    padding: 0 var(--space-2) var(--space-6);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .avatar {
+    z-index: 2;
+    width: 5.75rem;
+    height: 5.75rem;
+    margin-top: -2.35rem;
+    border: 4px solid var(--canvas);
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--border-strong);
+  }
+
+  .name-row { display: flex; align-items: baseline; gap: var(--space-3); }
+  h1 { margin: 0; font: 750 var(--text-title)/1.2 var(--font-display); }
+  .name-row span { color: var(--text-muted); font: var(--text-caption)/1.2 var(--font-mono); }
+  p { margin: var(--space-2) 0 0; color: var(--text-muted); }
+  ul { display: flex; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+  a {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: var(--space-2);
+    padding-inline: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: 99rem;
+    background: var(--surface);
+    font-size: 0.82rem;
+    text-decoration: none;
+  }
+
+  @media (max-width: 44rem) {
+    .profile-strip {
+      grid-template-columns: 4.75rem minmax(0, 1fr);
+      gap: var(--space-4);
+      padding-inline: 0;
+    }
+    .avatar { width: 4.75rem; height: 4.75rem; }
+    .name-row { flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+    h1 { font-size: 1.45rem; }
+    .profile-strip ul { grid-column: 1 / -1; }
+  }
+</style>
