@@ -54,10 +54,23 @@ and site explanation live on the About page.
 
 ## Repository and Ownership
 
-The blog lives in a standalone public GitHub repository. Application code,
-content, design documentation, deployment configuration, and operational notes
-belong there. The `server-infra` repository only records the blog's remote path,
-domains, deployment state, backup expectations, and Caddy ownership.
+The blog lives in the standalone public GitHub repository
+`https://github.com/Minyaako/blog`. Its local checkout is
+`D:\seRver\apps\blog`, inside the umbrella server workspace but outside the Git
+ownership of the root `server-infra` repository.
+
+"Standalone repository" means independent Git history and application
+ownership; it does not require placing the checkout outside `D:\seRver`.
+Application code, content, design documentation, deployment configuration, and
+operational notes belong in the nested blog repository. The shared
+`server-infra` repository records only the blog's local and remote paths,
+domains, deployment state, backup expectations, release state, and Caddy
+ownership.
+
+The parent workspace's shared files must not be modified during ordinary blog
+implementation. Coordinated changes to the server index or shared conventions
+are separate infrastructure changes and must be committed in the parent
+repository.
 
 Because the repository is public:
 
