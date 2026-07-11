@@ -73,3 +73,14 @@ export function toPostCard(post: CollectionEntry<'posts'>): PostCardData {
     protected: protectedContent
   }
 }
+
+export function toFeedItem(post: CollectionEntry<'posts'>) {
+  const card = toPostCard(post)
+  return {
+    title: card.title,
+    description: card.description,
+    pubDate: card.publishedAt,
+    link: `/posts/${card.slug}`,
+    categories: [card.domain, card.subcategory, ...card.tags]
+  }
+}

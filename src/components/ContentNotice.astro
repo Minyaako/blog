@@ -3,5 +3,5 @@ import type { CollectionEntry } from 'astro:content'
 interface Props { data: CollectionEntry<'posts'>['data'] }
 const { data } = Astro.props
 ---
-<aside class="content-notice" aria-label="版权与内容说明">{data.contentWarning.type !== 'none' && <p><strong>内容提示：</strong>{data.contentWarning.message}</p>}<p>除特别标注的第三方内容外，本文采用 <a href="https://creativecommons.org/licenses/by/4.0/deed.zh-hans">CC BY 4.0</a> 许可，可在署名后转载。</p></aside>
+<aside class="content-notice" aria-label="版权与内容说明" data-pagefind-ignore>{data.contentWarning.type !== 'none' && <p><strong>内容提示：</strong>{data.contentWarning.message}</p>}<p>除特别标注的第三方内容外，本文采用 <a href="https://creativecommons.org/licenses/by/4.0/deed.zh-hans">CC BY 4.0</a> 许可，可在署名后转载。</p></aside>
 <style>.content-notice{margin-top:var(--space-7);padding:var(--space-5);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-md);background:var(--surface);color:var(--text-muted);font-size:.86rem;line-height:1.65}p{margin:0}p+p{margin-top:var(--space-2)}</style>
