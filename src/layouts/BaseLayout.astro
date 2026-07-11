@@ -1,0 +1,65 @@
+---
+import '@fontsource-variable/manrope/index.css'
+import '@fontsource-variable/noto-sans-sc/index.css'
+import 'katex/dist/katex.min.css'
+import { SITE } from '../config/site'
+import SiteFooter from '../components/SiteFooter.astro'
+import SiteHeader from '../components/SiteHeader.astro'
+import '../styles/global.css'
+
+interface Props {
+  title?: string
+  description?: string
+  image?: string
+  noindex?: boolean
+}
+
+const {
+  title,
+  description = SITE.description,
+  image,
+  noindex = false
+} = Astro.props
+
+const pageTitle = title ? `${title} · ${SITE.title}` : SITE.title
+const canonical = new URL(Astro.url.pathname, SITE.origin)
+const socialImage = image ? new URL(image, SITE.origin) : undefined
+---
+
+<!doctype html>
+<html lang={SITE.lang} data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f4f0e9" />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href="/rss.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    {socialImage && <meta property="og:image" content={socialImage} />}
+    <meta name="twitter:card" content={socialImage ? 'summary_large_image' : 'summary'} />
+    <title>{pageTitle}</title>
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem('minyako-theme')
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.dataset.theme = stored === 'dark' || stored === 'light'
+          ? stored
+          : systemDark ? 'dark' : 'light'
+      })()
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    <SiteHeader />
+    <main class="page-main" id="main-content">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

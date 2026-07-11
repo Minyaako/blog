@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const localChrome = process.env.CI ? {} : { channel: 'chrome' as const }
+
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
@@ -15,11 +17,11 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
-      use: { ...devices['Desktop Chrome'] }
+      use: { ...devices['Desktop Chrome'], ...localChrome }
     },
     {
       name: 'mobile',
-      use: { ...devices['Pixel 7'] }
+      use: { ...devices['Pixel 7'], ...localChrome }
     }
   ]
 })

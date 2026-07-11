@@ -1,17 +1,8 @@
 ---
-import { SITE } from '../config/site'
+import BaseLayout from '../layouts/BaseLayout.astro'
 ---
 
-<!doctype html>
-<html lang={SITE.lang}>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>{SITE.title}</title>
-  </head>
-  <body>
-    <main>
-      <h1>{SITE.title}</h1>
-    </main>
-  </body>
-</html>
+<BaseLayout>
+  <h1>Minyako</h1>
+  <p>研究、技术、生活与视觉小说的个人记录。</p>
+</BaseLayout>
