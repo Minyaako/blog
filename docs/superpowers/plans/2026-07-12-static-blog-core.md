@@ -65,7 +65,7 @@ tests/e2e/                       Playwright behavior, accessibility, and visual 
 - Consumes: approved domain `https://minyakogsk.icu` and static-output constraint.
 - Produces: `pnpm check`, `pnpm test:unit`, `pnpm build`, and `pnpm test:e2e` commands used by every later task.
 
-- [ ] **Step 1: Write the failing foundation test**
+- [x] **Step 1: Write the failing foundation test**
 
 ```ts
 // tests/unit/foundation.test.ts
@@ -80,7 +80,7 @@ describe('site foundation', () => {
 })
 ```
 
-- [ ] **Step 2: Create the pinned package manifest and configs**
+- [x] **Step 2: Create the pinned package manifest and configs**
 
 ```json
 {
@@ -219,7 +219,7 @@ test-results/
 Thumbs.db
 ```
 
-- [ ] **Step 2a: Install dependencies and verify the foundation test fails**
+- [x] **Step 2a: Install dependencies and verify the foundation test fails**
 
 Run:
 
@@ -230,7 +230,7 @@ pnpm.cmd test:unit
 
 Expected: FAIL because `src/config/site.ts` does not exist yet.
 
-- [ ] **Step 3: Add the minimum site config and page so the test can pass**
+- [x] **Step 3: Add the minimum site config and page so the test can pass**
 
 ```ts
 // src/config/site.ts
@@ -254,7 +254,7 @@ import { SITE } from '../config/site'
 </html>
 ```
 
-- [ ] **Step 4: Install and verify the foundation**
+- [x] **Step 4: Install and verify the foundation**
 
 Run:
 
@@ -267,7 +267,7 @@ pnpm.cmd build:astro
 
 Expected: one Vitest test passes; Astro check reports zero errors; `dist/index.html` exists.
 
-- [ ] **Step 5: Commit only foundation files**
+- [x] **Step 5: Commit only foundation files**
 
 ```powershell
 git add package.json pnpm-lock.yaml pnpm-workspace.yaml .nvmrc .gitignore tsconfig.json astro.config.mjs vitest.config.ts playwright.config.ts src/env.d.ts src/config/site.ts src/pages/index.astro tests/unit/foundation.test.ts
@@ -286,7 +286,7 @@ git commit -m "chore: bootstrap static Astro site"
 - Consumes: `SITE.lang` and Astro's `glob()` content loader.
 - Produces: `DomainKey`, `SubcategoryKey`, `getDomain()`, `getSubcategory()`, and the validated `posts` collection.
 
-- [ ] **Step 1: Write failing taxonomy tests**
+- [x] **Step 1: Write failing taxonomy tests**
 
 ```ts
 // tests/unit/taxonomy.test.ts
@@ -311,13 +311,13 @@ describe('taxonomy', () => {
 })
 ```
 
-- [ ] **Step 1a: Run taxonomy tests to verify the red state**
+- [x] **Step 1a: Run taxonomy tests to verify the red state**
 
 Run: `pnpm.cmd vitest run tests/unit/taxonomy.test.ts`
 
 Expected: FAIL because `src/config/taxonomy.ts` does not exist.
 
-- [ ] **Step 2: Implement the taxonomy as data, not route conditionals**
+- [x] **Step 2: Implement the taxonomy as data, not route conditionals**
 
 ```ts
 // src/config/taxonomy.ts
@@ -369,7 +369,7 @@ export function getSubcategory(domain: DomainKey, subcategory: string) {
 }
 ```
 
-- [ ] **Step 3: Define and test the schema rules**
+- [x] **Step 3: Define and test the schema rules**
 
 ```ts
 // src/content.config.ts
@@ -449,13 +449,13 @@ describe('post schema', () => {
 })
 ```
 
-- [ ] **Step 4: Run focused and full unit tests**
+- [x] **Step 4: Run focused and full unit tests**
 
 Run: `pnpm.cmd vitest run tests/unit/taxonomy.test.ts tests/unit/content-schema.test.ts`
 
 Expected: all taxonomy and schema tests pass.
 
-- [ ] **Step 5: Commit taxonomy and schema**
+- [x] **Step 5: Commit taxonomy and schema**
 
 ```powershell
 git add src/config/taxonomy.ts src/content.config.ts tests/unit/taxonomy.test.ts tests/unit/content-schema.test.ts
@@ -475,7 +475,7 @@ git commit -m "feat: define extensible content taxonomy"
 - Consumes: `CollectionEntry<'posts'>` and permanent post IDs.
 - Produces: `getPublishedPosts()`, `filterPosts()`, `groupPostsByYear()`, `toPostCard()`, `getReadingTime()`, and `CommentProvider`.
 
-- [ ] **Step 1: Write failing utility tests**
+- [x] **Step 1: Write failing utility tests**
 
 ```ts
 // tests/unit/reading-time.test.ts
@@ -487,7 +487,7 @@ it('counts Chinese characters and Latin words deterministically', () => {
 })
 ```
 
-- [ ] **Step 1a: Run utility tests to verify the red state**
+- [x] **Step 1a: Run utility tests to verify the red state**
 
 Run: `pnpm.cmd vitest run tests/unit/posts.test.ts tests/unit/reading-time.test.ts`
 
@@ -507,7 +507,7 @@ describe('post presentation', () => {
 })
 ```
 
-- [ ] **Step 2: Implement reading time and post presentation**
+- [x] **Step 2: Implement reading time and post presentation**
 
 ```ts
 // src/lib/reading-time.ts
@@ -539,13 +539,13 @@ export interface CommentProvider {
 }
 ```
 
-- [ ] **Step 3: Run focused tests**
+- [x] **Step 3: Run focused tests**
 
 Run: `pnpm.cmd vitest run tests/unit/posts.test.ts tests/unit/reading-time.test.ts`
 
 Expected: grouping, protected summaries, and reading-time assertions pass.
 
-- [ ] **Step 4: Commit utilities**
+- [x] **Step 4: Commit utilities**
 
 ```powershell
 git add src/lib/posts.ts src/lib/reading-time.ts src/lib/comments/contracts.ts tests/unit/posts.test.ts tests/unit/reading-time.test.ts
@@ -571,7 +571,7 @@ git commit -m "feat: add safe post presentation utilities"
 - Consumes: `SITE`, `DOMAINS`, local Iconify sets, and the canonical URL.
 - Produces: `BaseLayout` props `{ title, description, image?, noindex? }`, accessible header/footer, and persisted `light | dark | system` theme behavior.
 
-- [ ] **Step 1: Write the failing shell test**
+- [x] **Step 1: Write the failing shell test**
 
 ```ts
 // tests/e2e/shell.spec.ts
@@ -588,13 +588,13 @@ test('renders accessible navigation and persists theme', async ({ page }) => {
 })
 ```
 
-- [ ] **Step 1a: Run the shell test to verify the red state**
+- [x] **Step 1a: Run the shell test to verify the red state**
 
 Run: `pnpm.cmd test:e2e --project=desktop tests/e2e/shell.spec.ts`
 
 Expected: FAIL because the minimal page has no accessible navigation or theme button.
 
-- [ ] **Step 2: Implement design tokens and global rules**
+- [x] **Step 2: Implement design tokens and global rules**
 
 Define tokens for neutral canvas, surface, text, muted text, borders, four domain accents, type scales, radii, content widths, shadows, and motion. Include both `:root` and `[data-theme='dark']`. Set `color-scheme`, visible `:focus-visible`, `prefers-reduced-motion`, responsive images, and the approved Manrope/Noto Sans SC font stacks.
 
@@ -614,17 +614,17 @@ Use CSS layers in `src/styles/global.css`:
 }
 ```
 
-- [ ] **Step 3: Implement the icon and theme components**
+- [x] **Step 3: Implement the icon and theme components**
 
 `AppIcon.astro` accepts `{ name: string; label?: string; size?: number }`, renders `astro-icon`'s `Icon`, sets `aria-hidden="true"` when no label exists, and otherwise uses `role="img" aria-label={label}`.
 
 `ThemeToggle.astro` renders one button and an inline module script. The script cycles `system -> light -> dark`, stores `minyako-theme`, resolves system preference, updates `data-theme`, and keeps `aria-label="切换主题"`.
 
-- [ ] **Step 4: Implement `BaseLayout`, header, and footer**
+- [x] **Step 4: Implement `BaseLayout`, header, and footer**
 
 `BaseLayout.astro` imports both font packages, KaTeX CSS, and `global.css`; emits canonical, description, OpenGraph, Twitter, RSS, theme-color, viewport, and optional noindex metadata. `SiteHeader` includes 首页、归档、项目、关于、搜索 and a compact domain menu. `SiteFooter` includes RSS, GitHub, CC BY 4.0, and third-party-rights wording.
 
-- [ ] **Step 5: Run browser and static checks**
+- [x] **Step 5: Run browser and static checks**
 
 Run:
 
@@ -636,7 +636,7 @@ pnpm.cmd check
 
 Expected: shell test passes and Astro reports zero errors.
 
-- [ ] **Step 6: Commit the design shell**
+- [x] **Step 6: Commit the design shell**
 
 ```powershell
 git add src/styles src/layouts/BaseLayout.astro src/components/SiteHeader.astro src/components/SiteFooter.astro src/components/AppIcon.astro src/components/ThemeToggle.astro src/config/site.ts src/pages/index.astro tests/e2e/shell.spec.ts
@@ -667,7 +667,7 @@ git commit -m "feat: add accessible visual foundation"
 - Consumes: `getPublishedPosts()`, `toPostCard()`, `DOMAINS`, and `SITE.socials`.
 - Produces: approved image-top-bar homepage and reusable domain/post-card presentation.
 
-- [ ] **Step 1: Write the failing homepage test**
+- [x] **Step 1: Write the failing homepage test**
 
 ```ts
 // tests/e2e/home.spec.ts
@@ -684,13 +684,13 @@ test('homepage presents identity, four domains, and recent writing', async ({ pa
 })
 ```
 
-- [ ] **Step 1a: Run the homepage test to verify the red state**
+- [x] **Step 1a: Run the homepage test to verify the red state**
 
 Run: `pnpm.cmd test:e2e --project=desktop tests/e2e/home.spec.ts`
 
 Expected: FAIL because the banner, identity strip, domain grid, and latest-post section do not exist.
 
-- [ ] **Step 2: Add one valid initial post for each domain**
+- [x] **Step 2: Add one valid initial post for each domain**
 
 Create four MDX files with these exact frontmatter decisions:
 
@@ -770,23 +770,23 @@ contentWarning: { type: sensitive, message: '包含视觉小说剧情与敏感�
 
 Each file initially contains two original paragraphs explaining what that domain will record. Task 7 expands the same files into full capability demonstrations; it does not replace their IDs, slugs, or metadata.
 
-- [ ] **Step 3: Implement the approved homepage components**
+- [x] **Step 3: Implement the approved homepage components**
 
 `HeroBanner` renders a `<picture>` with fixed aspect ratio and a visible credit link. `ProfileStrip` renders the circular avatar overlapping the banner edge, `Minyako`, `@minyako`, the one-line introduction, GitHub, email, and additional-platform icons. The initial banner, avatar, and covers are original repository-owned geometric fallback SVGs, not copied third-party artwork.
 
 `DomainGrid` maps `Object.entries(DOMAINS)` and generates `/domains/<domain>` links. `LatestPosts` shows the newest featured post as the wide lead and the next two posts as compact rows; if no featured post exists, the newest post is the lead.
 
-- [ ] **Step 4: Replace the minimal index with `BaseLayout` and the components**
+- [x] **Step 4: Replace the minimal index with `BaseLayout` and the components**
 
 The page fetches `const posts = await getPublishedPosts()` and passes card-safe results only. Do not access raw protected descriptions or covers in homepage components.
 
-- [ ] **Step 5: Run the homepage test at desktop and mobile widths**
+- [x] **Step 5: Run the homepage test at desktop and mobile widths**
 
 Run: `pnpm.cmd test:e2e tests/e2e/home.spec.ts`
 
 Expected: both configured Playwright projects pass without horizontal overflow.
 
-- [ ] **Step 6: Commit the homepage and initial posts**
+- [x] **Step 6: Commit the homepage and initial posts**
 
 ```powershell
 git add src/components/HeroBanner.astro src/components/ProfileStrip.astro src/components/DomainGrid.astro src/components/LatestPosts.astro public/images/home public/images/profile public/images/posts src/content/posts src/pages/index.astro tests/e2e/home.spec.ts
@@ -809,7 +809,7 @@ git commit -m "feat: build image-led blog homepage"
 - Consumes: `filterPosts()`, `groupPostsByYear()`, `toPostCard()`, and configured taxonomy.
 - Produces: every domain/subcategory route and the approved left-text/right-image listing card.
 
-- [ ] **Step 1: Write failing route and layout tests**
+- [x] **Step 1: Write failing route and layout tests**
 
 ```ts
 // tests/e2e/listings.spec.ts
@@ -831,25 +831,25 @@ test('all configured domain entrances resolve', async ({ page }) => {
 })
 ```
 
-- [ ] **Step 1a: Run listing tests to verify the red state**
+- [x] **Step 1a: Run listing tests to verify the red state**
 
 Run: `pnpm.cmd test:e2e --project=desktop tests/e2e/listings.spec.ts`
 
 Expected: FAIL because `/archives` and `/domains/<domain>` have not been generated.
 
-- [ ] **Step 2: Implement `PostCard` and archive grouping**
+- [x] **Step 2: Implement `PostCard` and archive grouping**
 
 `PostCard.astro` receives only `ReturnType<typeof toPostCard>`. Desktop uses a wide grid with text left and cover right; a pseudo-element gradient preserves contrast. Missing/protected covers use a domain-colored geometric pattern. Mobile stacks the card. The card contains one stretched semantic link and one visible focus state.
 
-- [ ] **Step 3: Generate domain and subcategory routes from configuration**
+- [x] **Step 3: Generate domain and subcategory routes from configuration**
 
 Both dynamic files use `getStaticPaths()`. The domain route maps `Object.keys(DOMAINS)`. The subcategory route flattens every configured domain's `subcategories`. No hard-coded route array is allowed outside `taxonomy.ts`.
 
-- [ ] **Step 4: Generate archive, tag, and collection routes from content**
+- [x] **Step 4: Generate archive, tag, and collection routes from content**
 
 Archive groups by year descending. Tag and collection routes derive unique values from published posts and pass every post through `toPostCard()`.
 
-- [ ] **Step 5: Run list tests and build route generation**
+- [x] **Step 5: Run list tests and build route generation**
 
 Run:
 
@@ -860,7 +860,7 @@ pnpm.cmd build:astro
 
 Expected: all four domain pages return 200 and generated `dist/domains`, `dist/archives`, `dist/tags`, and `dist/collections` contain HTML.
 
-- [ ] **Step 6: Commit listings**
+- [x] **Step 6: Commit listings**
 
 ```powershell
 git add src/components/PostCard.astro src/components/ArchiveGroup.astro src/pages/domains src/pages/archives src/pages/tags src/pages/collections tests/e2e/listings.spec.ts
@@ -885,7 +885,7 @@ git commit -m "feat: add taxonomy and archive listings"
 - Consumes: content schema, `getReadingTime()`, rendered headings, permanent IDs, and safe metadata.
 - Produces: static article pages demonstrating citations, math, code, callouts, imagery, warnings, and long-form reading.
 
-- [ ] **Step 1: Write the failing article behavior test**
+- [x] **Step 1: Write the failing article behavior test**
 
 ```ts
 // tests/e2e/article.spec.ts
@@ -901,17 +901,17 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
 })
 ```
 
-- [ ] **Step 1a: Run the article test to verify the red state**
+- [x] **Step 1a: Run the article test to verify the red state**
 
 Run: `pnpm.cmd test:e2e --project=desktop tests/e2e/article.spec.ts`
 
 Expected: FAIL because the static post route and article layout do not exist.
 
-- [ ] **Step 2: Implement article route and layout**
+- [x] **Step 2: Implement article route and layout**
 
 `[...slug].astro` uses `getStaticPaths()` over published posts, renders the entry, calculates reading time from `body`, and passes headings to `ArticleLayout`. `ArticleLayout` renders title, description, domain/subcategory, dates, reading time, tags, license, desktop sticky TOC, mobile disclosure TOC, prose content, previous/next links, and an empty `<section data-comment-slot data-page-key={post.data.id}>` for the later comment adapter.
 
-- [ ] **Step 3: Write four original representative MDX posts**
+- [x] **Step 3: Write four original representative MDX posts**
 
 Each post must be a coherent publishable demonstration rather than lorem ipsum:
 
@@ -922,7 +922,7 @@ Each post must be a coherent publishable demonstration rather than lorem ipsum:
 
 Keep the stable IDs and subcategories created in Task 5. Keep the engineering post `featured: true`. Use only repository-owned geometric SVG covers in this plan.
 
-- [ ] **Step 4: Run article test, schema check, and build**
+- [x] **Step 4: Run article test, schema check, and build**
 
 Run:
 
@@ -934,7 +934,7 @@ pnpm.cmd build:astro
 
 Expected: four article pages build; technical article exposes code and KaTeX; no schema errors occur.
 
-- [ ] **Step 5: Commit articles and layout**
+- [x] **Step 5: Commit articles and layout**
 
 ```powershell
 git add src/layouts/ArticleLayout.astro src/components/TableOfContents.astro src/components/ArticleMeta.astro src/components/ContentNotice.astro src/pages/posts src/content/posts tests/e2e/article.spec.ts public/images/posts
@@ -961,7 +961,7 @@ git commit -m "feat: add long-form article experience"
 - Consumes: `contentWarning`, `toPostCard()`, Pagefind assets, and SITE metadata.
 - Produces: protected-content interaction, safe feed items, searchable static output, About/projects/404, and complete metadata.
 
-- [ ] **Step 1: Write failing warning and feed-safety tests**
+- [x] **Step 1: Write failing warning and feed-safety tests**
 
 ```ts
 // tests/e2e/warnings.spec.ts
@@ -980,7 +980,7 @@ test('sensitive page requires confirmation and remembers it for the session', as
 
 `tests/unit/rss-safety.test.ts` passes a sensitive post to an exported `toFeedItem()` helper and asserts the result contains `此内容需要确认后查看。` and does not contain the raw protected description or cover URL.
 
-- [ ] **Step 1a: Run warning and feed tests to verify the red state**
+- [x] **Step 1a: Run warning and feed tests to verify the red state**
 
 Run:
 
@@ -991,21 +991,21 @@ pnpm.cmd test:e2e --project=desktop tests/e2e/warnings.spec.ts
 
 Expected: FAIL because `toFeedItem()` and the confirmation dialog do not exist.
 
-- [ ] **Step 2: Implement accessible warning interactions**
+- [x] **Step 2: Implement accessible warning interactions**
 
 `ContentWarningDialog` uses native `<dialog>`, moves focus to the confirmation action, closes only through explicit continue/back actions, restores focus when appropriate, and stores `minyako-warning:<pageKey>=accepted` in `sessionStorage`. Without JavaScript, the warning text remains visible before content.
 
 `Spoiler.astro` renders a button-controlled blurred region with `aria-expanded`; it supports keyboard reveal and does not reveal on hover alone.
 
-- [ ] **Step 3: Implement Pagefind search with failure fallback**
+- [x] **Step 3: Implement Pagefind search with failure fallback**
 
 The search page imports `/pagefind/pagefind-ui.js` from built output, initializes the UI on page load, sets the Chinese input hint `搜索文章、标签与合集`, and shows a static link to `/archives` when loading fails. Add `data-pagefind-body` to article content and `data-pagefind-ignore` to navigation, warnings, and comment slots.
 
-- [ ] **Step 4: Implement safe RSS, About, projects, and 404**
+- [x] **Step 4: Implement safe RSS, About, projects, and 404**
 
 `rss.xml.ts` calls `getPublishedPosts()` and `toFeedItem()`; it never uses raw protected summaries. About documents the site purpose and CC BY 4.0 versus third-party rights. Projects starts with a concise empty-state card that is valid production content. The 404 page provides home, search, and archive actions.
 
-- [ ] **Step 5: Verify warnings, search bundle, feeds, and metadata**
+- [x] **Step 5: Verify warnings, search bundle, feeds, and metadata**
 
 Run:
 
@@ -1018,7 +1018,7 @@ pnpm.cmd exec playwright test tests/e2e/search.spec.ts
 
 Expected: warnings pass, `dist/pagefind` exists, `dist/rss.xml` contains no protected raw summary, and search finds the engineering example post.
 
-- [ ] **Step 6: Commit utility features**
+- [x] **Step 6: Commit utility features**
 
 ```powershell
 git add src/components/ContentWarningDialog.astro src/components/Spoiler.astro src/pages/search.astro src/pages/rss.xml.ts src/pages/about.astro src/pages/projects.astro src/pages/404.astro src/layouts tests/unit/rss-safety.test.ts tests/e2e/warnings.spec.ts tests/e2e/search.spec.ts
@@ -1039,7 +1039,7 @@ git commit -m "feat: add safe discovery and content warnings"
 - Consumes: every representative route and deterministic content fixtures.
 - Produces: automated accessibility checks, phone/tablet/desktop light/dark screenshots, uploaded diff artifacts, and a documented local workflow.
 
-- [ ] **Step 1: Write accessibility and visual suites**
+- [x] **Step 1: Write accessibility and visual suites**
 
 ```ts
 // tests/e2e/accessibility.spec.ts
@@ -1055,7 +1055,7 @@ for (const path of ['/', '/archives', '/posts/astro-content-architecture', '/abo
 }
 ```
 
-- [ ] **Step 1a: Run visual tests to verify the missing-baseline state**
+- [x] **Step 1a: Run visual tests to verify the missing-baseline state**
 
 Run: `pnpm.cmd exec playwright test tests/e2e/visual.spec.ts --project=desktop`
 
@@ -1082,11 +1082,11 @@ for (const theme of ['light', 'dark'] as const) {
 }
 ```
 
-- [ ] **Step 2: Add a tablet screenshot project and deterministic fixtures**
+- [x] **Step 2: Add a tablet screenshot project and deterministic fixtures**
 
 Add `{ name: 'tablet', use: { viewport: { width: 834, height: 1112 } } }` to `playwright.config.ts`. In `fixtures.ts`, freeze the clock to `2026-07-12T00:00:00+08:00`, disable transitions, and intercept the later comment endpoint pattern with an empty stable response. Import the fixture's `test` in `visual.spec.ts`.
 
-- [ ] **Step 3: Generate and inspect screenshot baselines**
+- [x] **Step 3: Generate and inspect screenshot baselines**
 
 Run:
 
@@ -1098,7 +1098,7 @@ pnpm.cmd exec playwright test tests/e2e/visual.spec.ts
 
 Expected: accessibility suite has zero serious/critical violations; the second visual run has zero pixel mismatches. Manually inspect banner crop, icons, line wrapping, archive gradients, focus rings, and protected imagery before staging snapshots.
 
-- [ ] **Step 4: Add GitHub Actions CI**
+- [x] **Step 4: Add GitHub Actions CI**
 
 ```yaml
 # .github/workflows/ci.yml
@@ -1129,11 +1129,11 @@ jobs:
             test-results/
 ```
 
-- [ ] **Step 5: Document developer workflow and visual review gate**
+- [x] **Step 5: Document developer workflow and visual review gate**
 
 README must document Node/pnpm versions, `pnpm dev`, authoring location, taxonomy configuration, `pnpm build`, unit/e2e/visual commands, how to review and intentionally update screenshots, public-repository draft warning, and the separation of future Waline/media/deployment plans.
 
-- [ ] **Step 6: Run the complete release gate**
+- [x] **Step 6: Run the complete release gate**
 
 Run:
 
@@ -1147,7 +1147,7 @@ git diff --check
 
 Expected: zero type errors, zero unit failures, successful Astro and Pagefind builds, zero browser failures, and no whitespace errors.
 
-- [ ] **Step 7: Commit CI, docs, and baselines**
+- [x] **Step 7: Commit CI, docs, and baselines**
 
 ```powershell
 git add .github/workflows/ci.yml README.md playwright.config.ts tests/e2e tests/e2e/visual.spec.ts-snapshots
@@ -1164,7 +1164,7 @@ git commit -m "test: add frontend release gates"
 - Consumes: all outputs from Tasks 1-9 and the approved design spec.
 - Produces: durable evidence that the static-core subproject is ready for the Waline/media/deployment plans.
 
-- [ ] **Step 1: Run the clean-clone-equivalent verification**
+- [x] **Step 1: Run the clean-clone-equivalent verification**
 
 Run:
 
@@ -1179,11 +1179,11 @@ git status --short
 
 Expected: all commands pass; only the preserved pre-existing untracked Chinese design translation may appear in status unless separately committed by its owner.
 
-- [ ] **Step 2: Write acceptance evidence**
+- [x] **Step 2: Write acceptance evidence**
 
 `docs/verification/static-core-acceptance.md` records the tested commit, command results, generated route count, browser projects, screenshot count, accessibility result, manual visual observations, known scope exclusions, and the exact next plans: Waline integration, server media workflow, and production deployment.
 
-- [ ] **Step 3: Mark completed plan checkboxes and commit evidence**
+- [x] **Step 3: Mark completed plan checkboxes and commit evidence**
 
 ```powershell
 git add docs/superpowers/plans/2026-07-12-static-blog-core.md docs/verification/static-core-acceptance.md
