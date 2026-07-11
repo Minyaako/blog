@@ -1,0 +1,80 @@
+---
+import { DOMAINS } from '../config/taxonomy'
+import type { PostCardData } from '../lib/posts'
+
+interface Props { post: PostCardData }
+const { post } = Astro.props
+const domain = DOMAINS[post.domain]
+const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(post.publishedAt)
+---
+
+<article class="post-card" data-post-card data-domain={post.domain}>
+  <a class="card-link" href={`/posts/${post.slug}`}>
+    <div class="card-copy">
+      <p class="meta"><time datetime={post.publishedAt.toISOString()}>{date}</time> · {domain.label}</p>
+      <h3>{post.title}</h3>
+      <p class="description">{post.description}</p>
+      <ul aria-label="文章标签">
+        {post.tags.map((tag) => <li>{tag}</li>)}
+      </ul>
+    </div>
+    <div class:list={['card-image', { placeholder: !post.cover }]} data-card-image aria-hidden={!post.cover ? 'true' : undefined}>
+      {post.cover && <img src={post.cover.url} alt={post.cover.alt} loading="lazy" width="560" height="320" />}
+    </div>
+  </a>
+</article>
+
+<style>
+  .post-card {
+    --card-accent: var(--engineering);
+    overflow: clip;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .post-card[data-domain='academic'] { --card-accent: var(--academic); }
+  .post-card[data-domain='life'] { --card-accent: var(--life); }
+  .post-card[data-domain='games'] { --card-accent: var(--games); }
+  .card-link {
+    display: grid;
+    min-height: 18rem;
+    grid-template-columns: minmax(0, 1.08fr) minmax(18rem, 0.92fr);
+    color: inherit;
+    text-decoration: none;
+  }
+  .card-copy {
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+  }
+  .meta { margin: 0; color: var(--text-muted); font: var(--text-caption)/1.4 var(--font-mono); letter-spacing: 0.05em; }
+  h3 { max-width: 24ch; margin: var(--space-3) 0; font: 720 clamp(1.4rem, 1.15rem + 1vw, 2.2rem)/1.25 var(--font-display); }
+  .description { max-width: 50ch; margin: 0; color: var(--text-muted); line-height: 1.7; }
+  ul { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-5) 0 0; padding: 0; list-style: none; }
+  li { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 99rem; color: var(--text-muted); font-size: 0.76rem; }
+  .card-image { position: relative; min-height: 15rem; background: color-mix(in srgb, var(--card-accent) 18%, var(--surface)); }
+  .card-image::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--surface) 0%, transparent 35%);
+    content: '';
+  }
+  .card-image img { width: 100%; height: 100%; object-fit: cover; transition: transform 280ms ease; }
+  .placeholder {
+    background-color: color-mix(in srgb, var(--card-accent) 16%, var(--surface));
+    background-image: linear-gradient(30deg, transparent 46%, color-mix(in srgb, var(--card-accent) 42%, transparent) 47% 53%, transparent 54%), radial-gradient(circle at 65% 40%, var(--card-accent) 0 8%, transparent 9%);
+    background-size: 4rem 4rem, 100% 100%;
+  }
+  .card-link:hover h3 { color: var(--card-accent); }
+  .card-link:hover img { transform: scale(1.025); }
+  .card-link:focus-visible { outline-offset: -4px; }
+  @media (max-width: 44rem) {
+    .card-link { grid-template-columns: 1fr; }
+    .card-copy { padding: var(--space-5); }
+    .card-image { min-height: 11rem; grid-row: 1; }
+    .card-image::after { background: linear-gradient(0deg, var(--surface) 0%, transparent 45%); }
+  }
+</style>
