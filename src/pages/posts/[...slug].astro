@@ -1,0 +1,15 @@
+---
+import type { GetStaticPaths } from 'astro'
+import { render } from 'astro:content'
+import ArticleLayout from '../../layouts/ArticleLayout.astro'
+import { getPublishedPosts, toPostCard } from '../../lib/posts'
+import { getReadingTime } from '../../lib/reading-time'
+export const getStaticPaths = (async () => {
+  const posts = await getPublishedPosts()
+  return posts.map((post, index) => ({ params: { slug: toPostCard(post).slug }, props: { post, previous: posts[index + 1] ? toPostCard(posts[index + 1]) : undefined, next: posts[index - 1] ? toPostCard(posts[index - 1]) : undefined } }))
+}) satisfies GetStaticPaths
+const { post, previous, next } = Astro.props
+const { Content, headings } = await render(post)
+const { minutes } = getReadingTime(post.body ?? '')
+---
+<ArticleLayout {post} {headings} {minutes} {previous} {next}><Content /></ArticleLayout>
