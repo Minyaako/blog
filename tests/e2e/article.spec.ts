@@ -8,3 +8,16 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
   await expect(page.locator('.katex').first()).toBeVisible()
   await expect(page.locator('[data-page-key]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
 })
+
+test('existing public articles use their mapped WebP headers', async ({ page }) => {
+  const articles = [
+    ['/posts/embodied-ai-reading', '/images/posts/academic-cover.webp'],
+    ['/posts/astro-content-architecture', '/images/posts/engineering-cover.webp'],
+    ['/posts/july-field-notes', '/images/posts/life-cover.webp']
+  ] as const
+
+  for (const [path, cover] of articles) {
+    await page.goto(path)
+    await expect(page.locator('.cover img')).toHaveAttribute('src', cover)
+  }
+})

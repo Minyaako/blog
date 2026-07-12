@@ -6,6 +6,7 @@ test('sensitive page requires confirmation and remembers it for the session', as
   await expect(dialog).toBeVisible()
   await dialog.getByRole('button', { name: '确认并继续' }).click()
   await expect(dialog).toBeHidden()
+  await expect(page.locator('.cover img')).toHaveAttribute('src', '/images/posts/games-cover.webp')
   await page.reload()
   await expect(dialog).toBeHidden()
 })
