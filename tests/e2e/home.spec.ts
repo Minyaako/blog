@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('homepage presents identity, four domains, and recent writing', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('img', { name: 'Minyako 首页横幅' })).toBeVisible()
+  await expect(page.getByRole('img', { name: '首页横幅：伏案小憩的少女' })).toBeVisible()
   await expect(page.getByText('@minyako')).toBeVisible()
 
   for (const label of ['学术', '技术', '生活', '游戏']) {
@@ -10,6 +10,34 @@ test('homepage presents identity, four domains, and recent writing', async ({ pa
   }
 
   await expect(page.getByRole('heading', { name: '最新长文' })).toBeVisible()
+})
+
+test('homepage crossfades to the second image after one minute', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-07-12T00:00:00+08:00') })
+  await page.goto('/')
+
+  const slides = page.locator('[data-hero-slide]')
+  await expect(slides).toHaveCount(2)
+  await expect(slides.nth(0)).toHaveAttribute('data-active', 'true')
+  await expect(slides.nth(1)).toHaveAttribute('data-active', 'false')
+
+  await page.clock.fastForward(60_000)
+
+  await expect(slides.nth(0)).toHaveAttribute('data-active', 'false')
+  await expect(slides.nth(1)).toHaveAttribute('data-active', 'true')
+})
+
+test('homepage keeps the first image when reduced motion is requested', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.clock.install({ time: new Date('2026-07-12T00:00:00+08:00') })
+  await page.goto('/')
+
+  const slides = page.locator('[data-hero-slide]')
+  await expect(slides).toHaveCount(2)
+  await page.clock.fastForward(120_000)
+
+  await expect(slides.nth(0)).toHaveAttribute('data-active', 'true')
+  await expect(slides.nth(1)).toHaveAttribute('data-active', 'false')
 })
 
 test('homepage does not overflow horizontally', async ({ page }) => {

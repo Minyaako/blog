@@ -1,7 +1,77 @@
-<figure class="hero-banner">
-  <img src="/images/home/banner-geometric.svg" alt="Minyako 首页横幅" width="1600" height="520" />
-  <figcaption>Current scenery · Original geometric study by Minyako</figcaption>
+---
+const slides = [
+  {
+    src: '/images/home/hero-01.webp',
+    alt: '首页横幅：伏案小憩的少女',
+    width: 2559,
+    height: 1130
+  },
+  {
+    src: '/images/home/hero-02.webp',
+    alt: '首页横幅：花瓣光影中的白发少女',
+    width: 2559,
+    height: 1439
+  }
+]
+---
+
+<figure class="hero-banner" data-hero-rotator>
+  {slides.map((slide, index) => (
+    <img
+      src={slide.src}
+      alt={slide.alt}
+      width={slide.width}
+      height={slide.height}
+      loading="eager"
+      fetchpriority={index === 0 ? 'high' : 'low'}
+      data-hero-slide
+      data-active={index === 0 ? 'true' : 'false'}
+      aria-hidden={index === 0 ? 'false' : 'true'}
+    />
+  ))}
+  <figcaption>Personal visual selection · Third-party rights retained</figcaption>
 </figure>
+
+<script>
+  const intervalMs = 60_000
+
+  document.querySelectorAll<HTMLElement>('[data-hero-rotator]').forEach((rotator) => {
+    if (rotator.dataset.initialized === 'true') return
+    rotator.dataset.initialized = 'true'
+
+    const slides = Array.from(rotator.querySelectorAll<HTMLElement>('[data-hero-slide]'))
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    let activeIndex = 0
+    let timer: number | undefined
+
+    const show = (index: number) => {
+      activeIndex = index
+      slides.forEach((slide, slideIndex) => {
+        const active = slideIndex === activeIndex
+        slide.dataset.active = String(active)
+        slide.setAttribute('aria-hidden', String(!active))
+      })
+    }
+
+    const stop = () => {
+      if (timer !== undefined) window.clearInterval(timer)
+      timer = undefined
+    }
+
+    const start = () => {
+      stop()
+      if (reducedMotion.matches || document.hidden || slides.length < 2) return
+      timer = window.setInterval(() => show((activeIndex + 1) % slides.length), intervalMs)
+    }
+
+    document.addEventListener('visibilitychange', start)
+    reducedMotion.addEventListener('change', () => {
+      if (reducedMotion.matches) show(0)
+      start()
+    })
+    start()
+  })
+</script>
 
 <style>
   .hero-banner {
@@ -15,7 +85,18 @@
     box-shadow: var(--shadow-soft);
   }
 
-  img { width: 100%; height: 100%; object-fit: cover; }
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.2s ease;
+  }
+
+  img[data-active='true'] { opacity: 1; }
 
   figcaption {
     position: absolute;
@@ -30,5 +111,9 @@
   @media (max-width: 40rem) {
     .hero-banner { aspect-ratio: 16 / 8.5; }
     figcaption { inset-inline: var(--space-3); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    img { transition: none; }
   }
 </style>
