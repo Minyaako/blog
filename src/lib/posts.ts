@@ -57,6 +57,7 @@ export function groupPostsByYear(posts: CollectionEntry<'posts'>[]) {
 
 export function toPostCard(post: CollectionEntry<'posts'>): PostCardData {
   const protectedContent = post.data.contentWarning.type !== 'none'
+  const hideCover = post.data.tags.includes('隐藏封面')
   const filename = post.id.split('/').at(-1) ?? post.id
   const slug = filename.replace(/\.(md|mdx)$/i, '')
 
@@ -69,7 +70,7 @@ export function toPostCard(post: CollectionEntry<'posts'>): PostCardData {
     domain: post.data.domain,
     subcategory: post.data.subcategory,
     tags: post.data.tags,
-    cover: protectedContent ? undefined : post.data.cover,
+    cover: hideCover ? undefined : post.data.cover,
     protected: protectedContent
   }
 }

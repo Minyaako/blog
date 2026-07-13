@@ -34,15 +34,34 @@ const sensitive = {
   }
 }
 
+const hiddenCover = {
+  ...sensitive,
+  data: {
+    ...sensitive.data,
+    id: 'post-3',
+    tags: ['视觉小说', '隐藏封面']
+  }
+}
+
 describe('post presentation', () => {
   it('groups posts by publication year', () => {
     expect([...groupPostsByYear([normal, sensitive] as never).keys()]).toEqual([2026, 2025])
   })
 
-  it('replaces protected summaries and covers', () => {
+  it('keeps protected summaries without hiding covers', () => {
     const card = toPostCard(sensitive as never)
     expect(card.description).toBe('此内容需要确认后查看。')
-    expect(card.cover).toBeUndefined()
+    expect(card.cover).toEqual(sensitive.data.cover)
+  })
+
+  it('hides a configured cover only when the exact control tag is present', () => {
+    expect(toPostCard(hiddenCover as never).cover).toBeUndefined()
+    expect(
+      toPostCard({
+        ...hiddenCover,
+        data: { ...hiddenCover.data, tags: ['视觉小说', '隐藏封面扩展'] }
+      } as never).cover
+    ).toEqual(sensitive.data.cover)
   })
 
   it('creates a taxonomy-independent slug and permanent page key', () => {
