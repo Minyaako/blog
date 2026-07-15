@@ -55,6 +55,10 @@ pnpm exec playwright test tests/e2e/visual.spec.ts --update-snapshots
 
 视觉基线按 `win32` 和 `linux` 分目录保存。Windows 本地检查使用 `win32`；GitHub Actions 使用 `linux`。只有在人工检查全部 42 张结果后，才可通过 PR 专用变量 `REFRESH_VISUAL_BASELINES=true` 生成 Linux artifact；下载并提交后立即恢复为 `false`，再让普通 PR 检查执行像素比较。
 
+## 生产部署
+
+生产发布、验证、回滚和密钥轮换步骤见 [部署手册](docs/deployment.md)。博客仓库只维护应用镜像、Compose、发布程序和 Actions；绑定 80/443 的共享 Caddy 属于独立的 `server-infra` 仓库，本仓库不拥有或直接覆盖其基础配置。
+
 ## 动态服务边界
 
 - 评论：正文只暴露稳定的 `data-page-key` 与评论插槽。首版计划通过独立 API 封装 Waline，博客不直接绑定其数据库；免登录昵称头像和 GitHub 快捷登录属于后续接口能力。
