@@ -1,5 +1,5 @@
 export const SITE = {
-  origin: 'https://minyakogsk.icu',
+  origin: 'https://gsk.minyako.top',
   title: 'Minyako',
   id: '@minyako',
   description: '研究、技术、生活与视觉小说的个人记录。',
