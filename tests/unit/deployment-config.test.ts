@@ -25,6 +25,34 @@ type ComposeDocument = {
   networks?: Record<string, { external?: boolean }>
 }
 
+type WorkflowStep = {
+  name?: string
+  uses?: string
+  if?: string
+  run?: string
+  env?: Record<string, string>
+  with?: Record<string, unknown>
+}
+
+type WorkflowJob = {
+  if?: string
+  needs?: string | string[]
+  'runs-on'?: string
+  permissions?: Record<string, string>
+  environment?: string
+  concurrency?: {
+    group?: string
+    'cancel-in-progress'?: boolean
+  }
+  steps?: WorkflowStep[]
+}
+
+type WorkflowDocument = {
+  on?: Record<string, unknown>
+  permissions?: Record<string, string>
+  jobs?: Record<string, WorkflowJob>
+}
+
 const read = (path: string) => readFileSync(path, 'utf8').replaceAll('\r\n', '\n')
 
 const stripCaddyComment = (line: string) => {
@@ -169,6 +197,116 @@ const assertCaddyContract = (caddyfile: string) => {
   )
 }
 
+const findStep = (job: WorkflowJob, use: string) =>
+  job.steps?.find((step) => step.uses === use)
+
+const assertWorkflowContract = (source: string) => {
+  const workflow = parse(source) as WorkflowDocument
+  const triggers = workflow.on ?? {}
+  const jobs = workflow.jobs ?? {}
+  const verify = jobs.verify ?? {}
+  const publish = jobs['publish-image'] ?? {}
+  const deploy = jobs['deploy-production'] ?? {}
+
+  expect(Object.keys(triggers).sort()).toEqual([
+    'pull_request',
+    'push',
+    'workflow_dispatch',
+  ])
+  expect(triggers.push).toEqual({ branches: ['main'] })
+  expect(workflow.permissions).toEqual({ contents: 'read' })
+  expect(Object.keys(jobs)).toEqual([
+    'verify',
+    'publish-image',
+    'deploy-production',
+  ])
+
+  expect(verify.if).toBeUndefined()
+  expect(verify.permissions).toBeUndefined()
+  expect(
+    verify.steps?.some(
+      (step) =>
+        step.run ===
+        'sh -n deploy/bin/blog-release tests/deploy/blog-release.test.sh',
+    ),
+  ).toBe(true)
+  expect(
+    verify.steps?.some((step) => step.run === 'pnpm test:deploy'),
+  ).toBe(true)
+  expect(JSON.stringify(verify)).not.toMatch(/DEPLOY_|secrets\./)
+
+  expect(publish.if).toBe(
+    "${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}",
+  )
+  expect(publish.needs).toBe('verify')
+  expect(publish.permissions).toEqual({ contents: 'read', packages: 'write' })
+  expect(findStep(publish, 'actions/checkout@v4')).toBeDefined()
+  expect(findStep(publish, 'docker/setup-buildx-action@v3')).toBeDefined()
+  expect(findStep(publish, 'docker/login-action@v3')?.with).toEqual({
+    registry: 'ghcr.io',
+    username: '${{ github.actor }}',
+    password: '${{ secrets.GITHUB_TOKEN }}',
+  })
+  expect(findStep(publish, 'docker/build-push-action@v6')?.with).toEqual({
+    context: '.',
+    push: true,
+    tags: 'ghcr.io/minyaako/blog:${{ github.sha }}',
+  })
+  expect(JSON.stringify(publish)).not.toMatch(/DEPLOY_/)
+
+  expect(deploy.if).toBe(
+    "${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true' }}",
+  )
+  expect(deploy.needs).toBe('publish-image')
+  expect(deploy.environment).toBe('production')
+  expect(deploy.permissions).toBeUndefined()
+  expect(deploy.concurrency).toEqual({
+    group: 'blog-production',
+    'cancel-in-progress': false,
+  })
+
+  const configureSsh = deploy.steps?.find(
+    (step) => step.name === 'Configure restricted SSH',
+  )
+  expect(configureSsh?.env).toEqual({
+    SSH_KEY: '${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}',
+    KNOWN_HOSTS: '${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}',
+  })
+  expect(configureSsh?.run).toContain('install -m 700 -d "$HOME/.ssh"')
+  expect(configureSsh?.run).toContain(
+    'printf \'%s\\n\' "$SSH_KEY" > "$HOME/.ssh/id_ed25519"',
+  )
+  expect(configureSsh?.run).toContain('chmod 600 "$HOME/.ssh/id_ed25519"')
+  expect(configureSsh?.run).toContain(
+    'printf \'%s\\n\' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"',
+  )
+  expect(configureSsh?.run).toContain('chmod 600 "$HOME/.ssh/known_hosts"')
+
+  const deployImage = deploy.steps?.find(
+    (step) => step.name === 'Deploy immutable image',
+  )
+  expect(deployImage?.run).toContain('ssh -o BatchMode=yes')
+  expect(deployImage?.run).toContain(
+    '"${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}"',
+  )
+  expect(deployImage?.run).toContain('"deploy ${{ github.sha }}"')
+
+  expect(source).not.toContain(':latest')
+  expect(source.match(/packages:\s*write/g)).toHaveLength(1)
+  expect(source.match(/vars\.DEPLOY_/g)).toHaveLength(3)
+  expect(source.match(/secrets\.DEPLOY_/g)).toHaveLength(2)
+
+  const workflowOutsideDeploy = {
+    ...workflow,
+    jobs: Object.fromEntries(
+      Object.entries(jobs).filter(([name]) => name !== 'deploy-production'),
+    ),
+  }
+  expect(JSON.stringify(workflowOutsideDeploy)).not.toMatch(
+    /(?:vars|secrets)\.DEPLOY_/,
+  )
+}
+
 describe('production container contract', () => {
   const dockerfile = read('Dockerfile')
   const compose = read('deploy/compose.yml')
@@ -298,5 +436,50 @@ describe('production container contract', () => {
 
     expect(ignored).toContain('.superpowers')
     expect(ignored).toContain('.env*')
+  })
+})
+
+describe('GitHub Actions release contract', () => {
+  const workflow = read('.github/workflows/ci.yml')
+
+  it('accepts the least-privilege verify, publish, and deploy workflow', () => {
+    assertWorkflowContract(workflow)
+  })
+
+  it.each([
+    [
+      'deployment without the explicit enable gate',
+      workflow.replace(" && vars.DEPLOY_ENABLED == 'true'", ''),
+    ],
+    [
+      'a mutable latest image tag',
+      workflow.replace(
+        'ghcr.io/minyaako/blog:${{ github.sha }}',
+        'ghcr.io/minyaako/blog:latest',
+      ),
+    ],
+    [
+      'publishing from pull requests',
+      workflow.replace(
+        "github.event_name != 'pull_request'",
+        "github.event_name == 'pull_request'",
+      ),
+    ],
+    [
+      'a privileged pull-request trigger',
+      workflow.replace(
+        '  pull_request:\n',
+        '  pull_request:\n  pull_request_target:\n',
+      ),
+    ],
+    [
+      'package write permission at workflow scope',
+      workflow.replace(
+        'permissions:\n  contents: read',
+        'permissions:\n  contents: read\n  packages: write',
+      ),
+    ],
+  ])('rejects %s', (_name, mutated) => {
+    expect(() => assertWorkflowContract(mutated)).toThrow()
   })
 })
