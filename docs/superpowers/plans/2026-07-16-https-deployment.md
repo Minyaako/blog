@@ -380,6 +380,16 @@ git commit -m "feat: add immutable static site image"
 - Consumes: command `deploy $sha` or `status`, `/srv/apps/blog/compose.yml`, Docker, curl, and public GHCR.
 - Produces: atomic `state/current`, `state/previous`, candidate health validation, stable Compose replacement, public HTTPS checks, and automatic restoration of the previous SHA.
 
+**Lock safety refinement (2026-07-16):** the initial directory-lock sketch had
+an unavoidable signal window between `mkdir state/deploy.lock` and recording
+local ownership. Task 4 therefore keeps the public path `state/deploy.lock`
+but implements it as an atomic owned hard-link lock. A process first writes a
+private owner token whose path is known to the installed signal traps, then
+atomically links that token to `deploy.lock`. Cleanup removes only token/lock
+files whose owner content matches the current process; a foreign lock is never
+removed. This is an internal safety refinement and does not change the
+`status`/`deploy` interface, state paths, image contract, or infrastructure.
+
 - [ ] **Step 1: Write a shell test harness before the release program**
 
 Create `tests/deploy/blog-release.test.sh`:
@@ -456,12 +466,13 @@ unset FAIL_IMAGE
 test "$(cat "$BLOG_STATE_DIR/current")" = "$one"
 grep -q "BLOG_IMAGE=ghcr.io/minyaako/blog:$one compose" "$DOCKER_LOG"
 
-mkdir "$BLOG_STATE_DIR/deploy.lock"
+printf 'foreign-owner\n' > "$BLOG_STATE_DIR/deploy.lock"
 if "$ROOT/deploy/bin/blog-release" deploy "$three"; then
   echo 'concurrent deployment was accepted' >&2
   exit 1
 fi
-rmdir "$BLOG_STATE_DIR/deploy.lock"
+test "$(cat "$BLOG_STATE_DIR/deploy.lock")" = foreign-owner
+rm "$BLOG_STATE_DIR/deploy.lock"
 ```
 
 Run `bash tests/deploy/blog-release.test.sh` and expect failure because `deploy/bin/blog-release` does not exist.
@@ -481,7 +492,10 @@ DOCKER=${DOCKER_BIN:-docker}
 CURL=${CURL_BIN:-curl}
 IMAGE_REPO=ghcr.io/minyaako/blog
 ORIGIN=https://gsk.minyako.top
-LOCK_DIR=$STATE_DIR/deploy.lock
+LOCK_FILE=$STATE_DIR/deploy.lock
+LOCK_OWNER=
+LOCK_PENDING=
+LOCK_TOKEN=
 CANDIDATE=
 
 die() { echo "blog-release: $*" >&2; exit 1; }
@@ -493,6 +507,20 @@ atomic_write() {
   mv "$file.tmp" "$file"
 }
 read_state() { test -f "$1" && cat "$1" || printf '%s\n' none; }
+owned_lock_file() {
+  test ! -L "$1" && test -f "$1" && test "$(cat "$1")" = "$LOCK_OWNER"
+}
+acquire_lock() {
+  printf '%s\n' "$LOCK_OWNER" > "$LOCK_PENDING" || return 1
+  ln "$LOCK_PENDING" "$LOCK_TOKEN" 2>/dev/null || return 1
+  rm -f "$LOCK_PENDING" || return 1
+  ln "$LOCK_TOKEN" "$LOCK_FILE" 2>/dev/null
+}
+release_owned_lock() {
+  test -z "$LOCK_PENDING" || rm -f "$LOCK_PENDING"
+  test -z "$LOCK_TOKEN" || { owned_lock_file "$LOCK_TOKEN" && rm -f "$LOCK_TOKEN"; }
+  test ! -e "$LOCK_FILE" || { owned_lock_file "$LOCK_FILE" && rm -f "$LOCK_FILE"; }
+}
 compose_up() {
   BLOG_IMAGE="$IMAGE_REPO:$1" "$DOCKER" compose -f "$COMPOSE_FILE" up -d --wait --remove-orphans
 }
@@ -509,9 +537,12 @@ public_health() {
 }
 cleanup() {
   test -z "$CANDIDATE" || "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
-  rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
+  release_owned_lock >/dev/null 2>&1 || true
 }
 
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 mkdir -p "$STATE_DIR"
 case ${1:-} in
   status)
@@ -530,12 +561,14 @@ esac
 
 sha=$2
 valid_sha "$sha" || die 'SHA must be 40 lowercase hexadecimal characters'
-mkdir "$LOCK_DIR" 2>/dev/null || die 'another deployment is active'
-trap cleanup EXIT INT TERM
+short=$(printf '%.12s' "$sha")
+LOCK_OWNER=blog-release-$$-$sha
+LOCK_PENDING=$STATE_DIR/.deploy.lock-pending.$$-$short
+LOCK_TOKEN=$STATE_DIR/.deploy.lock-token.$$-$short
+acquire_lock || die 'another deployment is active'
 
 image="$IMAGE_REPO:$sha"
 "$DOCKER" pull "$image"
-short=$(printf '%.12s' "$sha")
 CANDIDATE="blog-candidate-$short"
 "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
 "$DOCKER" run -d --name "$CANDIDATE" \

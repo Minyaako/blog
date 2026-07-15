@@ -34,7 +34,7 @@ assert_file_eq() {
 }
 
 assert_missing() {
-  test ! -e "$1" || fail "$2 ($1 exists)"
+  test ! -e "$1" && test ! -L "$1" || fail "$2 ($1 exists)"
 }
 
 assert_log() {
@@ -56,6 +56,12 @@ export DOCKER_BIN=$TMP/bin/docker
 export CURL_BIN=$TMP/bin/curl
 export REAL_MV
 REAL_MV=$(command -v mv)
+export REAL_RM
+REAL_RM=$(command -v rm)
+export REAL_DATE
+REAL_DATE=$(command -v date)
+export REAL_LN
+REAL_LN=$(command -v ln)
 ORIGINAL_PATH=$PATH
 
 cat > "$DOCKER_BIN" <<'SH'
@@ -75,10 +81,43 @@ image_matches() {
 case ${1:-} in
   pull)
     if test "${FAIL_PULL:-false}" = true; then exit 1; fi
+    if test "${ASSERT_OWNED_LOCK:-false}" = true; then
+      test -f "$BLOG_STATE_DIR/deploy.lock" || exit 1
+      set -- "$BLOG_STATE_DIR"/.deploy.lock-token.*
+      test "$#" -eq 1 || exit 1
+      test -f "$1" || exit 1
+      test "$BLOG_STATE_DIR/deploy.lock" -ef "$1" || exit 1
+      test -n "$(cat "$1")" || exit 1
+      test "$(cat "$BLOG_STATE_DIR/deploy.lock")" = "$(cat "$1")" || exit 1
+      : > "$LOCK_ASSERTED"
+    fi
     ;;
   run)
     if test "${FAIL_RUN:-false}" = true; then exit 1; fi
+    candidate_name=
+    expect_name=false
+    for arg in "$@"; do
+      if test "$expect_name" = true; then
+        candidate_name=$arg
+        expect_name=false
+      elif test "$arg" = --name; then
+        expect_name=true
+      fi
+    done
+    test -n "$candidate_name" || exit 1
+    printf '%s\n' "$candidate_name" > "$CANDIDATE_STATE"
     printf 'candidate-id\n'
+    ;;
+  rm)
+    candidate_name=
+    for arg in "$@"; do candidate_name=$arg; done
+    if test -f "$CANDIDATE_STATE" && test "$(cat "$CANDIDATE_STATE")" = "$candidate_name"; then
+      if test "${FAIL_CANDIDATE_RM_ONCE:-false}" = true && test ! -e "$CANDIDATE_RM_FAIL_MARKER"; then
+        : > "$CANDIDATE_RM_FAIL_MARKER"
+        exit 1
+      fi
+      rm -f "$CANDIDATE_STATE"
+    fi
     ;;
   inspect)
     if test "${FAIL_INSPECT:-false}" = true; then exit 1; fi
@@ -96,8 +135,8 @@ case ${1:-} in
         fi
         ;;
       *' down '*)
-        rm -f "$ACTIVE_IMAGE"
         if test "${FAIL_COMPOSE_DOWN:-false}" = true; then exit 1; fi
+        rm -f "$ACTIVE_IMAGE"
         ;;
     esac
     ;;
@@ -152,13 +191,49 @@ fi
 exec "$REAL_MV" "$@"
 SH
 
+cat > "$TMP/bin/rm" <<'SH'
+#!/bin/sh
+set -eu
+target=
+for arg in "$@"; do
+  case "$arg" in -*) : ;; *) target=$arg ;; esac
+done
+if test "${FAIL_LOCK_RELEASE_ONCE:-false}" = true && test "$target" = "$BLOG_STATE_DIR/deploy.lock" && test ! -e "$LOCK_RELEASE_FAIL_MARKER"; then
+  : > "$LOCK_RELEASE_FAIL_MARKER"
+  exit 1
+fi
+exec "$REAL_RM" "$@"
+SH
+
+cat > "$TMP/bin/date" <<'SH'
+#!/bin/sh
+set -eu
+if test "${FAIL_DATE:-false}" = true; then exit 1; fi
+exec "$REAL_DATE" "$@"
+SH
+
+cat > "$TMP/bin/ln" <<'SH'
+#!/bin/sh
+set -eu
+target=
+for arg in "$@"; do target=$arg; done
+if test "$target" = "$BLOG_STATE_DIR/deploy.lock" && test "${SIGNAL_LOCK_PHASE:-}" = before; then
+  kill -TERM "$PPID"
+  exit 1
+fi
+"$REAL_LN" "$@"
+if test "$target" = "$BLOG_STATE_DIR/deploy.lock" && test "${SIGNAL_LOCK_PHASE:-}" = after; then
+  kill -TERM "$PPID"
+fi
+SH
+
 cat > "$TMP/bin/sleep" <<'SH'
 #!/bin/sh
 set -eu
 printf '%s\n' "$*" >> "$SLEEP_LOG"
 SH
 
-chmod +x "$DOCKER_BIN" "$CURL_BIN" "$TMP/bin/mv" "$TMP/bin/sleep"
+chmod +x "$DOCKER_BIN" "$CURL_BIN" "$TMP/bin/date" "$TMP/bin/ln" "$TMP/bin/mv" "$TMP/bin/rm" "$TMP/bin/sleep"
 export PATH=$TMP/bin:$ORIGINAL_PATH
 
 one=1111111111111111111111111111111111111111
@@ -175,11 +250,18 @@ reset_case() {
   export CURL_LOG=$TMP/$case_name/curl.log
   export SLEEP_LOG=$TMP/$case_name/sleep.log
   export ACTIVE_IMAGE=$TMP/$case_name/active-image
+  export CANDIDATE_STATE=$TMP/$case_name/candidate-state
+  export CANDIDATE_RM_FAIL_MARKER=$TMP/$case_name/candidate-rm-failed
   export MV_FAIL_MARKER=$TMP/$case_name/mv-failed
+  export LOCK_RELEASE_FAIL_MARKER=$TMP/$case_name/lock-release-failed
+  export LOCK_ASSERTED=$TMP/$case_name/lock-asserted
   export CASE_OUTPUT=$TMP/$case_name/output.log
   unset FAIL_PULL FAIL_RUN FAIL_INSPECT CANDIDATE_HEALTH FAIL_COMPOSE_BEFORE_IMAGE
   unset FAIL_COMPOSE_AFTER_IMAGE FAIL_COMPOSE_DOWN FAIL_ENDPOINT FAIL_IMAGE
-  unset SIGNAL_ENDPOINT SIGNAL_IMAGE FAIL_MV_DEST
+  unset SIGNAL_ENDPOINT SIGNAL_IMAGE FAIL_MV_DEST FAIL_CANDIDATE_RM_ONCE
+  unset FAIL_LOCK_RELEASE_ONCE ASSERT_OWNED_LOCK
+  unset FAIL_DATE
+  unset SIGNAL_LOCK_PHASE
   mkdir -p "$BLOG_STATE_DIR"
   : > "$BLOG_COMPOSE_FILE"
   : > "$DOCKER_LOG"
@@ -188,15 +270,38 @@ reset_case() {
   : > "$CASE_OUTPUT"
 }
 
+make_directory_symlink() {
+  link_path=$1
+  target_path=$2
+  mkdir -p "$target_path"
+  if ln -s "$target_path" "$link_path" 2>/dev/null && test -L "$link_path"; then
+    return 0
+  fi
+  rm -rf "$link_path"
+  if command -v cmd.exe >/dev/null 2>&1 && command -v cygpath >/dev/null 2>&1; then
+    link_win=$(cygpath -w "$link_path")
+    target_win=$(cygpath -w "$target_path")
+    cmd.exe //c mklink //J "$link_win" "$target_win" >/dev/null 2>&1 || return 1
+    test -L "$link_path"
+    return
+  fi
+  return 1
+}
+
 assert_failure_state() {
   failed_sha=$1
   assert_eq "$failed_sha" "$(awk '{print $1}' "$BLOG_STATE_DIR/last-failure")" 'failed SHA was not recorded'
-  assert_missing "$BLOG_STATE_DIR/deploy.lock" 'failed deployment retained lock'
+  assert_owned_lock_cleaned
 }
 
 assert_candidate_cleaned() {
-  short_sha=$1
-  assert_log "rm -f blog-candidate-$short_sha" "$DOCKER_LOG" 'failed deployment retained candidate'
+  assert_missing "$CANDIDATE_STATE" 'deployment retained candidate state'
+}
+
+assert_owned_lock_cleaned() {
+  assert_missing "$BLOG_STATE_DIR/deploy.lock" 'deployment retained lock entry'
+  leftover=$(find "$BLOG_STATE_DIR" -maxdepth 1 \( -name '.deploy.lock-token.*' -o -name '.deploy.lock-pending.*' \) -print -quit)
+  test -z "$leftover" || fail "deployment retained private lock token ($leftover)"
 }
 
 test_invalid_inputs() {
@@ -217,7 +322,7 @@ test_success_and_safety() {
   assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'first release did not become current'
   assert_missing "$BLOG_STATE_DIR/previous" 'first release recorded previous'
   assert_missing "$BLOG_STATE_DIR/last-failure" 'successful release retained last-failure'
-  assert_missing "$BLOG_STATE_DIR/deploy.lock" 'successful release retained lock'
+  assert_owned_lock_cleaned
   assert_log "pull $repo:$one" "$DOCKER_LOG" 'release did not pull immutable image'
   assert_not_log ':latest' "$DOCKER_LOG" 'release used latest tag'
   assert_log '--read-only' "$DOCKER_LOG" 'candidate was not read-only'
@@ -233,6 +338,8 @@ test_success_and_safety() {
   "$RELEASE" deploy "$two" >/dev/null || fail 'second release failed'
   assert_file_eq "$BLOG_STATE_DIR/current" "$two" 'second release did not become current'
   assert_file_eq "$BLOG_STATE_DIR/previous" "$one" 'second release did not update previous'
+  assert_candidate_cleaned 222222222222
+  assert_owned_lock_cleaned
   status_output=$("$RELEASE" status) || fail 'status failed for valid state'
   printf '%s\n' "$status_output" | grep -Fx "current=$two" >/dev/null || fail 'status omitted current'
   printf '%s\n' "$status_output" | grep -Fx "previous=$one" >/dev/null || fail 'status omitted previous'
@@ -245,6 +352,8 @@ test_endpoint_failure() {
   export FAIL_ENDPOINT=$endpoint
   if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail "$endpoint failure was accepted"; fi
   assert_missing "$BLOG_STATE_DIR/current" "$endpoint failure recorded current"
+  assert_missing "$BLOG_STATE_DIR/previous" "$endpoint failure recorded previous"
+  assert_missing "$ACTIVE_IMAGE" "$endpoint failure retained first active image"
   assert_failure_state "$one"
   assert_candidate_cleaned 111111111111
   assert_log "BLOG_IMAGE=$repo:$one compose -f $BLOG_COMPOSE_FILE down" "$DOCKER_LOG" "$endpoint failure did not stop first release"
@@ -295,15 +404,29 @@ test_starting_timeout() {
 test_bad_state() {
   kind=$1
   reset_case bad_state_$kind
-  if test "$kind" = directory; then
-    mkdir "$BLOG_STATE_DIR/current"
-  else
-    printf 'not-a-sha\n' > "$BLOG_STATE_DIR/current"
-  fi
+  case "$kind" in
+    directory) mkdir "$BLOG_STATE_DIR/current" ;;
+    trailing) printf '%s\n\n' "$one" > "$BLOG_STATE_DIR/current" ;;
+    no-newline) printf '%s' "$one" > "$BLOG_STATE_DIR/current" ;;
+    *) printf 'not-a-sha\n' > "$BLOG_STATE_DIR/current" ;;
+  esac
   if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail "$kind current state was accepted"; fi
   assert_eq 0 "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" "$kind current state invoked Docker"
   assert_missing "$BLOG_STATE_DIR/deploy.lock" "$kind current state retained lock"
+  assert_owned_lock_cleaned
   if "$RELEASE" status >/dev/null 2>&1; then fail "status accepted $kind current state"; fi
+}
+
+test_broken_current_symlink() {
+  reset_case broken_current_symlink
+  target=$BLOG_STATE_DIR/broken-target
+  make_directory_symlink "$BLOG_STATE_DIR/current" "$target" || fail 'could not create test symlink'
+  rm -rf "$target"
+  test -L "$BLOG_STATE_DIR/current" || fail 'broken current symlink was not preserved'
+  if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'broken current symlink was accepted'; fi
+  assert_eq 0 "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" 'broken current symlink invoked Docker'
+  assert_owned_lock_cleaned
+  if "$RELEASE" status >/dev/null 2>&1; then fail 'status accepted broken current symlink'; fi
 }
 
 test_bad_previous_state() {
@@ -313,6 +436,7 @@ test_bad_previous_state() {
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'unreadable previous state was accepted'; fi
   assert_eq 0 "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" 'unreadable previous state invoked Docker'
   assert_missing "$BLOG_STATE_DIR/deploy.lock" 'unreadable previous state retained lock'
+  assert_owned_lock_cleaned
 }
 
 seed_one() {
@@ -328,8 +452,107 @@ test_partial_compose_rollback() {
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'partial target Compose failure was accepted'; fi
   assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" 'partial Compose failure did not restore active image'
   assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'partial Compose failure changed current'
+  assert_missing "$BLOG_STATE_DIR/previous" 'partial Compose failure changed previous'
   assert_failure_state "$two"
   assert_candidate_cleaned 222222222222
+}
+
+test_owned_lock_shape() {
+  reset_case owned_lock_shape
+  export ASSERT_OWNED_LOCK=true
+  export CANDIDATE_HEALTH=unhealthy
+  if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'owned-lock shape test unexpectedly deployed'; fi
+  test -f "$LOCK_ASSERTED" || fail 'deploy.lock was not an owned hard-link lock'
+  assert_failure_state "$one"
+  assert_candidate_cleaned
+}
+
+test_lock_link_signal() {
+  phase=$1
+  reset_case lock_link_signal_$phase
+  export SIGNAL_LOCK_PHASE=$phase
+  if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then
+    fail "TERM $phase lock link was accepted"
+  else
+    signal_status=$?
+  fi
+  assert_eq 143 "$signal_status" "TERM $phase lock link lost signal status"
+  assert_eq 0 "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" "TERM $phase lock link invoked Docker"
+  assert_failure_state "$one"
+  assert_candidate_cleaned
+}
+
+test_candidate_cleanup_failure() {
+  reset_case candidate_cleanup_failure
+  seed_one
+  export FAIL_CANDIDATE_RM_ONCE=true
+  if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'candidate cleanup failure was accepted'; fi
+  assert_log 'candidate' "$CASE_OUTPUT" 'candidate cleanup failure lacked clear error'
+  assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" 'candidate cleanup failure did not restore active image'
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'candidate cleanup failure changed current'
+  assert_missing "$BLOG_STATE_DIR/previous" 'candidate cleanup failure changed previous'
+  assert_failure_state "$two"
+  assert_candidate_cleaned
+}
+
+test_lock_release_failure() {
+  reset_case lock_release_failure
+  seed_one
+  export FAIL_LOCK_RELEASE_ONCE=true
+  if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'owned lock release failure was accepted'; fi
+  assert_log 'lock' "$CASE_OUTPUT" 'owned lock release failure lacked clear error'
+  assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" 'lock release failure did not restore active image'
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'lock release failure did not restore current'
+  assert_missing "$BLOG_STATE_DIR/previous" 'lock release failure did not restore previous'
+  assert_failure_state "$two"
+  assert_candidate_cleaned
+}
+
+test_last_failure_nonregular() {
+  kind=$1
+  reset_case last_failure_$kind
+  seed_one
+  if test "$kind" = directory; then
+    mkdir "$BLOG_STATE_DIR/last-failure"
+  else
+    target=$BLOG_STATE_DIR/last-failure-target
+    make_directory_symlink "$BLOG_STATE_DIR/last-failure" "$target" || fail 'could not create last-failure symlink'
+  fi
+  export FAIL_ENDPOINT=/about
+  export FAIL_IMAGE=$two
+  if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail "$kind last-failure path was accepted"; fi
+  assert_log 'could not record deployment failure' "$CASE_OUTPUT" "$kind last-failure lacked record error"
+  assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" "$kind last-failure did not restore active image"
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" "$kind last-failure changed current"
+  assert_missing "$BLOG_STATE_DIR/previous" "$kind last-failure changed previous"
+  assert_owned_lock_cleaned
+  assert_candidate_cleaned
+  if test "$kind" = symlink; then test -L "$BLOG_STATE_DIR/last-failure" || fail 'last-failure symlink was replaced'; fi
+}
+
+test_date_failure() {
+  reset_case date_failure
+  export FAIL_ENDPOINT=/about
+  export FAIL_DATE=true
+  if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'date failure was accepted'; fi
+  assert_log 'could not record deployment failure' "$CASE_OUTPUT" 'date failure was masked by atomic_write'
+  assert_missing "$BLOG_STATE_DIR/last-failure" 'date failure wrote malformed last-failure'
+  assert_missing "$ACTIVE_IMAGE" 'date failure retained first active image'
+  assert_owned_lock_cleaned
+  assert_candidate_cleaned
+}
+
+test_first_compose_down_failure() {
+  reset_case first_compose_down_failure
+  export FAIL_ENDPOINT=/about
+  export FAIL_COMPOSE_DOWN=true
+  if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'first Compose down failure was accepted'; fi
+  assert_log 'rollback failed to stop first release' "$CASE_OUTPUT" 'first down failure lacked clear rollback error'
+  assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" 'first down failure did not preserve active target evidence'
+  assert_missing "$BLOG_STATE_DIR/current" 'first down failure recorded current'
+  assert_missing "$BLOG_STATE_DIR/previous" 'first down failure recorded previous'
+  assert_failure_state "$one"
+  assert_candidate_cleaned
 }
 
 test_public_rollback_success() {
@@ -340,6 +563,7 @@ test_public_rollback_success() {
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'failed target public check was accepted'; fi
   assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" 'public failure did not restore active image'
   assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'public failure changed current'
+  assert_missing "$BLOG_STATE_DIR/previous" 'public failure changed previous'
   assert_failure_state "$two"
   assert_candidate_cleaned 222222222222
 }
@@ -353,6 +577,8 @@ test_rollback_compose_failure() {
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'rollback Compose failure was accepted'; fi
   assert_log 'rollback' "$CASE_OUTPUT" 'rollback Compose failure lacked clear error'
   assert_file_eq "$ACTIVE_IMAGE" "$repo:$two" 'rollback Compose failure unexpectedly changed active image'
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'rollback Compose failure changed current'
+  assert_missing "$BLOG_STATE_DIR/previous" 'rollback Compose failure changed previous'
   assert_failure_state "$two"
   assert_candidate_cleaned 222222222222
 }
@@ -364,6 +590,9 @@ test_rollback_public_failure() {
   unset FAIL_IMAGE
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'rollback public-health failure was accepted'; fi
   assert_log 'rollback' "$CASE_OUTPUT" 'rollback public-health failure lacked clear error'
+  assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" 'rollback public-health failure left wrong active image'
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'rollback public-health failure changed current'
+  assert_missing "$BLOG_STATE_DIR/previous" 'rollback public-health failure changed previous'
   assert_failure_state "$two"
   assert_candidate_cleaned 222222222222
 }
@@ -414,10 +643,12 @@ test_term_rollback() {
 
 test_lock_contention() {
   reset_case lock_contention
-  mkdir "$BLOG_STATE_DIR/deploy.lock"
+  printf 'foreign-owner\n' > "$BLOG_STATE_DIR/deploy.lock"
   if "$RELEASE" deploy "$three" >/dev/null 2>&1; then fail 'concurrent deployment was accepted'; fi
   assert_eq 0 "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" 'lock contention invoked Docker'
-  test -d "$BLOG_STATE_DIR/deploy.lock" || fail 'contender removed another deployment lock'
+  assert_file_eq "$BLOG_STATE_DIR/deploy.lock" foreign-owner 'contender changed foreign deployment lock'
+  leftover=$(find "$BLOG_STATE_DIR" -maxdepth 1 \( -name '.deploy.lock-token.*' -o -name '.deploy.lock-pending.*' \) -print -quit)
+  test -z "$leftover" || fail "contender retained private lock token ($leftover)"
 }
 
 failures=0
@@ -427,7 +658,11 @@ run_case() {
   if test -n "${CASE_FILTER:-}" && test "$CASE_FILTER" != "$case_label"; then
     return
   fi
-  if ( "$@" ); then
+  set +e
+  ( set -e; "$@" )
+  case_status=$?
+  set -e
+  if test "$case_status" -eq 0; then
     echo "ok - $case_label"
   else
     echo "not ok - $case_label" >&2
@@ -450,8 +685,20 @@ run_case unhealthy-candidate test_unhealthy_candidate
 run_case starting-timeout test_starting_timeout
 run_case current-directory test_bad_state directory
 run_case current-corrupt test_bad_state corrupt
+run_case current-trailing-blank test_bad_state trailing
+run_case current-no-newline test_bad_state no-newline
+run_case current-broken-symlink test_broken_current_symlink
 run_case previous-directory test_bad_previous_state
+run_case owned-lock-shape test_owned_lock_shape
+run_case lock-link-signal-before test_lock_link_signal before
+run_case lock-link-signal-after test_lock_link_signal after
 run_case partial-compose-rollback test_partial_compose_rollback
+run_case candidate-cleanup-failure test_candidate_cleanup_failure
+run_case lock-release-failure test_lock_release_failure
+run_case last-failure-directory test_last_failure_nonregular directory
+run_case last-failure-symlink test_last_failure_nonregular symlink
+run_case failure-timestamp test_date_failure
+run_case first-compose-down-failure test_first_compose_down_failure
 run_case public-rollback-success test_public_rollback_success
 run_case rollback-compose-failure test_rollback_compose_failure
 run_case rollback-public-failure test_rollback_public_failure

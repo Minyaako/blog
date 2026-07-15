@@ -8,12 +8,15 @@ DOCKER=${DOCKER_BIN:-docker}
 CURL=${CURL_BIN:-curl}
 IMAGE_REPO=ghcr.io/minyaako/blog
 ORIGIN=https://gsk.minyako.top
-LOCK_DIR=$STATE_DIR/deploy.lock
+LOCK_FILE=$STATE_DIR/deploy.lock
 
 CANDIDATE=
 CLEANING=false
 DEPLOY_ACTIVE=false
-LOCK_ACQUIRED=false
+LOCK_HELD=false
+LOCK_OWNER=
+LOCK_PENDING=
+LOCK_TOKEN=
 ROLLBACK_REQUIRED=false
 TARGET_SHA=
 OLD_CURRENT=none
@@ -38,7 +41,14 @@ atomic_write() {
   file=$1
   value=$2
   tmp=$file.tmp.$$
+  if test -L "$file" || { test -e "$file" && test ! -f "$file"; }; then
+    return 1
+  fi
   if ! printf '%s\n' "$value" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  if test -L "$file" || { test -e "$file" && test ! -f "$file"; }; then
     rm -f "$tmp"
     return 1
   fi
@@ -50,12 +60,75 @@ atomic_write() {
 
 read_state() {
   file=$1
+  test ! -L "$file" || return 1
   if test ! -e "$file"; then
     printf '%s\n' none
     return 0
   fi
   test -f "$file" || return 1
-  cat "$file"
+  byte_count=$(wc -c < "$file") || return 1
+  test "$byte_count" -eq 41 || return 1
+  state_value=$(cat "$file") || return 1
+  valid_sha "$state_value" || return 1
+  printf '%s\n' "$state_value"
+}
+
+owned_file() {
+  owned_path=$1
+  test ! -L "$owned_path" || return 1
+  test -f "$owned_path" || return 1
+  actual_owner=$(cat "$owned_path") || return 1
+  test "$actual_owner" = "$LOCK_OWNER"
+}
+
+remove_owned_file() {
+  owned_path=$1
+  if test ! -e "$owned_path" && test ! -L "$owned_path"; then
+    return 0
+  fi
+  owned_file "$owned_path" || return 1
+  rm -f "$owned_path"
+}
+
+acquire_lock() {
+  if ! printf '%s\n' "$LOCK_OWNER" > "$LOCK_PENDING"; then
+    return 1
+  fi
+  if ! ln "$LOCK_PENDING" "$LOCK_TOKEN" 2>/dev/null; then
+    rm -f "$LOCK_PENDING"
+    return 1
+  fi
+  rm -f "$LOCK_PENDING" || return 1
+  if ! ln "$LOCK_TOKEN" "$LOCK_FILE" 2>/dev/null; then
+    remove_owned_file "$LOCK_TOKEN" >/dev/null 2>&1 || true
+    return 1
+  fi
+  LOCK_HELD=true
+}
+
+release_owned_lock() {
+  release_ok=true
+
+  if test -n "$LOCK_PENDING"; then
+    rm -f "$LOCK_PENDING" || release_ok=false
+  fi
+  if test -n "$LOCK_TOKEN"; then
+    remove_owned_file "$LOCK_TOKEN" || release_ok=false
+  fi
+
+  if test -e "$LOCK_FILE" || test -L "$LOCK_FILE"; then
+    if owned_file "$LOCK_FILE"; then
+      remove_owned_file "$LOCK_FILE" || release_ok=false
+    elif test "$LOCK_HELD" = true; then
+      release_ok=false
+    fi
+  fi
+
+  if test "$release_ok" = true; then
+    LOCK_HELD=false
+    return 0
+  fi
+  return 1
 }
 
 compose_up() {
@@ -94,7 +167,9 @@ public_health() {
 }
 
 record_failure() {
-  atomic_write "$STATE_DIR/last-failure" "$TARGET_SHA $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  failure_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) || return 1
+  test -n "$failure_time" || return 1
+  atomic_write "$STATE_DIR/last-failure" "$TARGET_SHA $failure_time"
 }
 
 restore_previous_snapshot() {
@@ -171,11 +246,9 @@ cleanup() {
     fi
   fi
 
-  if test "$LOCK_ACQUIRED" = true; then
-    if ! rmdir "$LOCK_DIR" >/dev/null 2>&1; then
-      echo 'blog-release: could not remove deployment lock' >&2
-      final_status=1
-    fi
+  if ! release_owned_lock; then
+    echo 'blog-release: could not remove deployment lock' >&2
+    final_status=1
   fi
 
   exit "$final_status"
@@ -208,10 +281,13 @@ esac
 
 sha=$2
 valid_sha "$sha" || die 'SHA must be 40 lowercase hexadecimal characters'
-mkdir "$LOCK_DIR" 2>/dev/null || die 'another deployment is active'
-LOCK_ACQUIRED=true
 TARGET_SHA=$sha
 DEPLOY_ACTIVE=true
+short=$(printf '%.12s' "$sha")
+LOCK_OWNER=blog-release-$$-$sha
+LOCK_PENDING=$STATE_DIR/.deploy.lock-pending.$$-$short
+LOCK_TOKEN=$STATE_DIR/.deploy.lock-token.$$-$short
+acquire_lock || die 'another deployment is active'
 
 OLD_CURRENT=$(read_state "$STATE_DIR/current") || die 'cannot read current state'
 test "$OLD_CURRENT" = none || valid_sha "$OLD_CURRENT" || die 'current state is invalid'
@@ -224,7 +300,6 @@ fi
 
 image=$IMAGE_REPO:$sha
 "$DOCKER" pull "$image" || die "could not pull $image"
-short=$(printf '%.12s' "$sha")
 CANDIDATE=blog-candidate-$short
 "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
 "$DOCKER" run -d --name "$CANDIDATE" \
@@ -264,12 +339,24 @@ ROLLBACK_REQUIRED=true
 compose_up "$sha" || die 'target compose replacement failed'
 public_health || die 'target public health failed'
 
+"$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || die 'could not remove healthy candidate'
+CANDIDATE=
+
 if test "$OLD_CURRENT" != none; then
   atomic_write "$STATE_DIR/previous" "$OLD_CURRENT" || die 'could not update previous state'
 fi
 atomic_write "$STATE_DIR/current" "$sha" || die 'could not update current state'
 rm -f "$STATE_DIR/last-failure" || die 'could not clear last failure'
 
+trap '' HUP INT TERM
+if ! release_owned_lock; then
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  die 'could not release deployment lock'
+fi
 ROLLBACK_REQUIRED=false
 DEPLOY_ACTIVE=false
-echo "deployed=$sha"
+trap - EXIT HUP INT TERM
+printf 'deployed=%s\n' "$sha" || true
+exit 0
