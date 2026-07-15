@@ -126,6 +126,15 @@ case ${1:-} in
   compose)
     case " $* " in
       *' up '*)
+        if image_matches "${ASSERT_LOCK_DURING_ROLLBACK_IMAGE:-}" && test -e "$TOKEN_RELEASE_FAIL_MARKER"; then
+          test -f "$BLOG_STATE_DIR/deploy.lock" || exit 1
+          set -- "$BLOG_STATE_DIR"/.deploy.lock-token.*
+          test "$#" -eq 1 || exit 1
+          test -f "$1" || exit 1
+          test "$BLOG_STATE_DIR/deploy.lock" -ef "$1" || exit 1
+          test "$(cat "$BLOG_STATE_DIR/deploy.lock")" = "$(cat "$1")" || exit 1
+          : > "$ROLLBACK_LOCK_ASSERTED"
+        fi
         if image_matches "${FAIL_COMPOSE_BEFORE_IMAGE:-}"; then
           exit 1
         fi
@@ -202,6 +211,14 @@ if test "${FAIL_LOCK_RELEASE_ONCE:-false}" = true && test "$target" = "$BLOG_STA
   : > "$LOCK_RELEASE_FAIL_MARKER"
   exit 1
 fi
+case "$target" in
+  "${BLOG_STATE_DIR:-/nonexistent}"/.deploy.lock-token.*)
+    if test "${FAIL_PRIVATE_TOKEN_RM_ONCE:-false}" = true && test ! -e "$TOKEN_RELEASE_FAIL_MARKER"; then
+      : > "$TOKEN_RELEASE_FAIL_MARKER"
+      exit 1
+    fi
+    ;;
+esac
 exec "$REAL_RM" "$@"
 SH
 
@@ -254,12 +271,15 @@ reset_case() {
   export CANDIDATE_RM_FAIL_MARKER=$TMP/$case_name/candidate-rm-failed
   export MV_FAIL_MARKER=$TMP/$case_name/mv-failed
   export LOCK_RELEASE_FAIL_MARKER=$TMP/$case_name/lock-release-failed
+  export TOKEN_RELEASE_FAIL_MARKER=$TMP/$case_name/token-release-failed
+  export ROLLBACK_LOCK_ASSERTED=$TMP/$case_name/rollback-lock-asserted
   export LOCK_ASSERTED=$TMP/$case_name/lock-asserted
   export CASE_OUTPUT=$TMP/$case_name/output.log
   unset FAIL_PULL FAIL_RUN FAIL_INSPECT CANDIDATE_HEALTH FAIL_COMPOSE_BEFORE_IMAGE
   unset FAIL_COMPOSE_AFTER_IMAGE FAIL_COMPOSE_DOWN FAIL_ENDPOINT FAIL_IMAGE
   unset SIGNAL_ENDPOINT SIGNAL_IMAGE FAIL_MV_DEST FAIL_CANDIDATE_RM_ONCE
   unset FAIL_LOCK_RELEASE_ONCE ASSERT_OWNED_LOCK
+  unset FAIL_PRIVATE_TOKEN_RM_ONCE ASSERT_LOCK_DURING_ROLLBACK_IMAGE
   unset FAIL_DATE
   unset SIGNAL_LOCK_PHASE
   mkdir -p "$BLOG_STATE_DIR"
@@ -535,6 +555,21 @@ test_lock_release_failure() {
   assert_candidate_cleaned
 }
 
+test_private_token_release_failure() {
+  reset_case private_token_release_failure
+  seed_one
+  export FAIL_PRIVATE_TOKEN_RM_ONCE=true
+  export ASSERT_LOCK_DURING_ROLLBACK_IMAGE=$one
+  if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'private token release failure was accepted'; fi
+  assert_log 'lock' "$CASE_OUTPUT" 'private token release failure lacked clear error'
+  test -f "$ROLLBACK_LOCK_ASSERTED" || fail 'rollback ran without the owned public lock'
+  assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" 'private token release failure did not restore active image'
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'private token release failure did not restore current'
+  assert_missing "$BLOG_STATE_DIR/previous" 'private token release failure did not restore previous'
+  assert_failure_state "$two"
+  assert_candidate_cleaned
+}
+
 test_last_failure_nonregular() {
   kind=$1
   reset_case last_failure_$kind
@@ -726,6 +761,7 @@ run_case empty-foreign-lock test_empty_foreign_lock
 run_case partial-compose-rollback test_partial_compose_rollback
 run_case candidate-cleanup-failure test_candidate_cleanup_failure
 run_case lock-release-failure test_lock_release_failure
+run_case private-token-release-failure test_private_token_release_failure
 run_case last-failure-directory test_last_failure_nonregular directory
 run_case last-failure-symlink test_last_failure_nonregular symlink
 run_case failure-timestamp test_date_failure

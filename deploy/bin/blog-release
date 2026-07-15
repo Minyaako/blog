@@ -108,28 +108,23 @@ acquire_lock() {
 }
 
 release_owned_lock() {
-  release_ok=true
-
   if test -n "$LOCK_PENDING"; then
-    rm -f "$LOCK_PENDING" || release_ok=false
+    rm -f "$LOCK_PENDING" || return 1
   fi
   if test -n "$LOCK_TOKEN"; then
-    remove_owned_file "$LOCK_TOKEN" || release_ok=false
+    remove_owned_file "$LOCK_TOKEN" || return 1
   fi
 
   if test -e "$LOCK_FILE" || test -L "$LOCK_FILE"; then
     if owned_file "$LOCK_FILE"; then
-      remove_owned_file "$LOCK_FILE" || release_ok=false
+      remove_owned_file "$LOCK_FILE" || return 1
     elif test "$LOCK_HELD" = true; then
-      release_ok=false
+      return 1
     fi
   fi
 
-  if test "$release_ok" = true; then
-    LOCK_HELD=false
-    return 0
-  fi
-  return 1
+  LOCK_HELD=false
+  return 0
 }
 
 compose_up() {
