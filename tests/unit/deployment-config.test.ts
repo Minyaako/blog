@@ -55,6 +55,26 @@ type WorkflowDocument = {
 
 const read = (path: string) => readFileSync(path, 'utf8').replaceAll('\r\n', '\n')
 
+const assertDockerIgnoreContract = (source: string) => {
+  const rules = source
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+  const githubRules = rules.filter((rule) => rule.includes('.github'))
+  const negations = rules.filter((rule) => rule.startsWith('!'))
+
+  expect(githubRules).toEqual([
+    '.github/*',
+    '!.github/workflows',
+    '.github/workflows/*',
+    '!.github/workflows/ci.yml',
+  ])
+  expect(negations).toEqual([
+    '!.github/workflows',
+    '!.github/workflows/ci.yml',
+  ])
+}
+
 const stripCaddyComment = (line: string) => {
   let quoted = false
 
@@ -439,13 +459,22 @@ describe('production container contract', () => {
   })
 
   it('includes only the workflow required by container build tests', () => {
-    const ignored = read('.dockerignore').split('\n')
+    assertDockerIgnoreContract(read('.dockerignore'))
+  })
 
-    expect(ignored).not.toContain('.github')
-    expect(ignored).toContain('.github/*')
-    expect(ignored).toContain('!.github/workflows')
-    expect(ignored).toContain('.github/workflows/*')
-    expect(ignored).toContain('!.github/workflows/ci.yml')
+  it.each([
+    '!.github/*',
+    '!.github/workflows/*',
+    '!.github/workflows/deploy.yml',
+    '!.github/actions',
+    '.github/',
+    '/.github',
+    '.github/**',
+    '!**',
+  ])('rejects a broader Docker context rule: %s', (rule) => {
+    const mutated = `${read('.dockerignore')}\n${rule}\n`
+
+    expect(() => assertDockerIgnoreContract(mutated)).toThrow()
   })
 })
 
