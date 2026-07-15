@@ -53,6 +53,8 @@ pnpm exec playwright test tests/e2e/visual.spec.ts --update-snapshots
 
 逐张检查横幅裁切、图标、文本换行、归档渐变、焦点状态和敏感内容遮挡；确认变化符合预期后再提交 `tests/e2e/visual.spec.ts-snapshots/`。随后不带参数重跑，确保没有像素差异。不要用更新基线来掩盖未知回归。
 
+视觉基线按 `win32` 和 `linux` 分目录保存。Windows 本地检查使用 `win32`；GitHub Actions 使用 `linux`。只有在人工检查全部 42 张结果后，才可通过 PR 专用变量 `REFRESH_VISUAL_BASELINES=true` 生成 Linux artifact；下载并提交后立即恢复为 `false`，再让普通 PR 检查执行像素比较。
+
 ## 动态服务边界
 
 - 评论：正文只暴露稳定的 `data-page-key` 与评论插槽。首版计划通过独立 API 封装 Waline，博客不直接绑定其数据库；免登录昵称头像和 GitHub 快捷登录属于后续接口能力。
