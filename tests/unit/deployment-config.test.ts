@@ -437,6 +437,16 @@ describe('production container contract', () => {
     expect(ignored).toContain('.superpowers')
     expect(ignored).toContain('.env*')
   })
+
+  it('includes only the workflow required by container build tests', () => {
+    const ignored = read('.dockerignore').split('\n')
+
+    expect(ignored).not.toContain('.github')
+    expect(ignored).toContain('.github/*')
+    expect(ignored).toContain('!.github/workflows')
+    expect(ignored).toContain('.github/workflows/*')
+    expect(ignored).toContain('!.github/workflows/ci.yml')
+  })
 })
 
 describe('GitHub Actions release contract', () => {
