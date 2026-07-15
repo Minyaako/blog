@@ -1,0 +1,129 @@
+#!/bin/sh
+set -eu
+
+APP_DIR=${BLOG_APP_DIR:-/srv/apps/blog}
+STATE_DIR=${BLOG_STATE_DIR:-$APP_DIR/state}
+COMPOSE_FILE=${BLOG_COMPOSE_FILE:-$APP_DIR/compose.yml}
+DOCKER=${DOCKER_BIN:-docker}
+CURL=${CURL_BIN:-curl}
+IMAGE_REPO=ghcr.io/minyaako/blog
+ORIGIN=https://gsk.minyako.top
+LOCK_DIR=$STATE_DIR/deploy.lock
+CANDIDATE=
+LOCK_ACQUIRED=false
+
+die() {
+  echo "blog-release: $*" >&2
+  exit 1
+}
+
+valid_sha() {
+  printf '%s\n' "$1" | grep -Eq '^[0-9a-f]{40}$'
+}
+
+atomic_write() {
+  file=$1
+  value=$2
+  tmp=$file.tmp.$$
+  printf '%s\n' "$value" > "$tmp"
+  mv "$tmp" "$file"
+}
+
+read_state() {
+  test -f "$1" && cat "$1" || printf '%s\n' none
+}
+
+compose_up() {
+  BLOG_IMAGE="$IMAGE_REPO:$1" "$DOCKER" compose \
+    -f "$COMPOSE_FILE" up -d --wait --remove-orphans
+}
+
+compose_down() {
+  BLOG_IMAGE="$IMAGE_REPO:$1" "$DOCKER" compose -f "$COMPOSE_FILE" down
+}
+
+public_health() {
+  test "$("$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/healthz")" = ok
+  "$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/" | grep -q '<html'
+  "$CURL" --fail --silent --show-error "$ORIGIN/about" >/dev/null
+  "$CURL" --fail --silent --show-error "$ORIGIN/archives" >/dev/null
+  "$CURL" --fail --silent --show-error "$ORIGIN/rss.xml" | grep -q "$ORIGIN"
+  "$CURL" --fail --silent --show-error "$ORIGIN/sitemap-index.xml" | grep -q "$ORIGIN"
+}
+
+cleanup() {
+  test -z "$CANDIDATE" || "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
+  test "$LOCK_ACQUIRED" = false || rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
+}
+
+mkdir -p "$STATE_DIR"
+case ${1:-} in
+  status)
+    test "$#" -eq 1 || die 'status accepts no arguments'
+    printf 'current=%s\n' "$(read_state "$STATE_DIR/current")"
+    printf 'previous=%s\n' "$(read_state "$STATE_DIR/previous")"
+    exit 0
+    ;;
+  deploy)
+    test "$#" -eq 2 || die 'deploy requires one full SHA'
+    ;;
+  *)
+    die 'usage: blog-release status | deploy FULL_LOWERCASE_SHA'
+    ;;
+esac
+
+sha=$2
+valid_sha "$sha" || die 'SHA must be 40 lowercase hexadecimal characters'
+mkdir "$LOCK_DIR" 2>/dev/null || die 'another deployment is active'
+LOCK_ACQUIRED=true
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+image=$IMAGE_REPO:$sha
+"$DOCKER" pull "$image"
+short=$(printf '%.12s' "$sha")
+CANDIDATE=blog-candidate-$short
+"$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
+"$DOCKER" run -d --name "$CANDIDATE" \
+  --read-only \
+  --tmpfs /data:uid=1000,gid=1000,mode=0750 \
+  --tmpfs /config:uid=1000,gid=1000,mode=0750 \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --network server_proxy \
+  "$image" >/dev/null
+
+healthy=false
+attempt=0
+while test "$attempt" -lt 30; do
+  candidate_status=$("$DOCKER" inspect --format '{{.State.Health.Status}}' "$CANDIDATE" 2>/dev/null || true)
+  test "$candidate_status" = healthy && {
+    healthy=true
+    break
+  }
+  test "$candidate_status" = unhealthy && break
+  attempt=$((attempt + 1))
+  sleep 2
+done
+test "$healthy" = true || die 'candidate did not become healthy'
+
+old=$(read_state "$STATE_DIR/current")
+if compose_up "$sha" && public_health; then
+  test "$old" = none || atomic_write "$STATE_DIR/previous" "$old"
+  atomic_write "$STATE_DIR/current" "$sha"
+  rm -f "$STATE_DIR/last-failure"
+  echo "deployed=$sha"
+  exit 0
+fi
+
+atomic_write "$STATE_DIR/last-failure" "$sha $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+if test "$old" != none && valid_sha "$old"; then
+  compose_up "$old" || die 'rollback compose replacement failed'
+  public_health || die 'rollback public health failed'
+  atomic_write "$STATE_DIR/current" "$old"
+  die "deployment failed; restored $old"
+fi
+
+compose_down "$sha" >/dev/null 2>&1 || true
+die 'first deployment failed; no current release recorded'
