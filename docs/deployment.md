@@ -79,7 +79,8 @@
 
    $beforeJson = gh run list --repo Minyaako/blog --workflow ci.yml --branch main --event workflow_dispatch --limit 100 --json databaseId
    if ($LASTEXITCODE -ne 0) { throw '无法读取调度前的 workflow run 列表' }
-   $beforeIds = @($beforeJson | ConvertFrom-Json | ForEach-Object { $_.databaseId })
+   $beforeRuns = $beforeJson | ConvertFrom-Json
+   $beforeIds = @($beforeRuns | ForEach-Object { $_.databaseId })
    $dispatchStartedAt = [DateTimeOffset]::UtcNow
    gh workflow run ci.yml --repo Minyaako/blog --ref main
    if ($LASTEXITCODE -ne 0) { throw 'workflow dispatch 失败' }
@@ -89,7 +90,8 @@
      Start-Sleep -Seconds 2
      $runsJson = gh run list --repo Minyaako/blog --workflow ci.yml --branch main --event workflow_dispatch --limit 100 --json databaseId,headSha,event,createdAt
      if ($LASTEXITCODE -ne 0) { throw '无法轮询新 workflow run' }
-     $candidates = @($runsJson | ConvertFrom-Json | Where-Object {
+     $runs = $runsJson | ConvertFrom-Json
+     $candidates = @($runs | Where-Object {
        $_.event -eq 'workflow_dispatch' -and
        $_.headSha -eq $mainSha -and
        $_.databaseId -notin $beforeIds -and
