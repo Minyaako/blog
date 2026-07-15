@@ -7,6 +7,8 @@ COPY . .
 RUN pnpm build
 
 FROM caddy:2.10.2-alpine
+RUN addgroup -S -g 1000 caddy \
+  && adduser -S -D -H -u 1000 -G caddy caddy
 COPY --from=build --chown=caddy:caddy /app/dist /srv
 COPY --chown=caddy:caddy deploy/site.Caddyfile /etc/caddy/Caddyfile
 USER caddy

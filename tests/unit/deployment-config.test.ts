@@ -10,6 +10,8 @@ describe('production container contract', () => {
     expect(dockerfile).toContain('corepack prepare pnpm@11.7.0 --activate')
     expect(dockerfile).toContain('RUN pnpm build')
     expect(dockerfile).toContain('FROM caddy:2.10.2-alpine')
+    expect(dockerfile).toContain('addgroup -S -g 1000 caddy')
+    expect(dockerfile).toContain('adduser -S -D -H -u 1000 -G caddy caddy')
     expect(dockerfile).toContain('USER caddy')
     expect(dockerfile).toContain('HEALTHCHECK')
   })
