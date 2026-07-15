@@ -9,8 +9,16 @@ CURL=${CURL_BIN:-curl}
 IMAGE_REPO=ghcr.io/minyaako/blog
 ORIGIN=https://gsk.minyako.top
 LOCK_DIR=$STATE_DIR/deploy.lock
+
 CANDIDATE=
+CLEANING=false
+DEPLOY_ACTIVE=false
 LOCK_ACQUIRED=false
+ROLLBACK_REQUIRED=false
+TARGET_SHA=
+OLD_CURRENT=none
+PREVIOUS_EXISTED=false
+OLD_PREVIOUS=none
 
 die() {
   echo "blog-release: $*" >&2
@@ -18,19 +26,36 @@ die() {
 }
 
 valid_sha() {
-  printf '%s\n' "$1" | grep -Eq '^[0-9a-f]{40}$'
+  value=$1
+  test "${#value}" -eq 40 || return 1
+  case "$value" in
+    *[!0-9a-f]*) return 1 ;;
+    *) return 0 ;;
+  esac
 }
 
 atomic_write() {
   file=$1
   value=$2
   tmp=$file.tmp.$$
-  printf '%s\n' "$value" > "$tmp"
-  mv "$tmp" "$file"
+  if ! printf '%s\n' "$value" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! mv "$tmp" "$file"; then
+    rm -f "$tmp"
+    return 1
+  fi
 }
 
 read_state() {
-  test -f "$1" && cat "$1" || printf '%s\n' none
+  file=$1
+  if test ! -e "$file"; then
+    printf '%s\n' none
+    return 0
+  fi
+  test -f "$file" || return 1
+  cat "$file"
 }
 
 compose_up() {
@@ -43,25 +68,134 @@ compose_down() {
 }
 
 public_health() {
-  test "$("$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/healthz")" = ok
-  "$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/" | grep -q '<html'
-  "$CURL" --fail --silent --show-error "$ORIGIN/about" >/dev/null
-  "$CURL" --fail --silent --show-error "$ORIGIN/archives" >/dev/null
-  "$CURL" --fail --silent --show-error "$ORIGIN/rss.xml" | grep -q "$ORIGIN"
-  "$CURL" --fail --silent --show-error "$ORIGIN/sitemap-index.xml" | grep -q "$ORIGIN"
+  body=$("$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/healthz") || return 1
+  test "$body" = ok || return 1
+
+  body=$("$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/") || return 1
+  case "$body" in
+    *'<html'*) : ;;
+    *) return 1 ;;
+  esac
+
+  "$CURL" --fail --silent --show-error "$ORIGIN/about" >/dev/null || return 1
+  "$CURL" --fail --silent --show-error "$ORIGIN/archives" >/dev/null || return 1
+
+  body=$("$CURL" --fail --silent --show-error "$ORIGIN/rss.xml") || return 1
+  case "$body" in
+    *"$ORIGIN"*) : ;;
+    *) return 1 ;;
+  esac
+
+  body=$("$CURL" --fail --silent --show-error "$ORIGIN/sitemap-index.xml") || return 1
+  case "$body" in
+    *"$ORIGIN"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+record_failure() {
+  atomic_write "$STATE_DIR/last-failure" "$TARGET_SHA $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+
+restore_previous_snapshot() {
+  if test "$PREVIOUS_EXISTED" = true; then
+    atomic_write "$STATE_DIR/previous" "$OLD_PREVIOUS"
+  else
+    rm -f "$STATE_DIR/previous"
+  fi
+}
+
+rollback_release() {
+  rollback_ok=true
+  ROLLBACK_REQUIRED=false
+
+  if test "$OLD_CURRENT" = none; then
+    if ! compose_down "$TARGET_SHA" >/dev/null 2>&1; then
+      echo 'blog-release: rollback failed to stop first release' >&2
+      rollback_ok=false
+    fi
+    if ! rm -f "$STATE_DIR/current"; then
+      echo 'blog-release: rollback failed to remove current state' >&2
+      rollback_ok=false
+    fi
+  else
+    if ! compose_up "$OLD_CURRENT"; then
+      echo "blog-release: rollback compose replacement failed for $OLD_CURRENT" >&2
+      rollback_ok=false
+    elif ! public_health; then
+      echo "blog-release: rollback public health failed for $OLD_CURRENT" >&2
+      rollback_ok=false
+    fi
+    if ! atomic_write "$STATE_DIR/current" "$OLD_CURRENT"; then
+      echo 'blog-release: rollback failed to restore current state' >&2
+      rollback_ok=false
+    fi
+  fi
+
+  if ! restore_previous_snapshot; then
+    echo 'blog-release: rollback failed to restore previous state' >&2
+    rollback_ok=false
+  fi
+
+  test "$rollback_ok" = true
 }
 
 cleanup() {
-  test -z "$CANDIDATE" || "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
-  test "$LOCK_ACQUIRED" = false || rmdir "$LOCK_DIR" >/dev/null 2>&1 || true
+  original_status=$?
+  if test "$CLEANING" = true; then
+    exit "$original_status"
+  fi
+  CLEANING=true
+  trap - EXIT HUP INT TERM
+  set +e
+  final_status=$original_status
+
+  if test "$DEPLOY_ACTIVE" = true && test "$original_status" -ne 0; then
+    if ! record_failure; then
+      echo 'blog-release: could not record deployment failure' >&2
+      final_status=1
+    fi
+  fi
+
+  if test "$ROLLBACK_REQUIRED" = true; then
+    if ! rollback_release; then
+      echo 'blog-release: rollback did not complete successfully' >&2
+      final_status=1
+    fi
+  fi
+
+  if test -n "$CANDIDATE"; then
+    if ! "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1; then
+      echo "blog-release: could not remove candidate $CANDIDATE" >&2
+      final_status=1
+    fi
+  fi
+
+  if test "$LOCK_ACQUIRED" = true; then
+    if ! rmdir "$LOCK_DIR" >/dev/null 2>&1; then
+      echo 'blog-release: could not remove deployment lock' >&2
+      final_status=1
+    fi
+  fi
+
+  exit "$final_status"
 }
+
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 mkdir -p "$STATE_DIR"
 case ${1:-} in
   status)
     test "$#" -eq 1 || die 'status accepts no arguments'
-    printf 'current=%s\n' "$(read_state "$STATE_DIR/current")"
-    printf 'previous=%s\n' "$(read_state "$STATE_DIR/previous")"
+    current=$(read_state "$STATE_DIR/current") || die 'cannot read current state'
+    previous=$(read_state "$STATE_DIR/previous") || die 'cannot read previous state'
+    test "$current" = none || valid_sha "$current" || die 'current state is invalid'
+    test "$previous" = none || valid_sha "$previous" || die 'previous state is invalid'
+    printf 'current=%s\n' "$current"
+    printf 'previous=%s\n' "$previous"
     exit 0
     ;;
   deploy)
@@ -76,12 +210,20 @@ sha=$2
 valid_sha "$sha" || die 'SHA must be 40 lowercase hexadecimal characters'
 mkdir "$LOCK_DIR" 2>/dev/null || die 'another deployment is active'
 LOCK_ACQUIRED=true
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
+TARGET_SHA=$sha
+DEPLOY_ACTIVE=true
+
+OLD_CURRENT=$(read_state "$STATE_DIR/current") || die 'cannot read current state'
+test "$OLD_CURRENT" = none || valid_sha "$OLD_CURRENT" || die 'current state is invalid'
+
+if test -e "$STATE_DIR/previous"; then
+  PREVIOUS_EXISTED=true
+  OLD_PREVIOUS=$(read_state "$STATE_DIR/previous") || die 'cannot read previous state'
+  valid_sha "$OLD_PREVIOUS" || die 'previous state is invalid'
+fi
 
 image=$IMAGE_REPO:$sha
-"$DOCKER" pull "$image"
+"$DOCKER" pull "$image" || die "could not pull $image"
 short=$(printf '%.12s' "$sha")
 CANDIDATE=blog-candidate-$short
 "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
@@ -92,38 +234,42 @@ CANDIDATE=blog-candidate-$short
   --cap-drop ALL \
   --security-opt no-new-privileges \
   --network server_proxy \
-  "$image" >/dev/null
+  "$image" >/dev/null || die 'could not start candidate'
 
 healthy=false
 attempt=0
 while test "$attempt" -lt 30; do
-  candidate_status=$("$DOCKER" inspect --format '{{.State.Health.Status}}' "$CANDIDATE" 2>/dev/null || true)
-  test "$candidate_status" = healthy && {
-    healthy=true
-    break
-  }
-  test "$candidate_status" = unhealthy && break
+  candidate_status=$("$DOCKER" inspect --format '{{.State.Health.Status}}' "$CANDIDATE") || die 'candidate health inspection failed'
+  case "$candidate_status" in
+    healthy)
+      healthy=true
+      break
+      ;;
+    unhealthy)
+      break
+      ;;
+    starting)
+      :
+      ;;
+    *)
+      die "unexpected candidate health status: $candidate_status"
+      ;;
+  esac
   attempt=$((attempt + 1))
-  sleep 2
+  if test "$attempt" -lt 30; then sleep 2; fi
 done
 test "$healthy" = true || die 'candidate did not become healthy'
 
-old=$(read_state "$STATE_DIR/current")
-if compose_up "$sha" && public_health; then
-  test "$old" = none || atomic_write "$STATE_DIR/previous" "$old"
-  atomic_write "$STATE_DIR/current" "$sha"
-  rm -f "$STATE_DIR/last-failure"
-  echo "deployed=$sha"
-  exit 0
-fi
+ROLLBACK_REQUIRED=true
+compose_up "$sha" || die 'target compose replacement failed'
+public_health || die 'target public health failed'
 
-atomic_write "$STATE_DIR/last-failure" "$sha $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-if test "$old" != none && valid_sha "$old"; then
-  compose_up "$old" || die 'rollback compose replacement failed'
-  public_health || die 'rollback public health failed'
-  atomic_write "$STATE_DIR/current" "$old"
-  die "deployment failed; restored $old"
+if test "$OLD_CURRENT" != none; then
+  atomic_write "$STATE_DIR/previous" "$OLD_CURRENT" || die 'could not update previous state'
 fi
+atomic_write "$STATE_DIR/current" "$sha" || die 'could not update current state'
+rm -f "$STATE_DIR/last-failure" || die 'could not clear last failure'
 
-compose_down "$sha" >/dev/null 2>&1 || true
-die 'first deployment failed; no current release recorded'
+ROLLBACK_REQUIRED=false
+DEPLOY_ACTIVE=false
+echo "deployed=$sha"
