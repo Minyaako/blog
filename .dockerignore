@@ -1,6 +1,8 @@
 .git
 .github
 .worktrees
+.superpowers
+.env*
 .astro
 dist
 node_modules
