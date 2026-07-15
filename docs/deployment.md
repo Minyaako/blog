@@ -73,8 +73,34 @@
 
    ```powershell
    gh variable set DEPLOY_ENABLED --repo Minyaako/blog --body true
+   if ($LASTEXITCODE -ne 0) { throw '无法启用部署闸门' }
+   $mainSha = gh api repos/Minyaako/blog/commits/main --jq .sha
+   if ($LASTEXITCODE -ne 0 -or $mainSha -cnotmatch '^[0-9a-f]{40}$') { throw '无法取得当前 main 完整 SHA' }
+
+   $beforeJson = gh run list --repo Minyaako/blog --workflow ci.yml --branch main --event workflow_dispatch --limit 100 --json databaseId
+   if ($LASTEXITCODE -ne 0) { throw '无法读取调度前的 workflow run 列表' }
+   $beforeIds = @($beforeJson | ConvertFrom-Json | ForEach-Object { $_.databaseId })
+   $dispatchStartedAt = [DateTimeOffset]::UtcNow
    gh workflow run ci.yml --repo Minyaako/blog --ref main
-   gh run watch --repo Minyaako/blog
+   if ($LASTEXITCODE -ne 0) { throw 'workflow dispatch 失败' }
+
+   $runId = $null
+   for ($attempt = 0; $attempt -lt 30 -and -not $runId; $attempt++) {
+     Start-Sleep -Seconds 2
+     $runsJson = gh run list --repo Minyaako/blog --workflow ci.yml --branch main --event workflow_dispatch --limit 100 --json databaseId,headSha,event,createdAt
+     if ($LASTEXITCODE -ne 0) { throw '无法轮询新 workflow run' }
+     $candidates = @($runsJson | ConvertFrom-Json | Where-Object {
+       $_.event -eq 'workflow_dispatch' -and
+       $_.headSha -eq $mainSha -and
+       $_.databaseId -notin $beforeIds -and
+       [DateTimeOffset]::Parse($_.createdAt) -ge $dispatchStartedAt.AddSeconds(-5)
+     })
+     if ($candidates.Count -gt 1) { throw '发现多个候选 run，拒绝误选；请在 GitHub Actions 页面人工确认' }
+     if ($candidates.Count -eq 1) { $runId = [string]$candidates[0].databaseId }
+   }
+   if (-not $runId) { throw '60 秒内未找到刚调度的 workflow run' }
+   gh run watch $runId --repo Minyaako/blog --exit-status
+   if ($LASTEXITCODE -ne 0) { throw "workflow run $runId 失败" }
    ```
 
    预期顺序是 `verify -> publish-image -> deploy-production`，远端状态的 `current` 等于 `$mainSha`。
@@ -105,21 +131,37 @@ ssh -o BatchMode=yes blog-deploy@124.223.13.233 status
 ```powershell
 $origin = 'https://gsk.minyako.top'
 curl.exe -fsS -o NUL "$origin/"
+if ($LASTEXITCODE -ne 0) { throw '首页检查失败' }
 curl.exe -fsS -o NUL "$origin/about"
+if ($LASTEXITCODE -ne 0) { throw 'About 检查失败' }
 curl.exe -fsS -o NUL "$origin/archives"
-curl.exe -fsS "$origin/rss.xml" | Select-String -SimpleMatch $origin
-curl.exe -fsS "$origin/sitemap-index.xml" | Select-String -SimpleMatch $origin
+if ($LASTEXITCODE -ne 0) { throw '归档页检查失败' }
+
+$rss = curl.exe -fsS "$origin/rss.xml"
+if ($LASTEXITCODE -ne 0) { throw 'RSS 获取失败' }
+if (-not ($rss | Select-String -SimpleMatch $origin -Quiet)) { throw 'RSS 缺少 canonical origin' }
+
+$sitemap = curl.exe -fsS "$origin/sitemap-index.xml"
+if ($LASTEXITCODE -ne 0) { throw 'Sitemap 获取失败' }
+if (-not ($sitemap | Select-String -SimpleMatch $origin -Quiet)) { throw 'Sitemap 缺少 canonical origin' }
+
 $health = curl.exe -fsS "$origin/healthz"
-if ($health -ne 'ok') { throw "healthz 返回异常：$health" }
+if ($LASTEXITCODE -ne 0) { throw 'healthz 获取失败' }
+$healthText = ($health -join "`n").Trim()
+if ($healthText -cne 'ok') { throw "healthz 返回异常：$healthText" }
 ```
 
 最终网关切换后，再验证旧域名的路径和查询参数都被保留：
 
 ```powershell
 $headers = curl.exe -sS -o NUL -D - "https://minyakogsk.icu/archives?domain=academic"
+if ($LASTEXITCODE -ne 0) { throw '旧域名请求失败' }
 $headers
-if ($headers -notmatch '(?im)^HTTP/2 308\s*$') { throw '旧域名未返回 HTTP/2 308' }
-if ($headers -notmatch '(?im)^Location: https://gsk\.minyako\.top/archives\?domain=academic\s*$') {
+$headerText = $headers -join "`n"
+if (-not ($headerText -match '(?im)^HTTP/2(?:\.0)?[ \t]+308(?:[ \t]+[^\r\n]*)?\r?$')) {
+  throw '旧域名未返回精确的 HTTP/2 308 状态'
+}
+if (-not ($headerText -match '(?im)^Location:[ \t]*https://gsk\.minyako\.top/archives\?domain=academic[ \t]*\r?$')) {
   throw '旧域名 Location 未保留路径与查询参数'
 }
 ```
@@ -144,7 +186,7 @@ ssh tencent-server "sudo docker logs --tail 200 server-caddy"
 ssh tencent-server "sudo sh -c 'if test -f /srv/apps/blog/state/last-failure; then cat /srv/apps/blog/state/last-failure; else echo none; fi'"
 ```
 
-`last-failure` 仅记录失败目标 SHA 和 UTC 时间。它不存在时表示最近一次成功部署已清除失败记录。
+`last-failure` 仅记录失败目标 SHA 和 UTC 时间。它不存在时表示当前无失败记录：可能尚未部署，也可能最近一次成功部署已经清除记录。
 
 ## 回滚与恢复
 
