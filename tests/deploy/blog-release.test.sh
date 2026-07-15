@@ -439,6 +439,20 @@ test_bad_previous_state() {
   assert_owned_lock_cleaned
 }
 
+test_broken_previous_symlink() {
+  reset_case broken_previous_symlink
+  printf '%s\n' "$one" > "$BLOG_STATE_DIR/current"
+  target=$BLOG_STATE_DIR/broken-previous-target
+  make_directory_symlink "$BLOG_STATE_DIR/previous" "$target" || fail 'could not create previous symlink'
+  rm -rf "$target"
+  test -L "$BLOG_STATE_DIR/previous" || fail 'broken previous symlink was not preserved'
+  if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'broken previous symlink was accepted'; fi
+  assert_eq 0 "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" 'broken previous symlink invoked Docker'
+  test -L "$BLOG_STATE_DIR/previous" || fail 'broken previous symlink was replaced'
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'broken previous symlink changed current'
+  assert_owned_lock_cleaned
+}
+
 seed_one() {
   "$RELEASE" deploy "$one" >/dev/null || fail 'could not seed first release'
   : > "$DOCKER_LOG"
@@ -478,8 +492,21 @@ test_lock_link_signal() {
   fi
   assert_eq 143 "$signal_status" "TERM $phase lock link lost signal status"
   assert_eq 0 "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" "TERM $phase lock link invoked Docker"
-  assert_failure_state "$one"
+  assert_missing "$BLOG_STATE_DIR/last-failure" "TERM $phase lock link wrote failure state without owning lock"
+  assert_owned_lock_cleaned
   assert_candidate_cleaned
+}
+
+test_empty_foreign_lock() {
+  reset_case empty_foreign_lock
+  : > "$BLOG_STATE_DIR/deploy.lock"
+  status_output=$("$RELEASE" status) || fail 'status failed with foreign empty lock'
+  printf '%s\n' "$status_output" | grep -Fx 'current=none' >/dev/null || fail 'status omitted missing current'
+  test -f "$BLOG_STATE_DIR/deploy.lock" || fail 'status removed empty foreign lock'
+  assert_eq 0 "$(wc -c < "$BLOG_STATE_DIR/deploy.lock" | tr -d ' ')" 'status changed empty foreign lock'
+  if "$RELEASE" deploy bad-sha >/dev/null 2>&1; then fail 'invalid SHA was accepted with foreign lock'; fi
+  test -f "$BLOG_STATE_DIR/deploy.lock" || fail 'invalid SHA removed empty foreign lock'
+  assert_eq 0 "$(wc -c < "$BLOG_STATE_DIR/deploy.lock" | tr -d ' ')" 'invalid SHA changed empty foreign lock'
 }
 
 test_candidate_cleanup_failure() {
@@ -643,10 +670,12 @@ test_term_rollback() {
 
 test_lock_contention() {
   reset_case lock_contention
+  printf 'sentinel failure\n' > "$BLOG_STATE_DIR/last-failure"
   printf 'foreign-owner\n' > "$BLOG_STATE_DIR/deploy.lock"
   if "$RELEASE" deploy "$three" >/dev/null 2>&1; then fail 'concurrent deployment was accepted'; fi
   assert_eq 0 "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" 'lock contention invoked Docker'
   assert_file_eq "$BLOG_STATE_DIR/deploy.lock" foreign-owner 'contender changed foreign deployment lock'
+  assert_file_eq "$BLOG_STATE_DIR/last-failure" 'sentinel failure' 'contender changed shared last-failure state'
   leftover=$(find "$BLOG_STATE_DIR" -maxdepth 1 \( -name '.deploy.lock-token.*' -o -name '.deploy.lock-pending.*' \) -print -quit)
   test -z "$leftover" || fail "contender retained private lock token ($leftover)"
 }
@@ -689,9 +718,11 @@ run_case current-trailing-blank test_bad_state trailing
 run_case current-no-newline test_bad_state no-newline
 run_case current-broken-symlink test_broken_current_symlink
 run_case previous-directory test_bad_previous_state
+run_case previous-broken-symlink test_broken_previous_symlink
 run_case owned-lock-shape test_owned_lock_shape
 run_case lock-link-signal-before test_lock_link_signal before
 run_case lock-link-signal-after test_lock_link_signal after
+run_case empty-foreign-lock test_empty_foreign_lock
 run_case partial-compose-rollback test_partial_compose_rollback
 run_case candidate-cleanup-failure test_candidate_cleanup_failure
 run_case lock-release-failure test_lock_release_failure

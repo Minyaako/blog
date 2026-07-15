@@ -75,6 +75,7 @@ read_state() {
 
 owned_file() {
   owned_path=$1
+  test -n "$LOCK_OWNER" || return 1
   test ! -L "$owned_path" || return 1
   test -f "$owned_path" || return 1
   actual_owner=$(cat "$owned_path") || return 1
@@ -282,17 +283,17 @@ esac
 sha=$2
 valid_sha "$sha" || die 'SHA must be 40 lowercase hexadecimal characters'
 TARGET_SHA=$sha
-DEPLOY_ACTIVE=true
 short=$(printf '%.12s' "$sha")
 LOCK_OWNER=blog-release-$$-$sha
 LOCK_PENDING=$STATE_DIR/.deploy.lock-pending.$$-$short
 LOCK_TOKEN=$STATE_DIR/.deploy.lock-token.$$-$short
 acquire_lock || die 'another deployment is active'
+DEPLOY_ACTIVE=true
 
 OLD_CURRENT=$(read_state "$STATE_DIR/current") || die 'cannot read current state'
 test "$OLD_CURRENT" = none || valid_sha "$OLD_CURRENT" || die 'current state is invalid'
 
-if test -e "$STATE_DIR/previous"; then
+if test -e "$STATE_DIR/previous" || test -L "$STATE_DIR/previous"; then
   PREVIOUS_EXISTED=true
   OLD_PREVIOUS=$(read_state "$STATE_DIR/previous") || die 'cannot read previous state'
   valid_sha "$OLD_PREVIOUS" || die 'previous state is invalid'

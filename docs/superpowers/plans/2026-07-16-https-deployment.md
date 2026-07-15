@@ -508,7 +508,7 @@ atomic_write() {
 }
 read_state() { test -f "$1" && cat "$1" || printf '%s\n' none; }
 owned_lock_file() {
-  test ! -L "$1" && test -f "$1" && test "$(cat "$1")" = "$LOCK_OWNER"
+  test -n "$LOCK_OWNER" && test ! -L "$1" && test -f "$1" && test "$(cat "$1")" = "$LOCK_OWNER"
 }
 acquire_lock() {
   printf '%s\n' "$LOCK_OWNER" > "$LOCK_PENDING" || return 1
