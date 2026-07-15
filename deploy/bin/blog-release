@@ -132,6 +132,8 @@ compose_up() {
     -f "$COMPOSE_FILE" up -d --wait --remove-orphans
 }
 
+# Invoked only through the EXIT-trap rollback path; ShellCheck cannot trace that call graph.
+# shellcheck disable=SC2317
 compose_down() {
   BLOG_IMAGE="$IMAGE_REPO:$1" "$DOCKER" compose -f "$COMPOSE_FILE" down
 }
@@ -162,12 +164,16 @@ public_health() {
   esac
 }
 
+# Invoked only through cleanup(), which is registered as an EXIT trap.
+# shellcheck disable=SC2317
 record_failure() {
   failure_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) || return 1
   test -n "$failure_time" || return 1
   atomic_write "$STATE_DIR/last-failure" "$TARGET_SHA $failure_time"
 }
 
+# Invoked only through the EXIT-trap rollback path.
+# shellcheck disable=SC2317
 restore_previous_snapshot() {
   if test "$PREVIOUS_EXISTED" = true; then
     atomic_write "$STATE_DIR/previous" "$OLD_PREVIOUS"
@@ -176,6 +182,8 @@ restore_previous_snapshot() {
   fi
 }
 
+# Invoked only through cleanup(), which is registered as an EXIT trap.
+# shellcheck disable=SC2317
 rollback_release() {
   rollback_ok=true
   ROLLBACK_REQUIRED=false
@@ -211,6 +219,8 @@ rollback_release() {
   test "$rollback_ok" = true
 }
 
+# Registered with trap below; ShellCheck does not recognize the indirect entry point.
+# shellcheck disable=SC2317
 cleanup() {
   original_status=$?
   if test "$CLEANING" = true; then

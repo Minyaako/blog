@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 RELEASE=$ROOT/deploy/bin/blog-release
 TMP=$(mktemp -d)
 cleanup_test_tmp() {
@@ -34,7 +34,9 @@ assert_file_eq() {
 }
 
 assert_missing() {
-  test ! -e "$1" && test ! -L "$1" || fail "$2 ($1 exists)"
+  if test -e "$1" || test -L "$1"; then
+    fail "$2 ($1 exists)"
+  fi
 }
 
 assert_log() {
@@ -52,8 +54,8 @@ assert_log 'deploy/bin/blog-release text eol=lf' "$ROOT/.gitattributes" 'release
 assert_log 'tests/deploy/blog-release.test.sh text eol=lf' "$ROOT/.gitattributes" 'release test is not pinned to LF for Linux archives'
 
 mkdir -p "$TMP/bin"
-export DOCKER_BIN=$TMP/bin/docker
-export CURL_BIN=$TMP/bin/curl
+export DOCKER_BIN="$TMP/bin/docker"
+export CURL_BIN="$TMP/bin/curl"
 export REAL_MV
 REAL_MV=$(command -v mv)
 export REAL_RM
@@ -251,7 +253,7 @@ printf '%s\n' "$*" >> "$SLEEP_LOG"
 SH
 
 chmod +x "$DOCKER_BIN" "$CURL_BIN" "$TMP/bin/date" "$TMP/bin/ln" "$TMP/bin/mv" "$TMP/bin/rm" "$TMP/bin/sleep"
-export PATH=$TMP/bin:$ORIGINAL_PATH
+export PATH="$TMP/bin:$ORIGINAL_PATH"
 
 one=1111111111111111111111111111111111111111
 two=2222222222222222222222222222222222222222
@@ -260,21 +262,21 @@ repo=ghcr.io/minyaako/blog
 
 reset_case() {
   case_name=$1
-  export BLOG_APP_DIR=$TMP/$case_name/app
-  export BLOG_STATE_DIR=$BLOG_APP_DIR/state
-  export BLOG_COMPOSE_FILE=$BLOG_APP_DIR/compose.yml
-  export DOCKER_LOG=$TMP/$case_name/docker.log
-  export CURL_LOG=$TMP/$case_name/curl.log
-  export SLEEP_LOG=$TMP/$case_name/sleep.log
-  export ACTIVE_IMAGE=$TMP/$case_name/active-image
-  export CANDIDATE_STATE=$TMP/$case_name/candidate-state
-  export CANDIDATE_RM_FAIL_MARKER=$TMP/$case_name/candidate-rm-failed
-  export MV_FAIL_MARKER=$TMP/$case_name/mv-failed
-  export LOCK_RELEASE_FAIL_MARKER=$TMP/$case_name/lock-release-failed
-  export TOKEN_RELEASE_FAIL_MARKER=$TMP/$case_name/token-release-failed
-  export ROLLBACK_LOCK_ASSERTED=$TMP/$case_name/rollback-lock-asserted
-  export LOCK_ASSERTED=$TMP/$case_name/lock-asserted
-  export CASE_OUTPUT=$TMP/$case_name/output.log
+  export BLOG_APP_DIR="$TMP/$case_name/app"
+  export BLOG_STATE_DIR="$BLOG_APP_DIR/state"
+  export BLOG_COMPOSE_FILE="$BLOG_APP_DIR/compose.yml"
+  export DOCKER_LOG="$TMP/$case_name/docker.log"
+  export CURL_LOG="$TMP/$case_name/curl.log"
+  export SLEEP_LOG="$TMP/$case_name/sleep.log"
+  export ACTIVE_IMAGE="$TMP/$case_name/active-image"
+  export CANDIDATE_STATE="$TMP/$case_name/candidate-state"
+  export CANDIDATE_RM_FAIL_MARKER="$TMP/$case_name/candidate-rm-failed"
+  export MV_FAIL_MARKER="$TMP/$case_name/mv-failed"
+  export LOCK_RELEASE_FAIL_MARKER="$TMP/$case_name/lock-release-failed"
+  export TOKEN_RELEASE_FAIL_MARKER="$TMP/$case_name/token-release-failed"
+  export ROLLBACK_LOCK_ASSERTED="$TMP/$case_name/rollback-lock-asserted"
+  export LOCK_ASSERTED="$TMP/$case_name/lock-asserted"
+  export CASE_OUTPUT="$TMP/$case_name/output.log"
   unset FAIL_PULL FAIL_RUN FAIL_INSPECT CANDIDATE_HEALTH FAIL_COMPOSE_BEFORE_IMAGE
   unset FAIL_COMPOSE_AFTER_IMAGE FAIL_COMPOSE_DOWN FAIL_ENDPOINT FAIL_IMAGE
   unset SIGNAL_ENDPOINT SIGNAL_IMAGE FAIL_MV_DEST FAIL_CANDIDATE_RM_ONCE
@@ -368,8 +370,8 @@ test_success_and_safety() {
 test_endpoint_failure() {
   endpoint=$1
   label=$2
-  reset_case endpoint_$label
-  export FAIL_ENDPOINT=$endpoint
+  reset_case "endpoint_$label"
+  export FAIL_ENDPOINT="$endpoint"
   if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail "$endpoint failure was accepted"; fi
   assert_missing "$BLOG_STATE_DIR/current" "$endpoint failure recorded current"
   assert_missing "$BLOG_STATE_DIR/previous" "$endpoint failure recorded previous"
@@ -423,7 +425,7 @@ test_starting_timeout() {
 
 test_bad_state() {
   kind=$1
-  reset_case bad_state_$kind
+  reset_case "bad_state_$kind"
   case "$kind" in
     directory) mkdir "$BLOG_STATE_DIR/current" ;;
     trailing) printf '%s\n\n' "$one" > "$BLOG_STATE_DIR/current" ;;
@@ -503,8 +505,8 @@ test_owned_lock_shape() {
 
 test_lock_link_signal() {
   phase=$1
-  reset_case lock_link_signal_$phase
-  export SIGNAL_LOCK_PHASE=$phase
+  reset_case "lock_link_signal_$phase"
+  export SIGNAL_LOCK_PHASE="$phase"
   if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then
     fail "TERM $phase lock link was accepted"
   else
@@ -572,7 +574,7 @@ test_private_token_release_failure() {
 
 test_last_failure_nonregular() {
   kind=$1
-  reset_case last_failure_$kind
+  reset_case "last_failure_$kind"
   seed_one
   if test "$kind" = directory; then
     mkdir "$BLOG_STATE_DIR/last-failure"
