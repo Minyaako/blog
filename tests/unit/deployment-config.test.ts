@@ -21,11 +21,64 @@ type ComposeService = {
 }
 
 type ComposeDocument = {
-  services?: { blog?: ComposeService }
+  services?: Record<string, ComposeService>
   networks?: Record<string, { external?: boolean }>
 }
 
 const read = (path: string) => readFileSync(path, 'utf8').replaceAll('\r\n', '\n')
+
+const stripCaddyComment = (line: string) => {
+  let quoted = false
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index]
+    if (character === '\\' && quoted) {
+      index += 1
+    } else if (character === '"') {
+      quoted = !quoted
+    } else if (character === '#' && !quoted) {
+      return line.slice(0, index)
+    }
+  }
+
+  return line
+}
+
+const normalizeCaddyfile = (source: string) =>
+  source
+    .split('\n')
+    .map(stripCaddyComment)
+    .map((line) => line.trim().replace(/\s+/g, ' '))
+    .filter(Boolean)
+    .join('\n')
+
+const expectedCaddyfile = normalizeCaddyfile(`
+{
+  admin off
+  auto_https off
+  persist_config off
+}
+
+:8080 {
+  root * /srv
+  encode zstd gzip
+
+  respond /healthz "ok" 200
+
+  @immutable path /_astro/* /pagefind/*
+  header @immutable Cache-Control "public, max-age=31536000, immutable"
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+  }
+
+  file_server
+  handle_errors {
+    rewrite * /404.html
+    file_server
+  }
+}
+`)
 
 const assertDockerContract = (dockerfile: string) => {
   expect(dockerfile.match(/^FROM .+$/gm)).toEqual([
@@ -44,6 +97,7 @@ const assertDockerContract = (dockerfile: string) => {
 
   expect(runtime).toContain(addGroup)
   expect(runtime).toContain(addUser)
+  expect(runtime.indexOf(addGroup)).toBeLessThan(runtime.indexOf(addUser))
   expect(runtime.match(/^COPY .+$/gm)).toEqual([copySite, copyConfig])
   expect(runtime.match(/^USER .+$/gm)).toEqual([user])
 
@@ -57,19 +111,22 @@ const assertDockerContract = (dockerfile: string) => {
 
   expect(runtime).toMatch(/^EXPOSE 8080$/m)
   expect(runtime).toContain('HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=6')
-  expect(runtime).toContain('http://127.0.0.1:8080/healthz')
+  expect(runtime).toMatch(
+    /^ {2}CMD wget -q --spider http:\/\/127\.0\.0\.1:8080\/healthz \|\| exit 1$/m,
+  )
 }
 
 const assertComposeContract = (source: string) => {
   const compose = parse(source) as ComposeDocument
   const blog = compose.services?.blog
 
+  expect(Object.keys(compose.services ?? {})).toEqual(['blog'])
   expect(blog?.image).toBe('${BLOG_IMAGE:?BLOG_IMAGE is required}')
   expect(blog?.ports).toBeUndefined()
   expect(blog?.volumes).toBeUndefined()
   expect(blog?.read_only).toBe(true)
   expect(blog?.cap_drop).toEqual(['ALL'])
-  expect(blog?.security_opt).toContain('no-new-privileges:true')
+  expect(blog?.security_opt).toEqual(['no-new-privileges:true'])
   expect(blog?.tmpfs).toHaveLength(2)
   expect(blog?.tmpfs).toEqual(
     expect.arrayContaining([
@@ -91,20 +148,23 @@ const assertComposeContract = (source: string) => {
 }
 
 const assertCaddyContract = (caddyfile: string) => {
-  expect(caddyfile).toContain('admin off')
-  expect(caddyfile).toContain('auto_https off')
-  expect(caddyfile).toContain('persist_config off')
-  expect(caddyfile).toContain(':8080 {')
-  expect(caddyfile).toContain('root * /srv')
-  expect(caddyfile).toContain('respond /healthz "ok" 200')
-  expect(caddyfile).toMatch(/^ {4}file_server$/m)
-  expect(caddyfile).toMatch(
+  const normalized = normalizeCaddyfile(caddyfile)
+
+  expect(normalized).toBe(expectedCaddyfile)
+  expect(normalized).toContain('admin off')
+  expect(normalized).toContain('auto_https off')
+  expect(normalized).toContain('persist_config off')
+  expect(normalized).toContain(':8080 {')
+  expect(normalized).toContain('root * /srv')
+  expect(normalized).toContain('respond /healthz "ok" 200')
+  expect(normalized).toMatch(/^file_server$/m)
+  expect(normalized).toMatch(
     /handle_errors \{\s+rewrite \* \/404\.html\s+file_server\s+\}/,
   )
-  expect(caddyfile).toContain('X-Content-Type-Options nosniff')
-  expect(caddyfile).toContain('Referrer-Policy strict-origin-when-cross-origin')
-  expect(caddyfile).toContain('@immutable path /_astro/* /pagefind/*')
-  expect(caddyfile).toContain(
+  expect(normalized).toContain('X-Content-Type-Options nosniff')
+  expect(normalized).toContain('Referrer-Policy strict-origin-when-cross-origin')
+  expect(normalized).toContain('@immutable path /_astro/* /pagefind/*')
+  expect(normalized).toContain(
     'header @immutable Cache-Control "public, max-age=31536000, immutable"',
   )
 }
@@ -138,6 +198,26 @@ describe('production container contract', () => {
     expect(() => assertDockerContract(mutated)).toThrow()
   })
 
+  it('rejects creating the user before its group', () => {
+    const addGroup = 'RUN addgroup -S -g 1000 caddy \\'
+    const addUser = '  && adduser -S -D -H -u 1000 -G caddy caddy'
+    const mutated = dockerfile.replace(
+      `${addGroup}\n${addUser}`,
+      `${addUser}\n${addGroup}`,
+    )
+
+    expect(() => assertDockerContract(mutated)).toThrow()
+  })
+
+  it('rejects a health command that does not probe the endpoint', () => {
+    const mutated = dockerfile.replace(
+      'CMD wget -q --spider http://127.0.0.1:8080/healthz || exit 1',
+      'CMD true http://127.0.0.1:8080/healthz',
+    )
+
+    expect(() => assertDockerContract(mutated)).toThrow()
+  })
+
   it('accepts the production Compose structure', () => {
     assertComposeContract(compose)
   })
@@ -163,6 +243,24 @@ describe('production container contract', () => {
     expect(() => assertComposeContract(mutated)).toThrow()
   })
 
+  it('rejects an additional service with host ports and volumes', () => {
+    const mutated = compose.replace(
+      'services:\n',
+      'services:\n  debug:\n    image: busybox\n    ports: ["8081:80"]\n    volumes: ["/tmp:/tmp"]\n',
+    )
+
+    expect(() => assertComposeContract(mutated)).toThrow()
+  })
+
+  it('rejects additional relaxed security options', () => {
+    const mutated = compose.replace(
+      '      - no-new-privileges:true\n',
+      '      - no-new-privileges:true\n      - seccomp:unconfined\n',
+    )
+
+    expect(() => assertComposeContract(mutated)).toThrow()
+  })
+
   it('accepts the production Caddyfile', () => {
     assertCaddyContract(caddyfile)
   })
@@ -177,6 +275,21 @@ describe('production container contract', () => {
       ),
     ],
   ])('rejects Caddy without %s', (_name, mutated) => {
+    expect(() => assertCaddyContract(mutated)).toThrow()
+  })
+
+  it('rejects the wrong listener even when a comment contains the expected one', () => {
+    const mutated = caddyfile.replace(':8080 {', '# :8080 {\n:9090 {')
+
+    expect(() => assertCaddyContract(mutated)).toThrow()
+  })
+
+  it('rejects an unhealthy response even when a comment contains the expected one', () => {
+    const mutated = caddyfile.replace(
+      '    respond /healthz "ok" 200',
+      '    # respond /healthz "ok" 200\n    respond /healthz "ok" 503',
+    )
+
     expect(() => assertCaddyContract(mutated)).toThrow()
   })
 
