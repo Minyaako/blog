@@ -1,12 +1,39 @@
 # HTTPS/CD 应用侧验收记录
 
+## 生产首发补充
+
+补充时间：2026-07-16 22:14:23 +08:00（Asia/Shanghai / China Standard Time）
+
+首个健康生产版本：`ce64b45f8d0c2028f80ea8768c841e49a80762cb`
+
+部署镜像：`ghcr.io/minyaako/blog:ce64b45f8d0c2028f80ea8768c841e49a80762cb`
+
+镜像摘要：`sha256:92bc963c6bbbdc6e037918fb8840ef5264d695d258630768c69618827bb89232`
+
+- 修复 PR：<https://github.com/Minyaako/blog/pull/2>
+- 首次成功生产部署：<https://github.com/Minyaako/blog/actions/runs/29503951944>
+- 首次失败尝试（保留作故障证据）：<https://github.com/Minyaako/blog/actions/runs/29497609266>
+
+生产检查结果：
+
+- 受限发布状态为 `current=ce64b45f8d0c2028f80ea8768c841e49a80762cb`、`previous=none`。
+- `https://gsk.minyako.top/`、`/about/` 与 `/archives/` 均返回 200，`/healthz` 响应体严格等于 `ok`。
+- RSS 与 Sitemap 均包含规范来源 `https://gsk.minyako.top`。
+- `https://minyakogsk.icu/archives?domain=academic` 返回 308，并保留路径与查询参数跳转到规范域名。
+- 生产容器健康状态为 `healthy`，只读根文件系统，`cap_drop=[ALL]`，启用 `no-new-privileges`，无宿主端口，只加入 `server_proxy`。
+- `/usr/bin/caddy` 的上游 `cap_net_bind_service` 文件 capability 已在镜像构建时移除，精确镜像在上述限制下通过候选健康检查。
+- 服务器匿名拉取公开 GHCR 包成功；服务器 Docker 配置中没有 `ghcr.io` 凭据。
+- 手动调度和 Actions 重跑只检查既有 SHA 镜像，不再重新构建或覆盖同一标签。
+
+首次合并 SHA `362eb59ef25b5d28bad104d445aa5849cf9cde7c` 未进入生产：候选容器因上游 Caddy 文件 capability 与 `cap_drop: ALL`、`no-new-privileges` 冲突而失败。发布脚本保持 `current=none` 并清理候选；修复后才部署上述首个健康版本。
+
 验收时间：2026-07-16 07:07:33 +08:00（Asia/Shanghai / China Standard Time）
 
 受测源码提交：`b29df9b88f9eb60bea94ecb0c5d43ae853c858f4`
 
 分支：`codex/static-blog-core`
 
-## 结论与边界
+## 初始应用侧门禁（历史快照）
 
 应用仓库的静态构建、浏览器回归、Linux 发布脚本和非特权容器运行契约均已通过本地验收。这里记录的是应用侧发布门禁，不代表生产部署已经完成，也不授权合并或启用自动部署。
 
@@ -97,4 +124,4 @@ Secrets 库存再次只读复核时间：2026-07-16 07:15:28 +08:00。
 - 没有修改共享 Caddy 或任何域名路由。
 - 没有把 PAT、私钥、Secret 值、host key 内容或 live `.env` 写入仓库、日志或本文档。
 
-后续必须先审查并实施 `server-infra` bootstrap，再由控制端确认远端 PR checks 通过、GHCR 首个 SHA 镜像可匿名拉取以及受限 SSH 边界正确，才能讨论打开 `DEPLOY_ENABLED`。
+以上“未执行事项”和生产现状只描述 2026-07-16 07:07 的初始门禁快照；它们已由本页顶部的生产首发补充取代。下一步以本次文档提交形成第二个已知良好 SHA，完成自动部署、受控回滚与恢复演练。
