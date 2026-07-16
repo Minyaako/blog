@@ -142,7 +142,9 @@ const assertDockerContract = (dockerfile: string) => {
   const copySite = 'COPY --from=build --chown=caddy:caddy /app/dist /srv'
   const copyConfig = 'COPY --chown=caddy:caddy deploy/site.Caddyfile /etc/caddy/Caddyfile'
   const user = 'USER caddy'
+  const removeFileCapabilities = 'setcap -r /usr/bin/caddy'
 
+  expect(runtime).toContain(removeFileCapabilities)
   expect(runtime).toContain(addGroup)
   expect(runtime).toContain(addUser)
   expect(runtime.indexOf(addGroup)).toBeLessThan(runtime.indexOf(addUser))
@@ -156,6 +158,7 @@ const assertDockerContract = (dockerfile: string) => {
   }
   expect(runtime.indexOf(copySite)).toBeLessThan(runtime.indexOf(user))
   expect(runtime.indexOf(copyConfig)).toBeLessThan(runtime.indexOf(user))
+  expect(runtime.indexOf(removeFileCapabilities)).toBeLessThan(runtime.indexOf(user))
 
   expect(runtime).toMatch(/^EXPOSE 8080$/m)
   expect(runtime).toContain('HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=6')
@@ -262,15 +265,30 @@ const assertWorkflowContract = (source: string) => {
   expect(publish.permissions).toEqual({ contents: 'read', packages: 'write' })
   expect(findStep(publish, 'actions/checkout@v4')).toBeDefined()
   expect(findStep(publish, 'docker/setup-buildx-action@v3')).toBeDefined()
-  expect(findStep(publish, 'docker/login-action@v3')?.with).toEqual({
+  const login = findStep(publish, 'docker/login-action@v3')
+  expect(login?.if).toBe(
+    "${{ github.event_name == 'push' && github.run_attempt == 1 }}",
+  )
+  expect(login?.with).toEqual({
     registry: 'ghcr.io',
     username: '${{ github.actor }}',
     password: '${{ secrets.GITHUB_TOKEN }}',
   })
-  expect(findStep(publish, 'docker/build-push-action@v6')?.with).toEqual({
+  const buildAndPush = findStep(publish, 'docker/build-push-action@v6')
+  expect(buildAndPush?.if).toBe(
+    "${{ github.event_name == 'push' && github.run_attempt == 1 }}",
+  )
+  expect(buildAndPush?.with).toEqual({
     context: '.',
     push: true,
     tags: 'ghcr.io/minyaako/blog:${{ github.sha }}',
+  })
+  expect(
+    publish.steps?.find((step) => step.name === 'Verify immutable image exists'),
+  ).toEqual({
+    name: 'Verify immutable image exists',
+    if: "${{ github.event_name == 'workflow_dispatch' || github.run_attempt != 1 }}",
+    run: 'docker buildx imagetools inspect ghcr.io/minyaako/blog:${{ github.sha }}',
   })
   expect(JSON.stringify(publish)).not.toMatch(/DEPLOY_/)
 
@@ -352,6 +370,12 @@ describe('production container contract', () => {
 
   it('rejects COPY instructions without caddy ownership', () => {
     const mutated = dockerfile.replaceAll('--chown=caddy:caddy ', '')
+
+    expect(() => assertDockerContract(mutated)).toThrow()
+  })
+
+  it('rejects retaining upstream Caddy file capabilities', () => {
+    const mutated = dockerfile.replace('RUN setcap -r /usr/bin/caddy\n', '')
 
     expect(() => assertDockerContract(mutated)).toThrow()
   })

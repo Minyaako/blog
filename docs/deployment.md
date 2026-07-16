@@ -105,7 +105,7 @@
    if ($LASTEXITCODE -ne 0) { throw "workflow run $runId 失败" }
    ```
 
-   预期顺序是 `verify -> publish-image -> deploy-production`，远端状态的 `current` 等于 `$mainSha`。
+   预期顺序是 `verify -> publish-image -> deploy-production`，远端状态的 `current` 等于 `$mainSha`。其中 `main` 的首次 `push` 运行负责构建并推送 SHA 镜像；手动调度和 GitHub Actions 重跑只验证该 SHA 镜像已经存在，不得重新构建或覆盖同一标签。若首次运行在镜像发布前失败，应提交修复产生新的 SHA，不得用重跑覆盖原标签。
 
 ## 受限 SSH 与状态检查
 
