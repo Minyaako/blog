@@ -1,0 +1,39 @@
+---
+import type { GetStaticPaths } from 'astro'
+import PostCard from '../../../components/PostCard.astro'
+import { DOMAINS, type DomainKey } from '../../../config/taxonomy'
+import BaseLayout from '../../../layouts/BaseLayout.astro'
+import { filterPosts, getPublishedPosts, toPostCard, type PostCardData } from '../../../lib/posts'
+
+export const getStaticPaths = (async () => {
+  const posts = await getPublishedPosts()
+  return (Object.entries(DOMAINS) as [DomainKey, (typeof DOMAINS)[DomainKey]][]).flatMap(([domain, config]) =>
+    Object.entries(config.subcategories).map(([subcategory, item]) => ({
+      params: { domain, subcategory },
+      props: { domain, subcategory, label: item.label, posts: filterPosts(posts, domain, subcategory).map(toPostCard) }
+    }))
+  )
+}) satisfies GetStaticPaths
+
+interface Props { domain: DomainKey; subcategory: string; label: string; posts: PostCardData[] }
+const { domain, label, posts } = Astro.props
+const parent = DOMAINS[domain]
+---
+
+<BaseLayout title={`${label} · ${parent.label}`} description={`${parent.label}领域中的${label}文章。`}>
+  <div class="listing-page">
+    <header><a href={`/domains/${domain}`}>← {parent.label}</a><h1>{label}</h1><p>{posts.length} 篇公开文章</p></header>
+    <div class="cards">{posts.map((post) => <PostCard post={post} />)}</div>
+    {!posts.length && <p class="empty">这个子类已经预留好位置，文章正在准备中。</p>}
+  </div>
+</BaseLayout>
+
+<style>
+  .listing-page { width: min(100% - 2rem, var(--content-wide)); margin-inline: auto; padding-block: var(--space-7); }
+  header { padding-bottom: var(--space-5); border-bottom: 1px solid var(--border-strong); }
+  header a { color: var(--text-muted); }
+  h1 { margin: var(--space-3) 0 var(--space-2); font: 750 clamp(2rem, 6vw, 3.75rem)/1.1 var(--font-display); }
+  header p, .empty { color: var(--text-muted); }
+  .cards { display: grid; gap: var(--space-5); margin-top: var(--space-6); }
+  .empty { padding-block: var(--space-7); }
+</style>

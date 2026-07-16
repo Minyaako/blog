@@ -1,0 +1,50 @@
+---
+interface Props { pageKey: string; message: string; returnHref?: string }
+const { pageKey, message, returnHref = '/' } = Astro.props
+const dialogId = `content-warning-${pageKey}`
+---
+
+<dialog id={dialogId} class="warning-dialog" open aria-labelledby={`${dialogId}-title`} data-warning-dialog data-page-key={pageKey} data-pagefind-ignore>
+  <div class="dialog-card">
+    <p class="eyebrow">Before continuing</p>
+    <h2 id={`${dialogId}-title`}>内容提示</h2>
+    <p>{message}</p>
+    <p class="note">确认状态仅保存在当前浏览器会话中。</p>
+    <div class="actions"><button class="continue" type="button">确认并继续</button><a href={returnHref}>暂时返回</a></div>
+  </div>
+</dialog>
+
+<script>
+  document.querySelectorAll('[data-warning-dialog]').forEach((dialog) => {
+    if (!(dialog instanceof HTMLDialogElement)) return
+    const pageKey = dialog.dataset.pageKey
+    if (!pageKey) return
+    const storageKey = `minyako-warning:${pageKey}`
+    if (sessionStorage.getItem(storageKey) === 'accepted') {
+      dialog.removeAttribute('open')
+    } else {
+      dialog.close()
+      dialog.showModal()
+      const action = dialog.querySelector('.continue')
+      if (action instanceof HTMLButtonElement) action.focus()
+    }
+    dialog.addEventListener('cancel', (event) => event.preventDefault())
+    dialog.querySelector('.continue')?.addEventListener('click', () => {
+      sessionStorage.setItem(storageKey, 'accepted')
+      dialog.close()
+    })
+  })
+</script>
+
+<style>
+  .warning-dialog { width: min(100% - 2rem, 34rem); padding: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--canvas); color: var(--text); box-shadow: var(--shadow-lg); }
+  .warning-dialog::backdrop { background: color-mix(in srgb, #09080c 82%, transparent); backdrop-filter: blur(8px); }
+  .dialog-card { padding: clamp(1.5rem, 5vw, 3rem); }
+  .eyebrow { margin: 0; color: var(--games); font: var(--text-caption)/1.4 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+  h2 { margin: var(--space-2) 0 var(--space-4); font: 750 var(--text-title)/1.2 var(--font-display); }
+  p { line-height: 1.7; }
+  .note { color: var(--text-muted); font-size: .82rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+  button, a { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; padding-inline: var(--space-4); border: 1px solid var(--border-strong); border-radius: 99rem; font: inherit; text-decoration: none; }
+  button { background: var(--text); color: var(--canvas); cursor: pointer; }
+</style>

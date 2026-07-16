@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import DomainGrid from '../components/DomainGrid.astro'
+import HeroBanner from '../components/HeroBanner.astro'
+import LatestPosts from '../components/LatestPosts.astro'
+import ProfileStrip from '../components/ProfileStrip.astro'
+import { getPublishedPosts, toPostCard } from '../lib/posts'
+
+const posts = (await getPublishedPosts()).map(toPostCard)
+const featured = posts.find((post) => post.pageKey === 'engineering-astro-content-architecture')
+const ordered = featured ? [featured, ...posts.filter((post) => post.pageKey !== featured.pageKey)] : posts
+---
+
+<BaseLayout>
+  <HeroBanner />
+  <ProfileStrip />
+  <DomainGrid />
+  <LatestPosts posts={ordered} />
+</BaseLayout>

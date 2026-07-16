@@ -1,0 +1,40 @@
+---
+import type { GetStaticPaths } from 'astro'
+import PostCard from '../../../components/PostCard.astro'
+import { DOMAINS, type DomainKey } from '../../../config/taxonomy'
+import BaseLayout from '../../../layouts/BaseLayout.astro'
+import { filterPosts, getPublishedPosts, toPostCard, type PostCardData } from '../../../lib/posts'
+
+export const getStaticPaths = (async () => {
+  const posts = await getPublishedPosts()
+  return (Object.keys(DOMAINS) as DomainKey[]).map((domain) => ({
+    params: { domain },
+    props: { domain, posts: filterPosts(posts, domain).map(toPostCard) }
+  }))
+}) satisfies GetStaticPaths
+
+interface Props { domain: DomainKey; posts: PostCardData[] }
+const { domain, posts } = Astro.props
+const config = DOMAINS[domain]
+---
+
+<BaseLayout title={config.label} description={config.description}>
+  <div class="domain-page" data-domain={domain}>
+    <header class="domain-heading">
+      <p>{config.englishLabel}</p><h1>{config.label}</h1><span>{config.description}</span>
+      <nav aria-label={`${config.label}子类`}><ul>{Object.entries(config.subcategories).map(([slug, item]) => <li><a href={`/domains/${domain}/${slug}`}>{item.label}</a></li>)}</ul></nav>
+    </header>
+    <div class="cards">{posts.map((post) => <PostCard post={post} />)}</div>
+  </div>
+</BaseLayout>
+
+<style>
+  .domain-page { width: min(100% - 2rem, var(--content-wide)); margin-inline: auto; padding-block: var(--space-7); }
+  .domain-heading { padding-bottom: var(--space-6); border-bottom: 3px solid var(--accent); }
+  .domain-heading > p { margin: 0; color: var(--text-muted); font: var(--text-caption)/1.4 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+  h1 { margin: var(--space-2) 0; font: 760 clamp(2.5rem, 8vw, 5rem)/1 var(--font-display); }
+  .domain-heading > span { color: var(--text-muted); }
+  ul { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-5) 0 0; padding: 0; list-style: none; }
+  a { display: block; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 99rem; text-decoration: none; }
+  .cards { display: grid; gap: var(--space-5); margin-top: var(--space-7); }
+</style>

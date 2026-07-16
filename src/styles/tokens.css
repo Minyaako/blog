@@ -1,0 +1,62 @@
+@layer tokens {
+  :root {
+    color-scheme: light;
+    --canvas: #f4f0e9;
+    --surface: #fbf9f5;
+    --surface-raised: #ffffff;
+    --text: #1d1b19;
+    --text-muted: #625d56;
+    --border: #d5cec3;
+    --border-strong: #9e9588;
+    --focus: #23666c;
+    --accent: #744f5e;
+    --academic: #436b5b;
+    --engineering: #955b18;
+    --life: #70558a;
+    --games: #97505f;
+    --font-display: 'Manrope Variable', 'Noto Sans SC Variable', sans-serif;
+    --font-body: 'Noto Sans SC Variable', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+    --text-caption: 0.75rem;
+    --text-body: 1rem;
+    --text-title: clamp(1.35rem, 1.1rem + 0.8vw, 1.85rem);
+    --text-display: clamp(2rem, 1.3rem + 3vw, 4.5rem);
+    --line-tight: 1.14;
+    --line-body: 1.75;
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --space-7: 3rem;
+    --space-8: 4.5rem;
+    --radius-sm: 0.35rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1.15rem;
+    --content: 72rem;
+    --prose: 70ch;
+    --shadow-soft: 0 1.25rem 3rem rgb(54 45 36 / 0.08);
+    --duration-fast: 140ms;
+    --duration: 240ms;
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --canvas: #11100f;
+    --surface: #181715;
+    --surface-raised: #201e1b;
+    --text: #f2ede5;
+    --text-muted: #b9b0a4;
+    --border: #393530;
+    --border-strong: #70685f;
+    --focus: #75c5ca;
+    --accent: #d49aaf;
+    --academic: #80b29d;
+    --engineering: #d8a65e;
+    --life: #b59ad0;
+    --games: #d99aaa;
+    --shadow-soft: 0 1.25rem 3rem rgb(0 0 0 / 0.24);
+  }
+}

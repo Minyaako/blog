@@ -1,0 +1,368 @@
+#!/bin/sh
+set -eu
+
+APP_DIR=${BLOG_APP_DIR:-/srv/apps/blog}
+STATE_DIR=${BLOG_STATE_DIR:-$APP_DIR/state}
+COMPOSE_FILE=${BLOG_COMPOSE_FILE:-$APP_DIR/compose.yml}
+DOCKER=${DOCKER_BIN:-docker}
+CURL=${CURL_BIN:-curl}
+IMAGE_REPO=ghcr.io/minyaako/blog
+ORIGIN=https://gsk.minyako.top
+LOCK_FILE=$STATE_DIR/deploy.lock
+
+CANDIDATE=
+CLEANING=false
+DEPLOY_ACTIVE=false
+LOCK_HELD=false
+LOCK_OWNER=
+LOCK_PENDING=
+LOCK_TOKEN=
+ROLLBACK_REQUIRED=false
+TARGET_SHA=
+OLD_CURRENT=none
+PREVIOUS_EXISTED=false
+OLD_PREVIOUS=none
+
+die() {
+  echo "blog-release: $*" >&2
+  exit 1
+}
+
+valid_sha() {
+  value=$1
+  test "${#value}" -eq 40 || return 1
+  case "$value" in
+    *[!0-9a-f]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+atomic_write() {
+  file=$1
+  value=$2
+  tmp=$file.tmp.$$
+  if test -L "$file" || { test -e "$file" && test ! -f "$file"; }; then
+    return 1
+  fi
+  if ! printf '%s\n' "$value" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  if test -L "$file" || { test -e "$file" && test ! -f "$file"; }; then
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! mv "$tmp" "$file"; then
+    rm -f "$tmp"
+    return 1
+  fi
+}
+
+read_state() {
+  file=$1
+  test ! -L "$file" || return 1
+  if test ! -e "$file"; then
+    printf '%s\n' none
+    return 0
+  fi
+  test -f "$file" || return 1
+  byte_count=$(wc -c < "$file") || return 1
+  test "$byte_count" -eq 41 || return 1
+  state_value=$(cat "$file") || return 1
+  valid_sha "$state_value" || return 1
+  printf '%s\n' "$state_value"
+}
+
+owned_file() {
+  owned_path=$1
+  test -n "$LOCK_OWNER" || return 1
+  test ! -L "$owned_path" || return 1
+  test -f "$owned_path" || return 1
+  actual_owner=$(cat "$owned_path") || return 1
+  test "$actual_owner" = "$LOCK_OWNER"
+}
+
+remove_owned_file() {
+  owned_path=$1
+  if test ! -e "$owned_path" && test ! -L "$owned_path"; then
+    return 0
+  fi
+  owned_file "$owned_path" || return 1
+  rm -f "$owned_path"
+}
+
+acquire_lock() {
+  if ! printf '%s\n' "$LOCK_OWNER" > "$LOCK_PENDING"; then
+    return 1
+  fi
+  if ! ln "$LOCK_PENDING" "$LOCK_TOKEN" 2>/dev/null; then
+    rm -f "$LOCK_PENDING"
+    return 1
+  fi
+  rm -f "$LOCK_PENDING" || return 1
+  if ! ln "$LOCK_TOKEN" "$LOCK_FILE" 2>/dev/null; then
+    remove_owned_file "$LOCK_TOKEN" >/dev/null 2>&1 || true
+    return 1
+  fi
+  LOCK_HELD=true
+}
+
+release_owned_lock() {
+  if test -n "$LOCK_PENDING"; then
+    rm -f "$LOCK_PENDING" || return 1
+  fi
+  if test -n "$LOCK_TOKEN"; then
+    remove_owned_file "$LOCK_TOKEN" || return 1
+  fi
+
+  if test -e "$LOCK_FILE" || test -L "$LOCK_FILE"; then
+    if owned_file "$LOCK_FILE"; then
+      remove_owned_file "$LOCK_FILE" || return 1
+    elif test "$LOCK_HELD" = true; then
+      return 1
+    fi
+  fi
+
+  LOCK_HELD=false
+  return 0
+}
+
+compose_up() {
+  BLOG_IMAGE="$IMAGE_REPO:$1" "$DOCKER" compose \
+    -f "$COMPOSE_FILE" up -d --wait --remove-orphans
+}
+
+# Invoked only through the EXIT-trap rollback path; ShellCheck cannot trace that call graph.
+# shellcheck disable=SC2317
+compose_down() {
+  BLOG_IMAGE="$IMAGE_REPO:$1" "$DOCKER" compose -f "$COMPOSE_FILE" down
+}
+
+public_health() {
+  body=$("$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/healthz") || return 1
+  test "$body" = ok || return 1
+
+  body=$("$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/") || return 1
+  case "$body" in
+    *'<html'*) : ;;
+    *) return 1 ;;
+  esac
+
+  "$CURL" --fail --silent --show-error "$ORIGIN/about" >/dev/null || return 1
+  "$CURL" --fail --silent --show-error "$ORIGIN/archives" >/dev/null || return 1
+
+  body=$("$CURL" --fail --silent --show-error "$ORIGIN/rss.xml") || return 1
+  case "$body" in
+    *"$ORIGIN"*) : ;;
+    *) return 1 ;;
+  esac
+
+  body=$("$CURL" --fail --silent --show-error "$ORIGIN/sitemap-index.xml") || return 1
+  case "$body" in
+    *"$ORIGIN"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Invoked only through cleanup(), which is registered as an EXIT trap.
+# shellcheck disable=SC2317
+record_failure() {
+  failure_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) || return 1
+  test -n "$failure_time" || return 1
+  atomic_write "$STATE_DIR/last-failure" "$TARGET_SHA $failure_time"
+}
+
+# Invoked only through the EXIT-trap rollback path.
+# shellcheck disable=SC2317
+restore_previous_snapshot() {
+  if test "$PREVIOUS_EXISTED" = true; then
+    atomic_write "$STATE_DIR/previous" "$OLD_PREVIOUS"
+  else
+    rm -f "$STATE_DIR/previous"
+  fi
+}
+
+# Invoked only through cleanup(), which is registered as an EXIT trap.
+# shellcheck disable=SC2317
+rollback_release() {
+  rollback_ok=true
+  ROLLBACK_REQUIRED=false
+
+  if test "$OLD_CURRENT" = none; then
+    if ! compose_down "$TARGET_SHA" >/dev/null 2>&1; then
+      echo 'blog-release: rollback failed to stop first release' >&2
+      rollback_ok=false
+    fi
+    if ! rm -f "$STATE_DIR/current"; then
+      echo 'blog-release: rollback failed to remove current state' >&2
+      rollback_ok=false
+    fi
+  else
+    if ! compose_up "$OLD_CURRENT"; then
+      echo "blog-release: rollback compose replacement failed for $OLD_CURRENT" >&2
+      rollback_ok=false
+    elif ! public_health; then
+      echo "blog-release: rollback public health failed for $OLD_CURRENT" >&2
+      rollback_ok=false
+    fi
+    if ! atomic_write "$STATE_DIR/current" "$OLD_CURRENT"; then
+      echo 'blog-release: rollback failed to restore current state' >&2
+      rollback_ok=false
+    fi
+  fi
+
+  if ! restore_previous_snapshot; then
+    echo 'blog-release: rollback failed to restore previous state' >&2
+    rollback_ok=false
+  fi
+
+  test "$rollback_ok" = true
+}
+
+# Registered with trap below; ShellCheck does not recognize the indirect entry point.
+# shellcheck disable=SC2317
+cleanup() {
+  original_status=$?
+  if test "$CLEANING" = true; then
+    exit "$original_status"
+  fi
+  CLEANING=true
+  trap - EXIT HUP INT TERM
+  set +e
+  final_status=$original_status
+
+  if test "$DEPLOY_ACTIVE" = true && test "$original_status" -ne 0; then
+    if ! record_failure; then
+      echo 'blog-release: could not record deployment failure' >&2
+      final_status=1
+    fi
+  fi
+
+  if test "$ROLLBACK_REQUIRED" = true; then
+    if ! rollback_release; then
+      echo 'blog-release: rollback did not complete successfully' >&2
+      final_status=1
+    fi
+  fi
+
+  if test -n "$CANDIDATE"; then
+    if ! "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1; then
+      echo "blog-release: could not remove candidate $CANDIDATE" >&2
+      final_status=1
+    fi
+  fi
+
+  if ! release_owned_lock; then
+    echo 'blog-release: could not remove deployment lock' >&2
+    final_status=1
+  fi
+
+  exit "$final_status"
+}
+
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+mkdir -p "$STATE_DIR"
+case ${1:-} in
+  status)
+    test "$#" -eq 1 || die 'status accepts no arguments'
+    current=$(read_state "$STATE_DIR/current") || die 'cannot read current state'
+    previous=$(read_state "$STATE_DIR/previous") || die 'cannot read previous state'
+    test "$current" = none || valid_sha "$current" || die 'current state is invalid'
+    test "$previous" = none || valid_sha "$previous" || die 'previous state is invalid'
+    printf 'current=%s\n' "$current"
+    printf 'previous=%s\n' "$previous"
+    exit 0
+    ;;
+  deploy)
+    test "$#" -eq 2 || die 'deploy requires one full SHA'
+    ;;
+  *)
+    die 'usage: blog-release status | deploy FULL_LOWERCASE_SHA'
+    ;;
+esac
+
+sha=$2
+valid_sha "$sha" || die 'SHA must be 40 lowercase hexadecimal characters'
+TARGET_SHA=$sha
+short=$(printf '%.12s' "$sha")
+LOCK_OWNER=blog-release-$$-$sha
+LOCK_PENDING=$STATE_DIR/.deploy.lock-pending.$$-$short
+LOCK_TOKEN=$STATE_DIR/.deploy.lock-token.$$-$short
+acquire_lock || die 'another deployment is active'
+DEPLOY_ACTIVE=true
+
+OLD_CURRENT=$(read_state "$STATE_DIR/current") || die 'cannot read current state'
+test "$OLD_CURRENT" = none || valid_sha "$OLD_CURRENT" || die 'current state is invalid'
+
+if test -e "$STATE_DIR/previous" || test -L "$STATE_DIR/previous"; then
+  PREVIOUS_EXISTED=true
+  OLD_PREVIOUS=$(read_state "$STATE_DIR/previous") || die 'cannot read previous state'
+  valid_sha "$OLD_PREVIOUS" || die 'previous state is invalid'
+fi
+
+image=$IMAGE_REPO:$sha
+"$DOCKER" pull "$image" || die "could not pull $image"
+CANDIDATE=blog-candidate-$short
+"$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
+"$DOCKER" run -d --name "$CANDIDATE" \
+  --read-only \
+  --tmpfs /data:uid=1000,gid=1000,mode=0750 \
+  --tmpfs /config:uid=1000,gid=1000,mode=0750 \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --network server_proxy \
+  "$image" >/dev/null || die 'could not start candidate'
+
+healthy=false
+attempt=0
+while test "$attempt" -lt 30; do
+  candidate_status=$("$DOCKER" inspect --format '{{.State.Health.Status}}' "$CANDIDATE") || die 'candidate health inspection failed'
+  case "$candidate_status" in
+    healthy)
+      healthy=true
+      break
+      ;;
+    unhealthy)
+      break
+      ;;
+    starting)
+      :
+      ;;
+    *)
+      die "unexpected candidate health status: $candidate_status"
+      ;;
+  esac
+  attempt=$((attempt + 1))
+  if test "$attempt" -lt 30; then sleep 2; fi
+done
+test "$healthy" = true || die 'candidate did not become healthy'
+
+ROLLBACK_REQUIRED=true
+compose_up "$sha" || die 'target compose replacement failed'
+public_health || die 'target public health failed'
+
+"$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || die 'could not remove healthy candidate'
+CANDIDATE=
+
+if test "$OLD_CURRENT" != none; then
+  atomic_write "$STATE_DIR/previous" "$OLD_CURRENT" || die 'could not update previous state'
+fi
+atomic_write "$STATE_DIR/current" "$sha" || die 'could not update current state'
+rm -f "$STATE_DIR/last-failure" || die 'could not clear last failure'
+
+trap '' HUP INT TERM
+if ! release_owned_lock; then
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  die 'could not release deployment lock'
+fi
+ROLLBACK_REQUIRED=false
+DEPLOY_ACTIVE=false
+trap - EXIT HUP INT TERM
+printf 'deployed=%s\n' "$sha" || true
+exit 0

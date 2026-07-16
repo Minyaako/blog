@@ -1,0 +1,18 @@
+---
+import { SITE } from '../config/site'
+import ThemeToggle from './ThemeToggle.astro'
+---
+
+<header class="site-header" data-pagefind-ignore>
+  <div class="site-shell header-inner">
+    <a class="brand" href="/" aria-label={`${SITE.title} 首页`}>{SITE.title.toUpperCase()}</a>
+    <nav class="primary-nav" aria-label="主导航">
+      <ul class="nav-list">
+        {SITE.navigation.map((item) => (
+          <li><a class="nav-link" href={item.href}>{item.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+    <ThemeToggle />
+  </div>
+</header>

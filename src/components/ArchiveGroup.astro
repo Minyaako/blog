@@ -1,0 +1,24 @@
+---
+import type { PostCardData } from '../lib/posts'
+import PostCard from './PostCard.astro'
+
+interface Props { year: number; posts: PostCardData[] }
+const { year, posts } = Astro.props
+---
+
+<section class="archive-group" aria-labelledby={`year-${year}`}>
+  <header><h2 id={`year-${year}`}>{year}</h2><span>{posts.length} 篇</span></header>
+  <div class="cards">{posts.map((post) => <PostCard post={post} />)}</div>
+</section>
+
+<style>
+  .archive-group { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-6); margin-top: var(--space-7); }
+  header { position: sticky; top: 6rem; align-self: start; }
+  h2 { margin: 0; font: 750 var(--text-title)/1 var(--font-display); }
+  span { color: var(--text-muted); font: var(--text-caption)/1.5 var(--font-mono); }
+  .cards { display: grid; gap: var(--space-5); }
+  @media (max-width: 44rem) {
+    .archive-group { grid-template-columns: 1fr; gap: var(--space-3); }
+    header { position: static; display: flex; align-items: baseline; gap: var(--space-3); }
+  }
+</style>

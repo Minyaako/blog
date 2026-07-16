@@ -1,0 +1,55 @@
+---
+import { DOMAINS } from '../config/taxonomy'
+import type { PostCardData } from '../lib/posts'
+
+interface Props { posts: PostCardData[] }
+const { posts } = Astro.props
+const lead = posts[0]
+const rest = posts.slice(1, 3)
+const formatDate = (date: Date) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(date)
+---
+
+<section class="latest" aria-labelledby="latest-heading">
+  <div class="section-heading">
+    <div><span>Latest long reads</span><h2 id="latest-heading">最新长文</h2></div>
+    <a href="/archives">查看全部 →</a>
+  </div>
+  {lead ? (
+    <div class="latest-grid">
+      <article class="lead-post" data-domain={lead.domain}>
+        <p class="meta">{DOMAINS[lead.domain].label} · {formatDate(lead.publishedAt)}</p>
+        <h3><a href={`/posts/${lead.slug}`}>{lead.title}</a></h3>
+        <p>{lead.description}</p>
+        <ul>{lead.tags.map((tag) => <li>{tag}</li>)}</ul>
+      </article>
+      <div class="recent-list">
+        {rest.map((post) => (
+          <article>
+            <p class="meta">{DOMAINS[post.domain].label} · {formatDate(post.publishedAt)}</p>
+            <h3><a href={`/posts/${post.slug}`}>{post.title}</a></h3>
+          </article>
+        ))}
+      </div>
+    </div>
+  ) : <p class="empty">第一篇长文正在准备中。</p>}
+</section>
+
+<style>
+  .latest { padding-bottom: var(--space-7); }
+  .section-heading { display: flex; align-items: end; justify-content: space-between; padding-bottom: var(--space-3); border-bottom: 1px solid var(--border-strong); }
+  .section-heading span, .meta { color: var(--text-muted); font: var(--text-caption)/1.3 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+  h2 { margin: var(--space-2) 0 0; font: 750 var(--text-title)/1.2 var(--font-display); }
+  .section-heading a { color: var(--text-muted); font-size: 0.82rem; }
+  .latest-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: var(--space-7); }
+  article { padding-block: var(--space-5); border-bottom: 1px solid var(--border); }
+  .lead-post { padding-top: var(--space-6); border-top: 3px solid var(--engineering); }
+  h3 { margin: var(--space-3) 0; font: 700 1.15rem/1.35 var(--font-display); }
+  .lead-post h3 { font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.4rem); }
+  h3 a { text-decoration: none; }
+  h3 a:hover { color: var(--accent); }
+  .lead-post > p:not(.meta) { max-width: 58ch; color: var(--text-muted); line-height: 1.75; }
+  ul { display: flex; gap: var(--space-2); margin: var(--space-5) 0 0; padding: 0; list-style: none; }
+  li { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 99rem; color: var(--text-muted); font-size: 0.78rem; }
+  .empty { padding-block: var(--space-6); color: var(--text-muted); }
+  @media (max-width: 44rem) { .latest-grid { grid-template-columns: 1fr; gap: 0; } }
+</style>

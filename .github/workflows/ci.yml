@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: sh -n deploy/bin/blog-release tests/deploy/blog-release.test.sh
+      - run: pnpm test:deploy
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - name: Run browser checks
+        if: ${{ !(github.event_name == 'pull_request' && vars.REFRESH_VISUAL_BASELINES == 'true') }}
+        run: pnpm test:e2e
+      - name: Generate Linux visual baselines
+        if: ${{ github.event_name == 'pull_request' && vars.REFRESH_VISUAL_BASELINES == 'true' }}
+        run: pnpm exec playwright test tests/e2e/visual.spec.ts --update-snapshots
+      - name: Upload Linux visual baselines
+        if: ${{ github.event_name == 'pull_request' && vars.REFRESH_VISUAL_BASELINES == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-visual-baselines
+          path: tests/e2e/visual.spec.ts-snapshots/linux/
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+
+  publish-image:
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/minyaako/blog:${{ github.sha }}
+
+  deploy-production:
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true' }}
+    needs: publish-image
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: blog-production
+      cancel-in-progress: false
+    steps:
+      - name: Configure restricted SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+      - name: Deploy immutable image
+        run: >-
+          ssh -o BatchMode=yes
+          "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}"
+          "deploy ${{ github.sha }}"

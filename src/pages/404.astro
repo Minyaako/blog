@@ -1,0 +1,5 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+---
+<BaseLayout title="页面未找到" noindex><div class="not-found"><p>404 / Lost signal</p><h1>这里没有找到页面</h1><span>链接可能已经改变，也可能从未存在。</span><nav aria-label="404 页面操作"><a href="/">返回首页</a><a href="/search">搜索文章</a><a href="/archives">浏览归档</a></nav></div></BaseLayout>
+<style>.not-found{display:grid;min-height:65vh;place-content:center;width:min(100% - 2rem,var(--content-wide));margin-inline:auto;text-align:center}.not-found p{color:var(--games);font:var(--text-caption)/1.4 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}h1{max-width:12ch;margin:var(--space-3) auto;font:780 clamp(2.5rem,8vw,5.5rem)/1 var(--font-display)}span{color:var(--text-muted)}nav{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-3);margin-top:var(--space-6)}a{padding:var(--space-3) var(--space-4);border:1px solid var(--border);border-radius:99rem;text-decoration:none}</style>

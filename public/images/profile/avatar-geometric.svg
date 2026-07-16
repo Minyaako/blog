@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="title">
+  <title id="title">Minyako 几何头像</title>
+  <defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#e9b9b1"/><stop offset="1" stop-color="#776181"/></linearGradient></defs>
+  <rect width="200" height="200" rx="100" fill="#ede5dc"/>
+  <circle cx="100" cy="86" r="72" fill="url(#g)"/>
+  <path d="m36 52 14-39 36 30M164 52l-14-39-36 30" fill="#776181"/>
+  <circle cx="76" cy="88" r="7" fill="#2d2731"/><circle cx="124" cy="88" r="7" fill="#2d2731"/>
+  <path d="M81 120c12 9 26 9 38 0" fill="none" stroke="#2d2731" stroke-width="6" stroke-linecap="round"/>
+  <path d="M18 200c10-48 39-70 82-70s72 22 82 70" fill="#313746"/>
+</svg>
