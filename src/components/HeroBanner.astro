@@ -1,16 +1,14 @@
 ---
+import { resolveMedia } from '../lib/media'
+
 const slides = [
   {
-    src: '/images/home/hero-01.webp',
-    alt: '首页横幅：伏案小憩的少女',
-    width: 2559,
-    height: 1130
+    ...resolveMedia('home-hero-01'),
+    alt: '首页横幅：伏案小憩的少女'
   },
   {
-    src: '/images/home/hero-02.webp',
-    alt: '首页横幅：花瓣光影中的白发少女',
-    width: 2559,
-    height: 1439
+    ...resolveMedia('home-hero-02'),
+    alt: '首页横幅：花瓣光影中的白发少女'
   }
 ]
 ---
@@ -18,7 +16,7 @@ const slides = [
 <figure class="hero-banner" data-hero-rotator>
   {slides.map((slide, index) => (
     <img
-      src={slide.src}
+      src={slide.url}
       alt={slide.alt}
       width={slide.width}
       height={slide.height}

@@ -19,7 +19,7 @@ const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(po
       </ul>
     </div>
     <div class:list={['card-image', { placeholder: !post.cover }]} data-card-image aria-hidden={!post.cover ? 'true' : undefined}>
-      {post.cover && <img src={post.cover.url} alt={post.cover.alt} loading="lazy" width="560" height="320" />}
+      {post.cover && <img src={post.cover.url} alt={post.cover.alt} loading="lazy" width={post.cover.width} height={post.cover.height} />}
     </div>
   </a>
 </article>

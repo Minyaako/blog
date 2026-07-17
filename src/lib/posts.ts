@@ -1,13 +1,9 @@
 import type { CollectionEntry } from 'astro:content'
 import type { DomainKey } from '../config/taxonomy'
+import { resolveCover, type ResolvedCover } from './media'
 import { getPostTags, type Tag } from './tags'
 
-export interface PostCover {
-  url: string
-  alt: string
-  credit: string
-  sourceUrl?: string
-}
+export type PostCover = ResolvedCover
 
 export interface PostCardData {
   pageKey: string
@@ -72,7 +68,7 @@ export function toPostCard(post: CollectionEntry<'posts'>): PostCardData {
     domain: post.data.domain,
     subcategory: post.data.subcategory,
     tags,
-    cover: hideCover ? undefined : post.data.cover,
+    cover: hideCover || !post.data.cover ? undefined : resolveCover(post.data.cover),
     protected: protectedContent
   }
 }

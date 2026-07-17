@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('archive cards keep images clipped and show the visual novel cover', async ({ page }) => {
   await page.goto('/archives')
@@ -14,8 +14,10 @@ test('archive cards keep images clipped and show the visual novel cover', async 
   const gameCard = page.locator('[data-post-card]', { hasText: '视觉小说中的记忆与重访' })
   await expect(gameCard.locator('[data-card-image] img')).toHaveAttribute(
     'src',
-    '/images/posts/games-cover.webp'
+    'https://pic.minyako.top/blog/posts/visual-novel-memory/cover-25ca0d1e0bb72d75603f7f42a50cfb48df6d4e9cd6bd055a7891ca40b89e274d.webp'
   )
+  await expect(gameCard.locator('[data-card-image] img')).toHaveAttribute('width', '2559')
+  await expect(gameCard.locator('[data-card-image] img')).toHaveAttribute('height', '1439')
 })
 
 test('all configured domain entrances resolve', async ({ page }) => {

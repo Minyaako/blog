@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('technical article renders metadata, toc, code, and math', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture')
@@ -12,9 +12,9 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
 
 test('existing public articles use their mapped WebP headers', async ({ page }) => {
   const articles = [
-    ['/posts/embodied-ai-reading', '/images/posts/academic-cover.webp'],
-    ['/posts/astro-content-architecture', '/images/posts/engineering-cover.webp'],
-    ['/posts/july-field-notes', '/images/posts/life-cover.webp']
+    ['/posts/embodied-ai-reading', 'https://pic.minyako.top/blog/posts/embodied-ai-reading/cover-f03e8a61960275abdd4255138e3e8a5fd471251cefb47024dba6313b04ae5fe2.webp'],
+    ['/posts/astro-content-architecture', 'https://pic.minyako.top/blog/posts/astro-content-architecture/cover-619fe237155b1700a886e06d1da193f81f9c7041c38f101422562cf59547eadc.webp'],
+    ['/posts/july-field-notes', 'https://pic.minyako.top/blog/posts/july-field-notes/cover-ff5fbec3339faa8a135d735b170515fd0f10313428c29eeb81121ac0205b57ae.webp']
   ] as const
 
   for (const [path, cover] of articles) {

@@ -5,6 +5,7 @@ import ArticleMeta from '../components/ArticleMeta.astro'
 import ContentWarningDialog from '../components/ContentWarningDialog.astro'
 import ContentNotice from '../components/ContentNotice.astro'
 import TableOfContents from '../components/TableOfContents.astro'
+import { resolveCover } from '../lib/media'
 import type { PostCardData } from '../lib/posts'
 import { getPostTags } from '../lib/tags'
 import BaseLayout from './BaseLayout.astro'
@@ -15,12 +16,13 @@ const protectedPage = data.contentWarning.type !== 'none' && data.contentWarning
 const safeDescription = protectedPage ? '此内容需要确认后查看。' : data.description
 const tags = getPostTags(post)
 const tagSearchTerms = tags.flatMap((tag) => [tag.label, tag.id, ...tag.aliases]).join(' ')
+const cover = data.cover ? resolveCover(data.cover) : undefined
 ---
-<BaseLayout title={data.title} description={safeDescription} image={data.contentWarning.type === 'none' ? data.cover?.url : undefined}>
+<BaseLayout title={data.title} description={safeDescription} image={data.contentWarning.type === 'none' ? cover?.url : undefined}>
   {protectedPage && <ContentWarningDialog pageKey={data.id} message={data.contentWarning.message} returnHref={`/domains/${data.domain}`} />}
   <article class="article" data-domain={data.domain}>
     <header class="article-header"><ArticleMeta data={data} minutes={minutes} /><h1>{data.title}</h1><p class="dek">{data.description}</p></header>
-    {data.cover && <figure class="cover"><img src={data.cover.url} alt={data.cover.alt} width="1200" height="630" /><figcaption>图：{data.cover.credit}</figcaption></figure>}
+    {cover && <figure class="cover"><img src={cover.url} alt={cover.alt} width={cover.width} height={cover.height} /><figcaption>图：{cover.credit}</figcaption></figure>}
     <div class="article-grid"><aside class="toc-column"><TableOfContents headings={headings} /></aside><div class="prose" data-pagefind-body={!protectedPage ? true : undefined} data-pagefind-ignore={protectedPage ? true : undefined}>{!protectedPage && <p class="sr-only">标签关键词：{tagSearchTerms}</p>}<slot /></div></div>
     <ContentNotice data={data} />
     {related.length > 0 && <section class="related-posts" aria-labelledby="related-heading"><h2 id="related-heading">相关文章</h2><ul>{related.map((item) => <li><a href={`/posts/${item.slug}`}><strong>{item.title}</strong><span>{item.tags.map((tag) => tag.label).join(' · ')}</span></a></li>)}</ul></section>}
