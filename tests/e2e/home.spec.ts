@@ -1,8 +1,16 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('homepage presents identity, four domains, and recent writing', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('img', { name: '首页横幅：伏案小憩的少女' })).toBeVisible()
+  await expect(page.getByRole('img', { name: '首页横幅：伏案小憩的少女' })).toHaveAttribute(
+    'src',
+    /^https:\/\/pic\.minyako\.top\/blog\//
+  )
+  await expect(page.getByRole('img', { name: 'Minyako 头像' })).toHaveAttribute(
+    'src',
+    /^https:\/\/pic\.minyako\.top\/blog\//
+  )
   await expect(page.getByText('@minyako')).toBeVisible()
 
   for (const label of ['学术', '技术', '生活', '游戏']) {
@@ -13,7 +21,6 @@ test('homepage presents identity, four domains, and recent writing', async ({ pa
 })
 
 test('homepage crossfades to the second image after one minute', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-07-12T00:00:00+08:00') })
   await page.goto('/')
 
   const slides = page.locator('[data-hero-slide]')
@@ -29,7 +36,6 @@ test('homepage crossfades to the second image after one minute', async ({ page }
 
 test('homepage keeps the first image when reduced motion is requested', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.clock.install({ time: new Date('2026-07-12T00:00:00+08:00') })
   await page.goto('/')
 
   const slides = page.locator('[data-hero-slide]')

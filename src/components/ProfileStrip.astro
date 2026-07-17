@@ -1,10 +1,12 @@
 ---
 import { SITE } from '../config/site'
+import { resolveMedia } from '../lib/media'
 import AppIcon from './AppIcon.astro'
+const avatar = resolveMedia('profile-avatar')
 ---
 
 <section class="profile-strip" aria-labelledby="profile-name">
-  <img class="avatar" src="/images/profile/avatar.webp" alt="Minyako 头像" width="335" height="348" />
+  <img class="avatar" src={avatar.url} alt="Minyako 头像" width={avatar.width} height={avatar.height} />
   <div class="identity">
     <div class="name-row">
       <h1 id="profile-name">Minyako</h1>

@@ -26,7 +26,7 @@ const sensitive = {
     domain: 'games',
     subcategory: 'reflections',
     cover: {
-      url: '/images/posts/games-cover.svg',
+      media: 'post-games-cover',
       alt: 'Protected cover',
       credit: 'Minyako'
     },
@@ -51,7 +51,8 @@ describe('post presentation', () => {
   it('keeps protected summaries without hiding covers', () => {
     const card = toPostCard(sensitive as never)
     expect(card.description).toBe('此内容需要确认后查看。')
-    expect(card.cover).toEqual(sensitive.data.cover)
+    expect(card.cover?.id).toBe('post-games-cover')
+    expect(card.cover?.url).toMatch(/^https:\/\/pic\.minyako\.top\/blog\//)
   })
 
   it('hides a configured cover only when the exact control tag is present', () => {
@@ -61,7 +62,7 @@ describe('post presentation', () => {
         ...hiddenCover,
         data: { ...hiddenCover.data, tags: ['visual-novel'] }
       } as never).cover
-    ).toEqual(sensitive.data.cover)
+    ).toMatchObject({ id: 'post-games-cover' })
   })
 
   it('creates a taxonomy-independent slug and permanent page key', () => {

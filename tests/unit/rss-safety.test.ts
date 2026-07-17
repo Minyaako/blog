@@ -10,7 +10,7 @@ describe('RSS safety', () => {
         publishedAt: new Date('2026-07-10'), domain: 'games', subcategory: 'reflections',
         tags: ['visual-novel'], collections: [], authors: ['Minyako'], draft: false, featured: false,
         lang: 'zh-CN', translationKey: 'games-hidden', license: 'CC-BY-4.0',
-        cover: { url: '/secret-cover.png', alt: 'secret', credit: 'owner' },
+        cover: { media: 'post-games-cover', alt: 'secret', credit: 'owner' },
         contentWarning: { type: 'sensitive', message: '提示', scope: 'page' }
       }
     }
@@ -18,7 +18,7 @@ describe('RSS safety', () => {
     const serialized = JSON.stringify(item)
     expect(serialized).toContain('此内容需要确认后查看。')
     expect(serialized).not.toContain('raw protected description')
-    expect(serialized).not.toContain('/secret-cover.png')
+    expect(serialized).not.toContain('post-games-cover')
     expect(item.categories).toEqual(expect.arrayContaining(['visual-novel', '视觉小说', 'VN', 'Galgame']))
   })
 })

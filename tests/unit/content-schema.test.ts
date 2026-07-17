@@ -11,7 +11,7 @@ const validPost = {
   tags: ['astro'],
   collections: [],
   cover: {
-    url: '/images/posts/engineering-cover.svg',
+    media: 'post-engineering-cover',
     alt: 'Geometric amber cover',
     credit: 'Minyako'
   },
@@ -25,7 +25,7 @@ const validPost = {
 }
 
 describe('post schema', () => {
-  it('accepts a configured domain and root-relative cover', () => {
+  it('accepts a configured domain and locked cover id', () => {
     expect(postSchema.parse(validPost).domain).toBe('engineering')
   })
 
@@ -37,5 +37,12 @@ describe('post schema', () => {
   it('rejects unknown stable tag ids', () => {
     expect(() => postSchema.parse({ ...validPost, tags: ['missing-tag'] }))
       .toThrow('Unknown tag: missing-tag')
+  })
+
+  it('rejects an unknown media id', () => {
+    expect(() => postSchema.parse({
+      ...validPost,
+      cover: { ...validPost.cover, media: 'missing-cover' }
+    })).toThrow('Unknown media id: missing-cover')
   })
 })

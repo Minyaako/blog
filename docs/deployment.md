@@ -6,7 +6,7 @@
 
 - PNG 原图只保存在 `/srv/shared-assets` 公共素材库；COS/EdgeOne 不是原图备份。
 - 仓库中的 `media/assets` 保存七张已审核 WebP 上传输入，`media/media.lock.json` 固定其 SHA-256、不可变对象键和公开 URL。
-- 当前页面继续读取 `public/images`。只有第二个 CDN 切换 PR 才会改变运行时 URL。
+- 页面位图只通过 `src/lib/media.ts` 解析 `media/media.lock.json` 中的逻辑 ID，运行时读取 `https://pic.minyako.top/blog/` 下的不可变 URL；七份旧的本地 WebP 交付副本已移除。
 - 首次合并前设置 `MEDIA_PUBLISH_ENABLED=false`。此状态下 `publish-media` 只完成安装和验证，不请求上传。
 - 启用后，工作流通过 GitHub OIDC 换取腾讯云临时凭证，不配置永久腾讯云访问密钥。
 - 同一内容 SHA 可安全重试：元数据完全一致时跳过，冲突时失败；发布器不会删除或覆盖旧对象。
@@ -18,7 +18,7 @@ gh variable set MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production --bo
 gh variable get MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production
 ```
 
-在 CAM/OIDC 配置、最小权限拒绝测试和七个 EdgeOne URL 哈希验证全部完成前，不得把该变量改为 `true`。
+在 CAM/OIDC 配置、最小权限拒绝测试和七个 EdgeOne URL 哈希验证全部完成前，不得把该变量改为 `true`。CDN 切换后，任何新版本还必须先确认其锁中所有对象已存在，才能进入镜像构建与部署。
 
 COS 策略资源中的 `uid/` 必须填写存储桶 APPID，而不是主账号 UIN。当前限定资源为：
 

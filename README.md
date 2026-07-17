@@ -25,7 +25,7 @@ pnpm preview
 
 文章位于 `src/content/posts/<domain>/`，使用 MDX 和 YAML frontmatter。每篇文章必须提供永久 `id`；文件名生成可读 URL，`id` 则供评论、翻译和未来外部数据关联，移动分类时不应修改。
 
-四个领域及全部子类集中定义在 `src/config/taxonomy.ts`。新增子类时先修改此配置，再创建相应文章；领域页与子类页会自动生成。Schema 位于 `src/schemas/post.ts`，不合法的领域、子类、资源 URL 或内容提示会让构建失败。
+四个领域及全部子类集中定义在 `src/config/taxonomy.ts`。新增子类时先修改此配置，再创建相应文章；领域页与子类页会自动生成。Schema 位于 `src/schemas/post.ts`，不合法的领域、子类、媒体 ID 或内容提示会让构建失败。
 
 标签使用独立的 Astro Content Collection，定义位于 `src/content/tags/<id>.json`。文章的 `tags` 只保存稳定 ID；文件名必须等于 `<id>.json`，显示名称可修改但 ID 创建后不再变化。未知标签、重复显示名称或大小写归一化后重复的别名都会让构建失败。
 
@@ -33,7 +33,7 @@ pnpm preview
 
 > 仓库是公开的。`draft: true` 只会阻止文章进入构建结果，不能保密；草稿正文、访问密钥、未授权素材和隐私信息都不应提交到仓库。
 
-装饰图片暂存于 `public/images/`。文章媒体首版可由服务器提供，但文章只保存可迁移 URL；存储量增长后可迁移到腾讯 COS，而不改变内容模型。
+SVG、图标与几何装饰继续放在 `public/images/`。位图通过 frontmatter 中的逻辑媒体 ID 引用，由 `src/lib/media.ts` 从 `media/media.lock.json` 解析为不可变 EdgeOne URL；文章不直接拼接 COS 对象键。
 
 ## 检查命令
 
@@ -67,13 +67,13 @@ pnpm exec playwright test tests/e2e/visual.spec.ts --update-snapshots
 
 - 评论：正文只暴露稳定的 `data-page-key` 与评论插槽。首版计划通过独立 API 封装 Waline，博客不直接绑定其数据库；免登录昵称头像和 GitHub 快捷登录属于后续接口能力。
 - 搜索：Pagefind 在构建时生成本地索引，敏感正文不会进入索引。
-- 媒体：URL 与内容解耦，便于从服务器目录迁移到对象存储。
+- 媒体：逻辑 ID 与交付 URL 解耦；WebP 锁文件进入 Git，PNG 原图与独立备份留在服务器公共素材库。
 - 发布：当前以 Git 推送触发自动发布。服务器部署配置属于独立远端工作目录，不与博客源码混放。
 
 原创文字默认采用 CC BY 4.0，可在署名后转载。第三方图片、游戏素材、论文图表、商标等不自动适用该许可，必须在文章中单独标注权利与来源。
 
-## 媒体发布引导状态
+## 媒体发布状态
 
-图片源文件 PNG 保存在服务器公共素材库 `/srv/shared-assets`，不进入博客仓库或 COS 备份。`media/assets` 中的七张 WebP 是经过版本控制的上传输入；在后续 CDN 切换 PR 合并前，页面仍使用 `public/images` 下的本地图片。
+图片源文件 PNG 保存在服务器公共素材库 `/srv/shared-assets`，不进入博客仓库或 COS 备份。`media/assets` 中的七张 WebP 是经过版本控制的上传输入，页面通过 `media/media.lock.json` 中的逻辑 ID、尺寸和 `https://pic.minyako.top/blog/` 不可变 URL 使用它们。旧的七份 `public/images` WebP 交付副本已经移除。
 
-生产工作流通过 GitHub OIDC 获取腾讯云临时凭证，不保存永久 SecretId/SecretKey。当前安全引导值是 `MEDIA_PUBLISH_ENABLED=false`：PR 和生产验证会检查媒体锁，但不会写入 COS。相同 SHA 的重试是幂等操作，不覆盖冲突对象，也不会自动删除旧对象。
+生产工作流通过 GitHub OIDC 获取腾讯云临时凭证，不保存永久 SecretId/SecretKey。`MEDIA_PUBLISH_ENABLED` 控制是否在镜像构建前写入并验证锁定对象；相同 SHA 的重试是幂等操作，不覆盖冲突对象，也不会自动删除旧对象。关闭该闸门只能阻止未来写入，不能让缺少 CDN 对象的新版本安全发布。

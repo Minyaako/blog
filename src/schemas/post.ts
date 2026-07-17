@@ -1,20 +1,10 @@
 import { z } from 'astro/zod'
 import { DOMAINS, type DomainKey } from '../config/taxonomy'
+import { resolveMedia } from '../lib/media'
 import { getTag } from '../lib/tags'
 import { TAG_ID_PATTERN } from './tag'
 
 const domainKeys = Object.keys(DOMAINS) as [DomainKey, ...DomainKey[]]
-
-const assetUrlSchema = z.string().refine((value) => {
-  if (value.startsWith('/')) return true
-
-  try {
-    new URL(value)
-    return true
-  } catch {
-    return false
-  }
-}, 'Expected a root-relative path or absolute URL')
 
 const warningSchema = z.object({
   type: z.enum(['none', 'spoiler', 'sensitive']).default('none'),
@@ -23,7 +13,7 @@ const warningSchema = z.object({
 })
 
 const imageSchema = z.object({
-  url: assetUrlSchema,
+  media: z.string().regex(/^[a-z0-9][a-z0-9-]+$/),
   alt: z.string(),
   credit: z.string(),
   sourceUrl: z.url().optional()
@@ -66,6 +56,18 @@ export const postSchema = z.object({
         code: 'custom',
         path: ['tags', index],
         message: `Unknown tag: ${tagId}`
+      })
+    }
+  }
+
+  if (post.cover) {
+    try {
+      resolveMedia(post.cover.media)
+    } catch (error) {
+      context.addIssue({
+        code: 'custom',
+        path: ['cover', 'media'],
+        message: error instanceof Error ? error.message : `Unknown media id: ${post.cover.media}`
       })
     }
   }

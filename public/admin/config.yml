@@ -57,7 +57,7 @@ collections:
         widget: object
         required: false
         fields:
-          - { name: url, label: URL, widget: string }
+          - { name: media, label: 媒体 ID, widget: string, pattern: ['^[a-z0-9][a-z0-9-]+$', '填写 media/media.lock.json 中的逻辑 ID'] }
           - { name: alt, label: 替代文本, widget: string }
           - { name: credit, label: 来源说明, widget: string }
           - { name: sourceUrl, label: 来源链接, widget: string, required: false }
