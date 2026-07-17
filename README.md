@@ -27,6 +27,10 @@ pnpm preview
 
 四个领域及全部子类集中定义在 `src/config/taxonomy.ts`。新增子类时先修改此配置，再创建相应文章；领域页与子类页会自动生成。Schema 位于 `src/schemas/post.ts`，不合法的领域、子类、资源 URL 或内容提示会让构建失败。
 
+标签使用独立的 Astro Content Collection，定义位于 `src/content/tags/<id>.json`。文章的 `tags` 只保存稳定 ID；文件名必须等于 `<id>.json`，显示名称可修改但 ID 创建后不再变化。未知标签、重复显示名称或大小写归一化后重复的别名都会让构建失败。
+
+站内统一通过 `src/lib/tags.ts` 的 `getTag(id)`、`getAllTags()` 与 `getPostTags(post)` 解析标签。标签页固定使用 `/tags/<id>/`，归档筛选、相关文章、搜索关键词和 RSS 元数据均从同一注册表读取。Sveltia 位于 `/admin/`，文章标签字段会搜索 `label`、`id` 和 `aliases`，但只把 `id` 写入 frontmatter。
+
 > 仓库是公开的。`draft: true` 只会阻止文章进入构建结果，不能保密；草稿正文、访问密钥、未授权素材和隐私信息都不应提交到仓库。
 
 装饰图片暂存于 `public/images/`。文章媒体首版可由服务器提供，但文章只保存可迁移 URL；存储量增长后可迁移到腾讯 COS，而不改变内容模型。

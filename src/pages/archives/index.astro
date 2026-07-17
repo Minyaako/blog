@@ -2,17 +2,52 @@
 import ArchiveGroup from '../../components/ArchiveGroup.astro'
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import { getPublishedPosts, groupPostsByYear, toPostCard } from '../../lib/posts'
+import { getAllTags } from '../../lib/tags'
 
 const posts = await getPublishedPosts()
 const groups = [...groupPostsByYear(posts)].map(([year, entries]) => ({ year, posts: entries.map(toPostCard) }))
+const usedTagIds = new Set(posts.flatMap((post) => post.data.tags))
+const tags = getAllTags().filter((tag) => usedTagIds.has(tag.id))
 ---
 
 <BaseLayout title="归档" description="按时间浏览 Minyako 的全部公开文章。">
   <div class="listing-page">
     <header class="page-heading"><p>Archive</p><h1>文章归档</h1><span>从最近的记录向过去漫游。</span></header>
-    {groups.map((group) => <ArchiveGroup {...group} />)}
+    <nav class="tag-filters" aria-label="按标签筛选文章" data-tag-filters>
+      <button type="button" data-tag-id="" aria-pressed="true">全部</button>
+      {tags.map((tag) => <button type="button" data-tag-id={tag.id} aria-pressed="false">{tag.label}</button>)}
+    </nav>
+    <p class="filter-status" data-filter-status aria-live="polite">显示全部 {posts.length} 篇文章</p>
+    <div data-archive-list>{groups.map((group) => <ArchiveGroup {...group} />)}</div>
   </div>
 </BaseLayout>
+
+<script>
+  const filters = document.querySelector<HTMLElement>('[data-tag-filters]')
+  const cards = Array.from(document.querySelectorAll<HTMLElement>('[data-post-card]'))
+  const groups = Array.from(document.querySelectorAll<HTMLElement>('[data-archive-group]'))
+  const status = document.querySelector<HTMLElement>('[data-filter-status]')
+
+  filters?.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-tag-id]')
+    if (!button) return
+    const selected = button.dataset.tagId ?? ''
+    let visible = 0
+
+    filters.querySelectorAll<HTMLButtonElement>('[data-tag-id]').forEach((item) => {
+      item.setAttribute('aria-pressed', String(item === button))
+    })
+    cards.forEach((card) => {
+      const matches = !selected || (card.dataset.tags ?? '').split(' ').includes(selected)
+      card.hidden = !matches
+      if (matches) visible += 1
+    })
+    groups.forEach((group) => {
+      group.hidden = !group.querySelector('[data-post-card]:not([hidden])')
+    })
+    if (status) status.textContent = selected ? `筛选结果：${visible} 篇文章` : `显示全部 ${visible} 篇文章`
+  })
+</script>
 
 <style>
   .listing-page { width: min(100% - 2rem, var(--content-wide)); margin-inline: auto; padding-block: var(--space-7); }
@@ -20,4 +55,8 @@ const groups = [...groupPostsByYear(posts)].map(([year, entries]) => ({ year, po
   .page-heading p { margin: 0; color: var(--accent); font: var(--text-caption)/1.4 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
   h1 { margin: var(--space-2) 0; font: 760 clamp(2.2rem, 7vw, 4.5rem)/1.05 var(--font-display); }
   .page-heading span { color: var(--text-muted); }
+  .tag-filters{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-5)}
+  .tag-filters button{padding:var(--space-2) var(--space-3);border:1px solid var(--border);border-radius:99rem;background:var(--surface);color:var(--text-muted);cursor:pointer}
+  .tag-filters button[aria-pressed='true']{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--text)}
+  .filter-status{margin:var(--space-3) 0 0;color:var(--text-muted);font-size:.82rem}
 </style>

@@ -1,5 +1,6 @@
 import type { CollectionEntry } from 'astro:content'
 import type { DomainKey } from '../config/taxonomy'
+import { getPostTags, type Tag } from './tags'
 
 export interface PostCover {
   url: string
@@ -16,7 +17,7 @@ export interface PostCardData {
   publishedAt: Date
   domain: DomainKey
   subcategory: string
-  tags: string[]
+  tags: Tag[]
   cover?: PostCover
   protected: boolean
 }
@@ -57,7 +58,8 @@ export function groupPostsByYear(posts: CollectionEntry<'posts'>[]) {
 
 export function toPostCard(post: CollectionEntry<'posts'>): PostCardData {
   const protectedContent = post.data.contentWarning.type !== 'none'
-  const hideCover = post.data.tags.includes('隐藏封面')
+  const tags = getPostTags(post)
+  const hideCover = post.data.tags.includes('hide-cover')
   const filename = post.id.split('/').at(-1) ?? post.id
   const slug = filename.replace(/\.(md|mdx)$/i, '')
 
@@ -69,7 +71,7 @@ export function toPostCard(post: CollectionEntry<'posts'>): PostCardData {
     publishedAt: post.data.publishedAt,
     domain: post.data.domain,
     subcategory: post.data.subcategory,
-    tags: post.data.tags,
+    tags,
     cover: hideCover ? undefined : post.data.cover,
     protected: protectedContent
   }
@@ -82,6 +84,29 @@ export function toFeedItem(post: CollectionEntry<'posts'>) {
     description: card.description,
     pubDate: card.publishedAt,
     link: `/posts/${card.slug}`,
-    categories: [card.domain, card.subcategory, ...card.tags]
+    categories: [
+      card.domain,
+      card.subcategory,
+      ...card.tags.flatMap((tag) => [tag.id, tag.label, ...tag.aliases])
+    ]
   }
+}
+
+export function getRelatedPosts(
+  current: CollectionEntry<'posts'>,
+  posts: CollectionEntry<'posts'>[],
+  limit = 3
+): PostCardData[] {
+  const currentTags = new Set(getPostTags(current).map((tag) => tag.id))
+
+  return posts
+    .filter((post) => post.data.id !== current.data.id)
+    .map((post) => ({
+      post,
+      score: getPostTags(post).filter((tag) => currentTags.has(tag.id)).length
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((left, right) => right.score - left.score || right.post.data.publishedAt.getTime() - left.post.data.publishedAt.getTime())
+    .slice(0, limit)
+    .map(({ post }) => toPostCard(post))
 }
