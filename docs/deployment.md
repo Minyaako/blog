@@ -11,14 +11,36 @@
 - 启用后，工作流通过 GitHub OIDC 换取腾讯云临时凭证，不配置永久腾讯云访问密钥。
 - 同一内容 SHA 可安全重试：元数据完全一致时跳过，冲突时失败；发布器不会删除或覆盖旧对象。
 
-引导阶段只执行：
+引导阶段关闭媒体写入时执行：
 
 ```powershell
-gh variable set MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --body false
-gh variable get MEDIA_PUBLISH_ENABLED --repo Minyaako/blog
+gh variable set MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production --body false
+gh variable get MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production
 ```
 
 在 CAM/OIDC 配置、最小权限拒绝测试和七个 EdgeOne URL 哈希验证全部完成前，不得把该变量改为 `true`。
+
+COS 策略资源中的 `uid/` 必须填写存储桶 APPID，而不是主账号 UIN。当前限定资源为：
+
+```text
+qcs::cos:ap-shanghai:uid/1451980311:minyako-media-1451980311/blog/*
+```
+
+不可变上传需要 `HeadObject` 和 `PutObject`；为大文件上传预留的最小操作还包括
+`InitiateMultipartUpload`、`ListMultipartUploads`、`ListParts`、
+`UploadPart`、`CompleteMultipartUpload` 与 `AbortMultipartUpload`。不得加入
+`DeleteObject`、ACL、存储桶配置、通配操作或 `blog/*` 以外的资源。
+
+如 OIDC、COS 权限、对象哈希或 CDN 可见性检查失败，立即关闭后续媒体写入：
+
+```powershell
+gh variable set MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production --body false
+gh variable get MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production
+```
+
+这只会阻止后续工作流写入 COS，不会删除已发布对象，也不会撤回正在运行的任务。
+关闭媒体写入后，只有仍引用本地图片或其全部锁定 CDN 对象已经存在的版本才可安全发布。
+首次 OIDC 预热证据见 `docs/verification/media-oidc-bootstrap.md`。
 
 ## 固定边界
 
