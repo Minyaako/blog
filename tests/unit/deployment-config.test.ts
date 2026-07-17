@@ -228,6 +228,7 @@ const assertWorkflowContract = (source: string) => {
   const triggers = workflow.on ?? {}
   const jobs = workflow.jobs ?? {}
   const verify = jobs.verify ?? {}
+  const publishMedia = jobs['publish-media'] ?? {}
   const publish = jobs['publish-image'] ?? {}
   const deploy = jobs['deploy-production'] ?? {}
 
@@ -240,6 +241,7 @@ const assertWorkflowContract = (source: string) => {
   expect(workflow.permissions).toEqual({ contents: 'read' })
   expect(Object.keys(jobs)).toEqual([
     'verify',
+    'publish-media',
     'publish-image',
     'deploy-production',
   ])
@@ -257,11 +259,20 @@ const assertWorkflowContract = (source: string) => {
     verify.steps?.some((step) => step.run === 'pnpm test:deploy'),
   ).toBe(true)
   expect(JSON.stringify(verify)).not.toMatch(/DEPLOY_|secrets\./)
+  expect(JSON.stringify(verify)).not.toMatch(/id-token|MEDIA_TENCENT_|MEDIA_COS_/)
+
+  expect(publishMedia.needs).toBe('verify')
+  expect(publishMedia.if).toBe(
+    "${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}",
+  )
+  expect(publishMedia.environment).toBe('production')
+  expect(publishMedia.permissions).toEqual({ contents: 'read', 'id-token': 'write' })
+  expect(JSON.stringify(publishMedia)).not.toMatch(/secrets\./)
 
   expect(publish.if).toBe(
     "${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}",
   )
-  expect(publish.needs).toBe('verify')
+  expect(publish.needs).toEqual(['verify', 'publish-media'])
   expect(publish.permissions).toEqual({ contents: 'read', packages: 'write' })
   expect(findStep(publish, 'actions/checkout@v4')).toBeDefined()
   expect(findStep(publish, 'docker/setup-buildx-action@v3')).toBeDefined()

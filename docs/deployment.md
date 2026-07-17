@@ -2,6 +2,24 @@
 
 本文档是博客应用的生产发布与故障处置手册。首次上线仍须与 `server-infra` 仓库的主机初始化和共享网关计划配合执行。
 
+## 媒体发布引导
+
+- PNG 原图只保存在 `/srv/shared-assets` 公共素材库；COS/EdgeOne 不是原图备份。
+- 仓库中的 `media/assets` 保存七张已审核 WebP 上传输入，`media/media.lock.json` 固定其 SHA-256、不可变对象键和公开 URL。
+- 当前页面继续读取 `public/images`。只有第二个 CDN 切换 PR 才会改变运行时 URL。
+- 首次合并前设置 `MEDIA_PUBLISH_ENABLED=false`。此状态下 `publish-media` 只完成安装和验证，不请求上传。
+- 启用后，工作流通过 GitHub OIDC 换取腾讯云临时凭证，不配置永久腾讯云访问密钥。
+- 同一内容 SHA 可安全重试：元数据完全一致时跳过，冲突时失败；发布器不会删除或覆盖旧对象。
+
+引导阶段只执行：
+
+```powershell
+gh variable set MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --body false
+gh variable get MEDIA_PUBLISH_ENABLED --repo Minyaako/blog
+```
+
+在 CAM/OIDC 配置、最小权限拒绝测试和七个 EdgeOne URL 哈希验证全部完成前，不得把该变量改为 `true`。
+
 ## 固定边界
 
 | 项目 | 固定值 |
