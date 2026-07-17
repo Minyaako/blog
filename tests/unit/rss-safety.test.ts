@@ -8,7 +8,7 @@ describe('RSS safety', () => {
       data: {
         id: 'games-hidden', title: 'Hidden', description: 'raw protected description',
         publishedAt: new Date('2026-07-10'), domain: 'games', subcategory: 'reflections',
-        tags: ['视觉小说'], collections: [], authors: ['Minyako'], draft: false, featured: false,
+        tags: ['visual-novel'], collections: [], authors: ['Minyako'], draft: false, featured: false,
         lang: 'zh-CN', translationKey: 'games-hidden', license: 'CC-BY-4.0',
         cover: { url: '/secret-cover.png', alt: 'secret', credit: 'owner' },
         contentWarning: { type: 'sensitive', message: '提示', scope: 'page' }
@@ -19,5 +19,6 @@ describe('RSS safety', () => {
     expect(serialized).toContain('此内容需要确认后查看。')
     expect(serialized).not.toContain('raw protected description')
     expect(serialized).not.toContain('/secret-cover.png')
+    expect(item.categories).toEqual(expect.arrayContaining(['visual-novel', '视觉小说', 'VN', 'Galgame']))
   })
 })

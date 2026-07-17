@@ -6,7 +6,7 @@ interface Props { year: number; posts: PostCardData[] }
 const { year, posts } = Astro.props
 ---
 
-<section class="archive-group" aria-labelledby={`year-${year}`}>
+<section class="archive-group" aria-labelledby={`year-${year}`} data-archive-group>
   <header><h2 id={`year-${year}`}>{year}</h2><span>{posts.length} 篇</span></header>
   <div class="cards">{posts.map((post) => <PostCard post={post} />)}</div>
 </section>

@@ -1,0 +1,35 @@
+---
+import type { GetStaticPaths } from 'astro'
+import PostCard from '../../components/PostCard.astro'
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { getPublishedPosts, toPostCard, type PostCardData } from '../../lib/posts'
+import { getAllTags, type Tag } from '../../lib/tags'
+
+export const getStaticPaths = (async () => {
+  const posts = await getPublishedPosts()
+  return getAllTags().map((tag) => ({
+    params: { id: tag.id },
+    props: {
+      tag,
+      posts: posts.filter((post) => post.data.tags.includes(tag.id)).map(toPostCard)
+    }
+  }))
+}) satisfies GetStaticPaths
+
+interface Props { tag: Tag; posts: PostCardData[] }
+const { tag, posts } = Astro.props
+---
+<BaseLayout title={`#${tag.label}`} description={tag.description}>
+  <div class="listing-page">
+    <header>
+      <p>Tag · {tag.id}</p>
+      <h1>#{tag.label}</h1>
+      <span>{tag.description}</span>
+      {tag.aliases.length > 0 && <small>别名：{tag.aliases.join('、')}</small>}
+    </header>
+    <div class="cards">
+      {posts.length > 0 ? posts.map((post) => <PostCard post={post} />) : <p class="empty">尚无公开文章使用此标签。</p>}
+    </div>
+  </div>
+</BaseLayout>
+<style>.listing-page{width:min(100% - 2rem,var(--content-wide));margin-inline:auto;padding-block:var(--space-7)}header{display:grid;gap:var(--space-2);padding-bottom:var(--space-5);border-bottom:1px solid var(--border-strong)}header p{margin:0;color:var(--text-muted);font:var(--text-caption)/1.4 var(--font-mono);text-transform:uppercase}h1{margin:0;font:750 clamp(2rem,6vw,4rem)/1.1 var(--font-display)}header span,header small,.empty{color:var(--text-muted)}.cards{display:grid;gap:var(--space-5);margin-top:var(--space-6)}</style>

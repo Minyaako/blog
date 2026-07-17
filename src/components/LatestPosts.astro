@@ -20,7 +20,7 @@ const formatDate = (date: Date) => new Intl.DateTimeFormat('zh-CN', { dateStyle:
         <p class="meta">{DOMAINS[lead.domain].label} · {formatDate(lead.publishedAt)}</p>
         <h3><a href={`/posts/${lead.slug}`}>{lead.title}</a></h3>
         <p>{lead.description}</p>
-        <ul>{lead.tags.map((tag) => <li>{tag}</li>)}</ul>
+        <ul>{lead.tags.map((tag) => <li>{tag.label}</li>)}</ul>
       </article>
       <div class="recent-list">
         {rest.map((post) => (

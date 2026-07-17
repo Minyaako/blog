@@ -8,14 +8,14 @@ const domain = DOMAINS[post.domain]
 const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(post.publishedAt)
 ---
 
-<article class="post-card" data-post-card data-domain={post.domain}>
+<article class="post-card" data-post-card data-domain={post.domain} data-tags={post.tags.map((tag) => tag.id).join(' ')}>
   <a class="card-link" href={`/posts/${post.slug}`}>
     <div class="card-copy">
       <p class="meta"><time datetime={post.publishedAt.toISOString()}>{date}</time> · {domain.label}</p>
       <h3>{post.title}</h3>
       <p class="description">{post.description}</p>
       <ul aria-label="文章标签">
-        {post.tags.map((tag) => <li>{tag}</li>)}
+        {post.tags.map((tag) => <li>{tag.label}</li>)}
       </ul>
     </div>
     <div class:list={['card-image', { placeholder: !post.cover }]} data-card-image aria-hidden={!post.cover ? 'true' : undefined}>

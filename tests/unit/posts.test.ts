@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupPostsByYear, toPostCard } from '../../src/lib/posts'
+import { getRelatedPosts, groupPostsByYear, toPostCard } from '../../src/lib/posts'
 
 const normal = {
   id: 'engineering/normal',
@@ -39,7 +39,7 @@ const hiddenCover = {
   data: {
     ...sensitive.data,
     id: 'post-3',
-    tags: ['视觉小说', '隐藏封面']
+    tags: ['visual-novel', 'hide-cover']
   }
 }
 
@@ -59,7 +59,7 @@ describe('post presentation', () => {
     expect(
       toPostCard({
         ...hiddenCover,
-        data: { ...hiddenCover.data, tags: ['视觉小说', '隐藏封面扩展'] }
+        data: { ...hiddenCover.data, tags: ['visual-novel'] }
       } as never).cover
     ).toEqual(sensitive.data.cover)
   })
@@ -68,5 +68,11 @@ describe('post presentation', () => {
     const card = toPostCard(normal as never)
     expect(card.slug).toBe('normal')
     expect(card.pageKey).toBe('post-1')
+  })
+
+  it('ranks related posts by shared stable tag ids', () => {
+    const current = { ...normal, data: { ...normal.data, id: 'current', tags: ['astro'] } }
+    const related = { ...sensitive, data: { ...sensitive.data, tags: ['astro', 'narrative-design'] } }
+    expect(getRelatedPosts(current as never, [current, related] as never)[0]?.pageKey).toBe('post-2')
   })
 })

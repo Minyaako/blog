@@ -7,6 +7,7 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
   await expect(page.locator('pre code').first()).toBeVisible()
   await expect(page.locator('.katex').first()).toBeVisible()
   await expect(page.locator('[data-page-key]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
+  await expect(page.getByRole('link', { name: '#Astro' })).toHaveAttribute('href', '/tags/astro')
 })
 
 test('existing public articles use their mapped WebP headers', async ({ page }) => {

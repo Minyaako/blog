@@ -33,4 +33,9 @@ describe('post schema', () => {
     expect(() => postSchema.parse({ ...validPost, domain: 'life', subcategory: 'gallery' }))
       .toThrow('Unknown subcategory: life/gallery')
   })
+
+  it('rejects unknown stable tag ids', () => {
+    expect(() => postSchema.parse({ ...validPost, tags: ['missing-tag'] }))
+      .toThrow('Unknown tag: missing-tag')
+  })
 })

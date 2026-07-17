@@ -1,5 +1,7 @@
 import { z } from 'astro/zod'
 import { DOMAINS, type DomainKey } from '../config/taxonomy'
+import { getTag } from '../lib/tags'
+import { TAG_ID_PATTERN } from './tag'
 
 const domainKeys = Object.keys(DOMAINS) as [DomainKey, ...DomainKey[]]
 
@@ -35,7 +37,7 @@ export const postSchema = z.object({
   updatedAt: z.coerce.date().optional(),
   domain: z.enum(domainKeys),
   subcategory: z.string().min(1),
-  tags: z.array(z.string()).default([]),
+  tags: z.array(z.string().regex(TAG_ID_PATTERN)).default([]),
   collections: z.array(z.string()).default([]),
   cover: imageSchema.optional(),
   authors: z.array(z.string()).default(['Minyako']),
@@ -54,6 +56,18 @@ export const postSchema = z.object({
       path: ['subcategory'],
       message: `Unknown subcategory: ${post.domain}/${post.subcategory}`
     })
+  }
+
+  for (const [index, tagId] of post.tags.entries()) {
+    try {
+      getTag(tagId)
+    } catch {
+      context.addIssue({
+        code: 'custom',
+        path: ['tags', index],
+        message: `Unknown tag: ${tagId}`
+      })
+    }
   }
 })
 
