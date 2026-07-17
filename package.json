@@ -42,7 +42,7 @@
   "devDependencies": {
     "@astrojs/check": "0.9.9",
     "@axe-core/playwright": "4.12.1",
-    "@minyaako/media-publisher": "github:Minyaako/media-publisher#48d975d6536852cc94aa96031cc99c2a75b81b8e",
+    "@minyaako/media-publisher": "github:Minyaako/media-publisher#33b31fee5dbac622c76e242b52bac961f78c91b3",
     "@playwright/test": "1.61.1",
     "@types/node": "24.13.3",
     "typescript": "6.0.3",
