@@ -71,3 +71,9 @@ pnpm exec playwright test tests/e2e/visual.spec.ts --update-snapshots
 - 发布：当前以 Git 推送触发自动发布。服务器部署配置属于独立远端工作目录，不与博客源码混放。
 
 原创文字默认采用 CC BY 4.0，可在署名后转载。第三方图片、游戏素材、论文图表、商标等不自动适用该许可，必须在文章中单独标注权利与来源。
+
+## 媒体发布引导状态
+
+图片源文件 PNG 保存在服务器公共素材库 `/srv/shared-assets`，不进入博客仓库或 COS 备份。`media/assets` 中的七张 WebP 是经过版本控制的上传输入；在后续 CDN 切换 PR 合并前，页面仍使用 `public/images` 下的本地图片。
+
+生产工作流通过 GitHub OIDC 获取腾讯云临时凭证，不保存永久 SecretId/SecretKey。当前安全引导值是 `MEDIA_PUBLISH_ENABLED=false`：PR 和生产验证会检查媒体锁，但不会写入 COS。相同 SHA 的重试是幂等操作，不覆盖冲突对象，也不会自动删除旧对象。

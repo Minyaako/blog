@@ -22,6 +22,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm media:validate
       - run: sh -n deploy/bin/blog-release tests/deploy/blog-release.test.sh
       - run: pnpm test:deploy
       - run: pnpm exec playwright install --with-deps chromium
@@ -46,9 +47,46 @@ jobs:
             playwright-report/
             test-results/
 
-  publish-image:
+  publish-media:
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: blog-production-media
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Media publishing is disabled
+        if: ${{ vars.MEDIA_PUBLISH_ENABLED != 'true' }}
+        run: echo "MEDIA_PUBLISH_ENABLED is not true; validation-only mode"
+      - name: Publish immutable media
+        if: ${{ vars.MEDIA_PUBLISH_ENABLED == 'true' }}
+        env:
+          MEDIA_COS_BUCKET: ${{ vars.MEDIA_COS_BUCKET }}
+          MEDIA_COS_REGION: ${{ vars.MEDIA_COS_REGION }}
+          MEDIA_TENCENT_REGION: ${{ vars.MEDIA_COS_REGION }}
+          MEDIA_TENCENT_PROVIDER_ID: ${{ vars.MEDIA_TENCENT_PROVIDER_ID }}
+          MEDIA_TENCENT_ROLE_ARN: ${{ vars.MEDIA_TENCENT_ROLE_ARN }}
+          MEDIA_OIDC_AUDIENCE: sts.tencentcloudapi.com
+        run: |
+          pnpm media:publish
+          pnpm media:verify
+
+  publish-image:
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    needs: [verify, publish-media]
     runs-on: ubuntu-latest
     permissions:
       contents: read

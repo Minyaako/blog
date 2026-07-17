@@ -14,6 +14,10 @@
     "test:e2e": "playwright test",
     "test:visual": "playwright test tests/e2e/visual.spec.ts",
     "test:deploy": "bash tests/deploy/blog-release.test.sh",
+    "media:prepare": "media-publisher prepare --manifest media/media.yaml --lock media/media.lock.json",
+    "media:validate": "media-publisher validate --manifest media/media.yaml --lock media/media.lock.json",
+    "media:publish": "media-publisher publish --manifest media/media.yaml --lock media/media.lock.json --credentials github-oidc --bucket $MEDIA_COS_BUCKET --region $MEDIA_COS_REGION --report .media-publish-report.json",
+    "media:verify": "media-publisher verify --lock media/media.lock.json --report .media-publish-report.json",
     "build:astro": "astro build",
     "build:search": "pagefind --site dist",
     "build": "pnpm check && pnpm test:unit && pnpm build:astro && pnpm build:search",
@@ -38,6 +42,7 @@
   "devDependencies": {
     "@astrojs/check": "0.9.9",
     "@axe-core/playwright": "4.12.1",
+    "@minyaako/media-publisher": "github:Minyaako/media-publisher#48d975d6536852cc94aa96031cc99c2a75b81b8e",
     "@playwright/test": "1.61.1",
     "@types/node": "24.13.3",
     "typescript": "6.0.3",

@@ -6,5 +6,6 @@ dist/
 .superpowers/
 playwright-report/
 test-results/
+.media-publish-report.json
 .DS_Store
 Thumbs.db
