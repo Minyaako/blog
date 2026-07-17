@@ -58,8 +58,8 @@ importers:
         specifier: 4.12.1
         version: 4.12.1(playwright-core@1.61.1)
       '@minyaako/media-publisher':
-        specifier: github:Minyaako/media-publisher#48d975d6536852cc94aa96031cc99c2a75b81b8e
-        version: https://codeload.github.com/Minyaako/media-publisher/tar.gz/48d975d6536852cc94aa96031cc99c2a75b81b8e(@types/node@24.13.3)
+        specifier: github:Minyaako/media-publisher#33b31fee5dbac622c76e242b52bac961f78c91b3
+        version: https://codeload.github.com/Minyaako/media-publisher/tar.gz/33b31fee5dbac622c76e242b52bac961f78c91b3(@types/node@24.13.3)
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
@@ -671,8 +671,8 @@ packages:
   '@mdx-js/mdx@3.1.1':
     resolution: {integrity: sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ==}
 
-  '@minyaako/media-publisher@https://codeload.github.com/Minyaako/media-publisher/tar.gz/48d975d6536852cc94aa96031cc99c2a75b81b8e':
-    resolution: {gitHosted: true, integrity: sha512-Ft2YjOFgbCUzktCUtdzp9lgWOgqqeoIfiH8nqYV/c1AmoD7TJNX8mMCjGJzp0XMvQZPq4VT4vi2pVAho1c3/pQ==, tarball: https://codeload.github.com/Minyaako/media-publisher/tar.gz/48d975d6536852cc94aa96031cc99c2a75b81b8e}
+  '@minyaako/media-publisher@https://codeload.github.com/Minyaako/media-publisher/tar.gz/33b31fee5dbac622c76e242b52bac961f78c91b3':
+    resolution: {gitHosted: true, integrity: sha512-UcDP5FeKGyest5Q1hAW7lIjNfafTbvwTLb27jZz0p+XeeZ9BeM8z6EE4oBXT6qP1pTKEyrqif1EryKOiD9trMQ==, tarball: https://codeload.github.com/Minyaako/media-publisher/tar.gz/33b31fee5dbac622c76e242b52bac961f78c91b3}
     version: 0.1.0
     engines: {node: '>=22.12.0'}
     hasBin: true
@@ -3406,7 +3406,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@minyaako/media-publisher@https://codeload.github.com/Minyaako/media-publisher/tar.gz/48d975d6536852cc94aa96031cc99c2a75b81b8e(@types/node@24.13.3)':
+  '@minyaako/media-publisher@https://codeload.github.com/Minyaako/media-publisher/tar.gz/33b31fee5dbac622c76e242b52bac961f78c91b3(@types/node@24.13.3)':
     dependencies:
       commander: 15.0.0
       cos-nodejs-sdk-v5: 3.0.0
