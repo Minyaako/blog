@@ -335,6 +335,8 @@ const assertWorkflowContract = (source: string) => {
     (step) => step.name === 'Deploy immutable image',
   )
   expect(deployImage?.run).toContain('ssh -o BatchMode=yes')
+  expect(deployImage?.run).toContain('-o ServerAliveInterval=30')
+  expect(deployImage?.run).toContain('-o ServerAliveCountMax=20')
   expect(deployImage?.run).toContain(
     '"${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}"',
   )

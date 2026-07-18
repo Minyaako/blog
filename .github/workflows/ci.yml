@@ -132,5 +132,7 @@ jobs:
       - name: Deploy immutable image
         run: >-
           ssh -o BatchMode=yes
+          -o ServerAliveInterval=30
+          -o ServerAliveCountMax=20
           "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}"
           "deploy ${{ github.sha }}"
