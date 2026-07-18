@@ -41,6 +41,15 @@ gh variable get MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production
 这只会阻止后续工作流写入 COS，不会删除已发布对象，也不会撤回正在运行的任务。
 关闭媒体写入后，只有仍引用本地图片或其全部锁定 CDN 对象已经存在的版本才可安全发布。
 首次 OIDC 预热证据见 `docs/verification/media-oidc-bootstrap.md`。
+生产 CDN 切换、对象完整性及回滚恢复演练证据见
+`docs/verification/media-cdn-cutover.md`。
+
+CDN 切换后，发布检查还必须确认：首页、归档和四篇文章均引用
+`https://pic.minyako.top/blog/` 下的锁定 URL，不再引用旧的
+`/images/home/*.webp`、`/images/posts/*.webp` 或
+`/images/profile/*.webp`；同时逐项核对 `media/media.lock.json` 的字节数和
+SHA-256。关闭 `MEDIA_PUBLISH_ENABLED` 只能阻止后续写入，不能让缺少已发布
+对象的新版本安全运行。
 
 ## 固定边界
 
@@ -229,6 +238,20 @@ ssh tencent-server "sudo sh -c 'if test -f /srv/apps/blog/state/last-failure; th
 ```
 
 `last-failure` 仅记录失败目标 SHA 和 UTC 时间。它不存在时表示当前无失败记录：可能尚未部署，也可能最近一次成功部署已经清除记录。
+
+### 陈旧部署锁
+
+发现 `another deployment is active` 时，先把它视为真实并发部署。只读检查
+`blog-release`、`docker pull` 和 `docker compose` 进程，并读取
+`/srv/apps/blog/state/deploy.lock`；只要记录 PID 存在或锁仍被占用，就等待
+发布器自行结束，禁止删除锁。
+
+只有管理员确认以下条件全部成立时，才能移除陈旧锁：锁文件和对应
+`.deploy.lock-token.*` 都是普通文件、内容完全一致、inode 相同、链接数符合
+发布器约定、记录 PID 不存在，且 `fuser`/`lsof` 均没有报告持有者。删除范围
+只能是这两个已核验文件；之后仍须通过 `blog-release deploy <完整 SHA>`
+恢复发布，不得手工修改 `current`、`previous` 或镜像标签。若任一条件不满足，
+停止并由服务器管理员检查。
 
 ## 回滚与恢复
 
