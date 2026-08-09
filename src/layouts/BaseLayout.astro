@@ -59,6 +59,18 @@ const socialImage = image ? new URL(image, SITE.origin) : undefined
           : systemDark ? 'dark' : 'light'
       })()
     </script>
+    <script is:inline>
+      (() => {
+        const root = document.documentElement
+        const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+        root.dataset.motionNavigation = reduced
+          ? 'instant'
+          : typeof document.startViewTransition === 'function' ? 'native' : 'fallback'
+
+        const domain = /^\/domains\/(academic|engineering|life|games)(?:\/|$)/.exec(location.pathname)?.[1]
+        if (domain) root.dataset.motionDomain = domain
+      })()
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到正文</a>
@@ -68,7 +80,9 @@ const socialImage = image ? new URL(image, SITE.origin) : undefined
     </main>
     <SiteFooter />
     <script>
+      import { initPageMotion } from '../scripts/page-motion'
       import { initRevealMotion } from '../scripts/motion'
+      initPageMotion()
       initRevealMotion()
     </script>
   </body>

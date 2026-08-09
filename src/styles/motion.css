@@ -12,19 +12,78 @@
 }
 
 ::view-transition-old(page-content) {
-  animation: motion-page-out var(--duration-page) var(--ease-standard) both;
+  animation: motion-page-out var(--duration-exit) var(--ease-standard) both;
 }
 
 ::view-transition-new(page-content) {
-  animation: motion-page-in var(--duration-page) var(--ease-standard) both;
+  animation: motion-page-in var(--duration-page) var(--ease-emphasized) both;
 }
 
 @keyframes motion-page-out {
-  to { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 0; transform: translateY(-12px) scale(.985); }
 }
 
 @keyframes motion-page-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(24px) scale(.985); }
+}
+
+html[data-motion-navigation='fallback'] .page-main {
+  animation: motion-fallback-page-in var(--duration-page) var(--ease-emphasized) both;
+}
+
+html[data-motion-page-state='exiting'] .page-main {
+  animation: motion-fallback-page-out var(--duration-exit) var(--ease-standard) both;
+  pointer-events: none;
+}
+
+@keyframes motion-fallback-page-in {
+  from { opacity: 0; transform: translateY(24px) scale(.985); }
+}
+
+@keyframes motion-fallback-page-out {
+  to { opacity: 0; transform: translateY(-12px) scale(.985); }
+}
+
+html[data-motion-domain='academic'] { --motion-domain-color: var(--academic); }
+html[data-motion-domain='engineering'] { --motion-domain-color: var(--engineering); }
+html[data-motion-domain='life'] { --motion-domain-color: var(--life); }
+html[data-motion-domain='games'] { --motion-domain-color: var(--games); }
+
+html[data-motion-target-domain='academic'] { --motion-domain-color: var(--academic); }
+html[data-motion-target-domain='engineering'] { --motion-domain-color: var(--engineering); }
+html[data-motion-target-domain='life'] { --motion-domain-color: var(--life); }
+html[data-motion-target-domain='games'] { --motion-domain-color: var(--games); }
+
+html[data-motion-navigation='fallback'] body::before {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  background: var(--motion-domain-color, var(--accent));
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: right center;
+}
+
+html[data-motion-navigation='fallback'][data-motion-domain] body::before {
+  animation: motion-domain-arrive var(--duration-page) var(--ease-emphasized) both;
+  transform-origin: left center;
+}
+
+html[data-motion-navigation='fallback'][data-motion-page-state='exiting'] body::before {
+  animation: motion-domain-depart var(--duration-exit) var(--ease-emphasized) both;
+}
+
+@keyframes motion-domain-depart {
+  0% { opacity: 0; transform: scaleX(0); }
+  70% { opacity: .14; transform: scaleX(1); }
+  100% { opacity: .08; transform: scaleX(1); }
+}
+
+@keyframes motion-domain-arrive {
+  0% { opacity: .12; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
 }
 
 [data-motion-reveal][data-motion-state='pending'] {
@@ -118,6 +177,13 @@ a:focus-visible .motion-arrow {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html[data-motion-navigation='instant'] .page-main,
+  html[data-motion-navigation='instant'] body::before,
+  html[data-motion-navigation='fallback'] .page-main,
+  html[data-motion-navigation='fallback'] body::before {
+    animation: none !important;
+  }
+
   ::view-transition-old(page-content),
   ::view-transition-new(page-content),
   [data-motion-reveal][data-motion-state='visible'] {
