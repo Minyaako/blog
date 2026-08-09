@@ -14,6 +14,12 @@ function cubicBezierValues(value: string) {
   return match[1].split(',').map((parameter) => Number.parseFloat(parameter.trim()))
 }
 
+async function disableDocumentViewTransitions(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    Reflect.deleteProperty(Document.prototype, 'startViewTransition')
+  })
+}
+
 test('motion foundation exposes computed timing semantics and page scope', async ({ page }) => {
   await page.goto('/')
   const values = await page.locator('html').evaluate((root) => {
@@ -36,9 +42,43 @@ test('motion foundation exposes computed timing semantics and page scope', async
     ease: cubicBezierValues(values.ease),
     scope: values.scope,
   }).toEqual({
-    micro: 200, enter: 260, page: 320, stagger: 55,
+    micro: 220, enter: 420, page: 520, stagger: 90,
     ease: [0.2, 0.8, 0.2, 1], scope: 'page-content',
   })
+})
+
+test('fallback navigation gives domain changes a visible exit and colored arrival', async ({ page }) => {
+  await disableDocumentViewTransitions(page)
+  await page.goto('/')
+
+  const root = page.locator('html')
+  const main = page.locator('.page-main')
+  await expect(root).toHaveAttribute('data-motion-navigation', 'fallback')
+  await expect(main).toHaveCSS('animation-name', 'motion-fallback-page-in')
+
+  const navigation = page.waitForURL(/\/domains\/academic\/?$/)
+  await page.locator('.domain-card[data-domain="academic"]').click({ noWaitAfter: true })
+  await expect(root).toHaveAttribute('data-motion-page-state', 'exiting')
+  await expect(root).toHaveAttribute('data-motion-target-domain', 'academic')
+  await expect(main).toHaveCSS('animation-name', 'motion-fallback-page-out')
+  await navigation
+
+  await expect(page.locator('html')).toHaveAttribute('data-motion-domain', 'academic')
+  await expect(page.locator('.page-main')).toHaveCSS('animation-name', 'motion-fallback-page-in')
+  await expect.poll(() => page.locator('body').evaluate((body) => getComputedStyle(body, '::before').animationName))
+    .toBe('motion-domain-arrive')
+})
+
+test('reduced motion keeps fallback navigation instantaneous', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await disableDocumentViewTransitions(page)
+  await page.goto('/')
+
+  await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'instant')
+  await expect(page.locator('.page-main')).toHaveCSS('animation-name', 'none')
+  await expect.poll(() => page.locator('body').evaluate(
+    (body) => getComputedStyle(body, '::before').animationName
+  )).toBe('none')
 })
 
 test('homepage reveals the A2 modules once in order', async ({ page }) => {
