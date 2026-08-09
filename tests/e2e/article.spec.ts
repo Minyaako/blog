@@ -3,7 +3,12 @@ import { expect, test } from './fixtures'
 test('technical article renders metadata, toc, code, and math', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Astro')
-  await expect(page.getByRole('navigation', { name: '文章目录' })).toBeVisible()
+  const toc = page.getByRole('navigation', { name: '文章目录' })
+  await expect(toc).toBeVisible()
+  await expect(toc).toHaveAttribute('data-toc', '')
+  await expect(toc.locator('[data-toc-marker]')).toHaveAttribute('aria-hidden', 'true')
+  await expect(toc.locator('[data-toc-link][aria-current="location"]')).toHaveCount(1)
+  await expect(toc.locator('[data-toc-link]').first()).toHaveAttribute('href', /^#.+/)
   await expect(page.locator('pre code').first()).toBeVisible()
   await expect(page.locator('.katex').first()).toBeVisible()
   await expect(page.locator('[data-page-key]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')

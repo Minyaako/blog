@@ -51,6 +51,26 @@ a:focus-visible .motion-arrow {
   transform: translateX(4px);
 }
 
+.toc {
+  position: relative;
+}
+
+.toc-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: var(--toc-marker-height, 1.2rem);
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateY(var(--toc-marker-y, 0));
+  transition: transform var(--duration-micro) var(--ease-standard), height var(--duration-micro) var(--ease-standard);
+}
+
+.toc a[aria-current='location'] {
+  color: var(--text);
+}
+
 .tag-filters button {
   position: relative;
   display: inline-flex;
@@ -89,5 +109,9 @@ a:focus-visible .motion-arrow {
 
   .tag-filters button {
     transition: none !important;
+  }
+
+  .toc-marker {
+    transition: none;
   }
 }
