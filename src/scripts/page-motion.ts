@@ -13,6 +13,7 @@ export interface NavigationAnchorLike {
   href: string
   target: string
   download: string
+  hasAttribute?: (qualifiedName: string) => boolean
 }
 
 const domainPattern = /^\/domains\/(academic|engineering|life|games)(?:\/|$)/
@@ -28,11 +29,11 @@ export function isEligibleNavigation(
 ): boolean {
   if (event.defaultPrevented || event.button !== 0) return false
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false
-  if (anchor.target || anchor.download) return false
+  if (anchor.target || anchor.download || anchor.hasAttribute?.('download')) return false
 
   const target = new URL(anchor.href, current)
   if (!['http:', 'https:'].includes(target.protocol) || target.origin !== current.origin) return false
-  if (target.pathname === current.pathname && target.search === current.search && target.hash) return false
+  if (target.pathname === current.pathname && target.search === current.search) return false
   return target.href !== current.href
 }
 

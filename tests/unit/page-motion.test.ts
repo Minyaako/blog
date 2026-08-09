@@ -40,4 +40,20 @@ describe('page motion navigation intent', () => {
     expect(isEligibleNavigation(event(), anchor('https://example.com/archive.zip', { download: 'archive.zip' }), current)).toBe(false)
     expect(isEligibleNavigation(event(), anchor('https://example.com/archives', { target: '_blank' }), current)).toBe(false)
   })
+
+  it('keeps bare download links native', () => {
+    const current = new URL('https://example.com/')
+    const bareDownload = anchor('https://example.com/archive.zip', {
+      hasAttribute: (name: string) => name === 'download',
+    })
+
+    expect(isEligibleNavigation(event(), bareDownload, current)).toBe(false)
+  })
+
+  it('keeps same-document empty fragments and hash clearing native', () => {
+    const current = new URL('https://example.com/archives#history')
+
+    expect(isEligibleNavigation(event(), anchor('#'), current)).toBe(false)
+    expect(isEligibleNavigation(event(), anchor('/archives'), current)).toBe(false)
+  })
 })
