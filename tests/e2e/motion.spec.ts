@@ -85,8 +85,10 @@ test('toc link activation keeps the native hash target current', async ({ page }
   await page.goto('/posts/astro-content-architecture')
   const toc = page.locator('[data-toc]')
   const marker = toc.locator('[data-toc-marker]')
-  const target = toc.locator('[data-toc-link][href="#一个公式"]')
+  const target = toc.locator('[data-toc-link]').nth(1)
   await target.scrollIntoViewIfNeeded()
+  const targetHref = await target.getAttribute('href')
+  expect(targetHref).toMatch(/^#.+/)
   const targetMarkerY = await target.evaluate((link) => `${(link as HTMLElement).offsetTop}px`)
 
   await page.evaluate(() => {
@@ -103,7 +105,7 @@ test('toc link activation keeps the native hash target current', async ({ page }
     await new Promise(requestAnimationFrame)
   })
 
-  await expect.poll(() => decodeURIComponent(new URL(page.url()).hash.slice(1))).toBe('一个公式')
+  await expect.poll(() => decodeURIComponent(new URL(page.url()).hash.slice(1))).toBe(decodeURIComponent(targetHref!.slice(1)))
   await expect(target).toHaveAttribute('aria-current', 'location')
   await expect(toc.locator('[data-toc-link][aria-current="location"]')).toHaveCount(1)
   await expect(marker).toBeVisible()
@@ -111,8 +113,12 @@ test('toc link activation keeps the native hash target current', async ({ page }
 })
 
 test('table of contents honors a direct section link on initialization', async ({ page }) => {
-  await page.goto('/posts/astro-content-architecture#%E4%B8%80%E4%B8%AA%E5%85%AC%E5%BC%8F')
-  await expect(page.locator('[data-toc-link][href="#一个公式"]')).toHaveAttribute('aria-current', 'location')
+  await page.goto('/posts/astro-content-architecture')
+  const targetHref = await page.locator('[data-toc-link]').nth(1).getAttribute('href')
+  expect(targetHref).toMatch(/^#.+/)
+
+  await page.goto(`/posts/astro-content-architecture${targetHref}`)
+  await expect(page.locator('[data-toc-link]').nth(1)).toHaveAttribute('aria-current', 'location')
 })
 
 test('archive cards reveal once and expose stable motion order', async ({ page }) => {
