@@ -62,6 +62,15 @@ test('article motion is limited to the header', async ({ page }) => {
   await expect(page.locator('.prose[data-motion-reveal]')).toHaveCount(0)
 })
 
+test('archive cards reveal once and expose stable motion order', async ({ page }) => {
+  await page.goto('/archives')
+  const card = page.locator('[data-post-card]').last()
+  await card.scrollIntoViewIfNeeded()
+  await expect(card).toHaveAttribute('data-motion-state', 'visible')
+  await expect(card).toHaveAttribute('data-motion-initialized', 'true')
+  await expect(card).toHaveCSS('--motion-order', '3')
+})
+
 test('reduced motion keeps A2 content visible', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')

@@ -51,6 +51,29 @@ a:focus-visible .motion-arrow {
   transform: translateX(4px);
 }
 
+.tag-filters button {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  align-items: center;
+  transition: border-color var(--duration-micro), color var(--duration-micro), background var(--duration-micro);
+}
+
+.tag-filters button::after {
+  display: inline-block;
+  flex: 0 0 .35rem;
+  width: .35rem;
+  height: .35rem;
+  margin-left: var(--space-2);
+  border-radius: 50%;
+  background: transparent;
+  content: '';
+}
+
+.tag-filters button[aria-pressed='true']::after {
+  background: var(--accent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(page-content),
   ::view-transition-new(page-content),
@@ -62,5 +85,9 @@ a:focus-visible .motion-arrow {
   [data-motion-reveal][data-motion-state='pending'] {
     opacity: 1;
     transform: none;
+  }
+
+  .tag-filters button {
+    transition-duration: 0.001ms;
   }
 }

@@ -49,3 +49,28 @@ test('archive filters use stable tag ids and registry labels', async ({ page }) 
   await expect(page.locator('[data-post-card]:not([hidden])')).toContainText('视觉小说中的记忆与重访')
   await expect(page.getByText('筛选结果：1 篇文章')).toBeVisible()
 })
+
+test('archive filter updates semantics and survives missing View Transition support', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(document, 'startViewTransition', { value: undefined, configurable: true })
+  })
+  await page.goto('/archives')
+  const filter = page.getByRole('button', { name: '视觉小说' })
+  const before = await filter.evaluate((button) => ({
+    indicatorWidth: getComputedStyle(button, '::after').width,
+    width: button.getBoundingClientRect().width,
+  }))
+
+  await filter.click()
+
+  await expect(filter).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('[data-post-card]:not([hidden])')).toHaveCount(1)
+  await expect(page.locator('[data-filter-status]')).toContainText('1')
+  const after = await filter.evaluate((button) => ({
+    indicatorWidth: getComputedStyle(button, '::after').width,
+    width: button.getBoundingClientRect().width,
+  }))
+  expect(before.indicatorWidth).toBe(after.indicatorWidth)
+  expect(after.indicatorWidth).not.toBe('auto')
+  expect(after.width).toBe(before.width)
+})

@@ -29,13 +29,11 @@ const tags = getAllTags().filter((tag) => usedTagIds.has(tag.id))
   const groups = Array.from(document.querySelectorAll<HTMLElement>('[data-archive-group]'))
   const status = document.querySelector<HTMLElement>('[data-filter-status]')
 
-  filters?.addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-tag-id]')
-    if (!button) return
+  const applyFilter = (button: HTMLButtonElement) => {
     const selected = button.dataset.tagId ?? ''
     let visible = 0
 
-    filters.querySelectorAll<HTMLButtonElement>('[data-tag-id]').forEach((item) => {
+    filters?.querySelectorAll<HTMLButtonElement>('[data-tag-id]').forEach((item) => {
       item.setAttribute('aria-pressed', String(item === button))
     })
     cards.forEach((card) => {
@@ -47,6 +45,20 @@ const tags = getAllTags().filter((tag) => usedTagIds.has(tag.id))
       group.hidden = !group.querySelector('[data-post-card]:not([hidden])')
     })
     if (status) status.textContent = selected ? `筛选结果：${visible} 篇文章` : `显示全部 ${visible} 篇文章`
+  }
+
+  const runFilterUpdate = (update: () => void): void => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !document.startViewTransition) {
+      update()
+      return
+    }
+    document.startViewTransition(update)
+  }
+
+  filters?.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-tag-id]')
+    if (!button) return
+    runFilterUpdate(() => applyFilter(button))
   })
 </script>
 
