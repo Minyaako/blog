@@ -34,6 +34,14 @@ test('stable tag routes display labels and aliases', async ({ page }) => {
   await expect(page.getByRole('link', { name: /视觉小说中的记忆与重访/ })).toBeVisible()
 })
 
+test('archive and tag pages keep decorative utility icons out of the heading outline', async ({ page }) => {
+  for (const path of ['/archives', '/tags']) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    await expect(page.locator('[data-page-heading-icon] svg')).toHaveAttribute('aria-hidden', 'true')
+  }
+})
+
 test('archive filters use stable tag ids and registry labels', async ({ page }) => {
   await page.goto('/archives')
   await page.getByRole('button', { name: '视觉小说' }).click()

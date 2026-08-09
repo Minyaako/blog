@@ -20,6 +20,14 @@ test('homepage presents identity, four domains, and recent writing', async ({ pa
   await expect(page.getByRole('heading', { name: '最新长文' })).toBeVisible()
 })
 
+test('homepage renders one decorative vector icon per domain', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('[data-domain-icon]')).toHaveCount(4)
+  for (const domain of ['academic', 'engineering', 'life', 'games']) {
+    await expect(page.locator(`[data-domain-icon="${domain}"]`)).toHaveAttribute('aria-hidden', 'true')
+  }
+})
+
 test('homepage crossfades to the second image after one minute', async ({ page }) => {
   await page.goto('/')
 

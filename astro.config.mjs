@@ -15,7 +15,7 @@ export default defineConfig({
     sitemap(),
     icon({
       include: {
-        lucide: ['archive', 'chevron-down', 'external-link', 'house', 'moon', 'rss', 'search', 'sun'],
+        lucide: ['archive', 'book-open', 'chevron-down', 'external-link', 'house', 'moon', 'rss', 'search', 'shapes', 'sun', 'tags'],
         'simple-icons': ['github']
       }
     })
