@@ -6,10 +6,10 @@ import DomainIcon from './DomainIcon.astro'
 const domains = Object.entries(DOMAINS) as [DomainKey, (typeof DOMAINS)[DomainKey]][]
 ---
 
-<section class="domain-section" aria-labelledby="domain-heading">
+<section class="domain-section" aria-labelledby="domain-heading" data-motion-reveal style="--motion-order: 1">
   <div class="section-heading">
     <div><span class="section-kicker"><AppIcon name="lucide:shapes" /><span>Explore</span></span><h2 id="domain-heading">四个内容领域</h2></div>
-    <a href="/archives">查看全部归档 →</a>
+    <a href="/archives">查看全部归档 <span class="motion-arrow" aria-hidden="true">→</span></a>
   </div>
   <div class="domain-grid">
     {domains.map(([key, domain], index) => (
@@ -20,7 +20,7 @@ const domains = Object.entries(DOMAINS) as [DomainKey, (typeof DOMAINS)[DomainKe
         </span>
         <h3>{domain.label}</h3>
         <p>{domain.description}</p>
-        <span class="english">{domain.englishLabel} ↗</span>
+        <span class="english">{domain.englishLabel} <span class="motion-arrow" aria-hidden="true">↗</span></span>
       </a>
     ))}
   </div>

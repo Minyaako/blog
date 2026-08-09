@@ -40,3 +40,30 @@ test('motion foundation exposes computed timing semantics and page scope', async
     ease: [0.2, 0.8, 0.2, 1], scope: 'page-content',
   })
 })
+
+test('homepage reveals the A2 modules once in order', async ({ page }) => {
+  await page.goto('/')
+  const modules = page.locator('[data-motion-reveal]')
+  await expect(modules).toHaveCount(3)
+
+  for (let index = 0; index < 3; index += 1) {
+    const module = modules.nth(index)
+    await module.scrollIntoViewIfNeeded()
+    await expect(module).toHaveAttribute('data-motion-state', 'visible')
+    await expect(module).toHaveAttribute('data-motion-initialized', 'true')
+    await expect(module).toHaveCSS('--motion-order', String(index))
+  }
+})
+
+test('article motion is limited to the header', async ({ page }) => {
+  await page.goto('/posts/astro-content-architecture')
+  const header = page.locator('.article-header[data-motion-reveal]')
+  await expect(header).toHaveAttribute('data-motion-state', 'visible')
+  await expect(page.locator('.prose[data-motion-reveal]')).toHaveCount(0)
+})
+
+test('reduced motion keeps A2 content visible', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  await expect(page.locator('[data-motion-reveal][data-motion-state="visible"]')).toHaveCount(3)
+})

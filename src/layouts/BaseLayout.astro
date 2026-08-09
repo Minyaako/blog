@@ -67,5 +67,9 @@ const socialImage = image ? new URL(image, SITE.origin) : undefined
       <slot />
     </main>
     <SiteFooter />
+    <script>
+      import { initRevealMotion } from '../scripts/motion'
+      initRevealMotion()
+    </script>
   </body>
 </html>
