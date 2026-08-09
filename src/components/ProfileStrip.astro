@@ -5,7 +5,7 @@ import AppIcon from './AppIcon.astro'
 const avatar = resolveMedia('profile-avatar')
 ---
 
-<section class="profile-strip" aria-labelledby="profile-name">
+<section class="profile-strip" aria-labelledby="profile-name" data-motion-reveal style="--motion-order: 0">
   <img class="avatar" src={avatar.url} alt="Minyako 头像" width={avatar.width} height={avatar.height} />
   <div class="identity">
     <div class="name-row">

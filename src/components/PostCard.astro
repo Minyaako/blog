@@ -2,13 +2,24 @@
 import { DOMAINS } from '../config/taxonomy'
 import type { PostCardData } from '../lib/posts'
 
-interface Props { post: PostCardData }
-const { post } = Astro.props
+interface Props {
+  post: PostCardData
+  reveal?: boolean
+  motionOrder?: number
+}
+const { post, reveal = false, motionOrder = 0 } = Astro.props
 const domain = DOMAINS[post.domain]
 const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(post.publishedAt)
 ---
 
-<article class="post-card" data-post-card data-domain={post.domain} data-tags={post.tags.map((tag) => tag.id).join(' ')}>
+<article
+  class="post-card"
+  data-post-card
+  data-domain={post.domain}
+  data-tags={post.tags.map((tag) => tag.id).join(' ')}
+  data-motion-reveal={reveal ? true : undefined}
+  style={reveal ? `--motion-order: ${motionOrder}` : undefined}
+>
   <a class="card-link" href={`/posts/${post.slug}`}>
     <div class="card-copy">
       <p class="meta"><time datetime={post.publishedAt.toISOString()}>{date}</time> · {domain.label}</p>

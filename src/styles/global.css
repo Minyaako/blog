@@ -1,6 +1,7 @@
 @layer reset, tokens, base, components, utilities;
 @import './tokens.css' layer(tokens);
 @import './prose.css' layer(components);
+@import './motion.css' layer(components);
 
 @layer reset {
   *, *::before, *::after { box-sizing: border-box; }
