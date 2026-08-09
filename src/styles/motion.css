@@ -31,7 +31,7 @@ html[data-motion-navigation='fallback'] .page-main {
   animation: motion-fallback-page-in var(--duration-page) var(--ease-emphasized) both;
 }
 
-html[data-motion-page-state='exiting'] .page-main {
+html[data-motion-navigation='fallback'][data-motion-page-state='exiting'] .page-main {
   animation: motion-fallback-page-out var(--duration-exit) var(--ease-standard) both;
   pointer-events: none;
 }
@@ -54,7 +54,10 @@ html[data-motion-target-domain='engineering'] { --motion-domain-color: var(--eng
 html[data-motion-target-domain='life'] { --motion-domain-color: var(--life); }
 html[data-motion-target-domain='games'] { --motion-domain-color: var(--games); }
 
-html[data-motion-navigation='fallback'] body::before {
+:is(
+  html[data-motion-navigation='fallback'],
+  html[data-motion-navigation='native']
+) body::before {
   position: fixed;
   z-index: 1000;
   inset: 0;
@@ -66,13 +69,20 @@ html[data-motion-navigation='fallback'] body::before {
   transform-origin: right center;
 }
 
-html[data-motion-navigation='fallback'][data-motion-domain] body::before {
+:is(
+  html[data-motion-navigation='fallback'],
+  html[data-motion-navigation='native']
+)[data-motion-domain] body::before {
   animation: motion-domain-arrive var(--duration-page) var(--ease-emphasized) both;
   transform-origin: left center;
 }
 
-html[data-motion-navigation='fallback'][data-motion-page-state='exiting'] body::before {
+:is(
+  html[data-motion-navigation='fallback'],
+  html[data-motion-navigation='native']
+)[data-motion-page-state='exiting'] body::before {
   animation: motion-domain-depart var(--duration-exit) var(--ease-emphasized) both;
+  transform-origin: right center;
 }
 
 @keyframes motion-domain-depart {
