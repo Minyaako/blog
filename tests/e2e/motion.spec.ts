@@ -135,3 +135,17 @@ test('reduced motion removes the toc marker transition', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture')
   await expect(page.locator('[data-toc-marker]')).toHaveCSS('transition-property', 'none')
 })
+
+test('theme icon states crossfade without changing button geometry', async ({ page }) => {
+  await page.goto('/')
+  const button = page.getByRole('button', { name: '切换主题' })
+  await button.hover()
+  await expect(button).toHaveCSS('translate', '0px -2px')
+  const before = await button.boundingBox()
+
+  await button.click()
+
+  await expect(page.locator('[data-theme-icon="dark"]')).toHaveAttribute('data-active', 'true')
+  await expect(page.locator('[data-theme-icon="light"]')).toHaveAttribute('data-active', 'false')
+  expect(await button.boundingBox()).toEqual(before)
+})

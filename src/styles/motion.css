@@ -51,6 +51,25 @@ a:focus-visible .motion-arrow {
   transform: translateX(4px);
 }
 
+.theme-toggle {
+  grid-template-areas: 'icon';
+}
+
+.theme-toggle [data-theme-icon] {
+  grid-area: icon;
+  transition: opacity var(--duration-micro), transform var(--duration-micro) var(--ease-standard);
+}
+
+.theme-toggle [data-active='false'] {
+  opacity: 0;
+  transform: scale(.72) rotate(-22deg);
+}
+
+.theme-toggle [data-active='true'] {
+  opacity: 1;
+  transform: none;
+}
+
 .toc {
   position: relative;
 }
@@ -117,5 +136,10 @@ a:focus-visible .motion-arrow {
 
   .toc-marker {
     transition: none;
+  }
+
+  .theme-toggle [data-theme-icon] {
+    transition: none;
+    transform: none;
   }
 }
