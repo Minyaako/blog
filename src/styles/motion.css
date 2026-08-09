@@ -71,6 +71,10 @@ a:focus-visible .motion-arrow {
   color: var(--text);
 }
 
+.prose :is(h2, h3)[id] {
+  scroll-margin-top: 20vh;
+}
+
 .tag-filters button {
   position: relative;
   display: inline-flex;

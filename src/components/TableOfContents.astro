@@ -46,12 +46,23 @@ const visibleHeadings = headings.filter((heading) => heading.depth === 2 || head
 
     if (headings.length === 0) return
 
+    links.forEach((link) => {
+      link.addEventListener('click', (event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        setActive(decodeURIComponent(link.hash.slice(1)))
+      })
+    })
+
     if ('IntersectionObserver' in window) {
+      const intersectingHeadings = new Set<HTMLElement>()
       const observer = new IntersectionObserver((entries) => {
-        const entering = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)
-        if (entering[0]) setActive((entering[0].target as HTMLElement).id)
+        entries.forEach((entry) => {
+          const heading = entry.target as HTMLElement
+          if (entry.isIntersecting) intersectingHeadings.add(heading)
+          else intersectingHeadings.delete(heading)
+        })
+        const firstIntersecting = headings.find((heading) => intersectingHeadings.has(heading))
+        if (firstIntersecting) setActive(firstIntersecting.id)
       }, { rootMargin: '-18% 0px -68% 0px', threshold: 0 })
 
       headings.forEach((heading) => observer.observe(heading))

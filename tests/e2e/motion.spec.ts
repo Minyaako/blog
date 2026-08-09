@@ -80,6 +80,36 @@ test('table of contents tracks the current article section', async ({ page }) =>
   await expect.poll(() => marker.evaluate((element) => getComputedStyle(element).transform)).not.toBe(initialMarkerPosition)
 })
 
+test('toc link activation keeps the native hash target current', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/posts/astro-content-architecture')
+  const toc = page.locator('[data-toc]')
+  const marker = toc.locator('[data-toc-marker]')
+  const target = toc.locator('[data-toc-link][href="#一个公式"]')
+  await target.scrollIntoViewIfNeeded()
+  const targetMarkerY = await target.evaluate((link) => `${(link as HTMLElement).offsetTop}px`)
+
+  await page.evaluate(() => {
+    const state = window as typeof window & { tocScrollEnded?: Promise<void> }
+    state.tocScrollEnded = new Promise((resolve) => {
+      window.addEventListener('scrollend', () => resolve(), { once: true })
+    })
+  })
+
+  await target.click()
+  await page.evaluate(async () => {
+    const state = window as typeof window & { tocScrollEnded?: Promise<void> }
+    await state.tocScrollEnded
+    await new Promise(requestAnimationFrame)
+  })
+
+  await expect.poll(() => decodeURIComponent(new URL(page.url()).hash.slice(1))).toBe('一个公式')
+  await expect(target).toHaveAttribute('aria-current', 'location')
+  await expect(toc.locator('[data-toc-link][aria-current="location"]')).toHaveCount(1)
+  await expect(marker).toBeVisible()
+  await expect(toc).toHaveCSS('--toc-marker-y', targetMarkerY)
+})
+
 test('table of contents honors a direct section link on initialization', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture#%E4%B8%80%E4%B8%AA%E5%85%AC%E5%BC%8F')
   await expect(page.locator('[data-toc-link][href="#一个公式"]')).toHaveAttribute('aria-current', 'location')
