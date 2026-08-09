@@ -88,6 +88,6 @@ a:focus-visible .motion-arrow {
   }
 
   .tag-filters button {
-    transition-duration: 0.001ms;
+    transition: none !important;
   }
 }

@@ -74,3 +74,28 @@ test('archive filter updates semantics and survives missing View Transition supp
   expect(after.indicatorWidth).not.toBe('auto')
   expect(after.width).toBe(before.width)
 })
+
+test('archive reduced motion reveals cards and filters without transitions', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/archives')
+  const cards = page.locator('[data-post-card]')
+  await expect(cards).toHaveCount(4)
+  for (let index = 0; index < 4; index += 1) {
+    await expect(cards.nth(index)).toBeVisible()
+  }
+
+  const filter = page.getByRole('button', { name: '视觉小说' })
+  await expect(filter).toHaveCSS('transition-property', 'none')
+  await expect(filter).toHaveCSS('transition-duration', '0s')
+  await filter.click()
+
+  expect(await page.evaluate(() => ({
+    pressed: document.querySelector<HTMLButtonElement>('[data-tag-id="visual-novel"]')?.ariaPressed,
+    status: document.querySelector('[data-filter-status]')?.textContent,
+    visible: document.querySelectorAll('[data-post-card]:not([hidden])').length,
+  }))).toEqual({
+    pressed: 'true',
+    status: '筛选结果：1 篇文章',
+    visible: 1,
+  })
+})
