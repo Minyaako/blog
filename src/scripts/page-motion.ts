@@ -39,32 +39,75 @@ export function isEligibleNavigation(
 
 const fallbackTimeout = 420
 
+function clearTransientMotionState(html: HTMLElement): void {
+  html.removeAttribute('data-motion-page-state')
+  html.removeAttribute('data-motion-target-domain')
+}
+
 export function initPageMotion(root: Document = document): void {
   const html = root.documentElement
-  if (html.dataset.motionNavigation !== 'fallback' || html.dataset.motionNavigationInitialized === 'true') return
+  if (html.dataset.motionNavigationInitialized === 'true') return
   html.dataset.motionNavigationInitialized = 'true'
+
+  const view = root.defaultView
+  if (!view) return
+
+  const reducedMotion = view.matchMedia('(prefers-reduced-motion: reduce)')
+  let completePendingFallbackNavigation: (() => void) | undefined
+  const syncNavigationMode = () => {
+    const mode = reducedMotion.matches
+      ? 'instant'
+      : typeof root.startViewTransition === 'function' ? 'native' : 'fallback'
+    html.dataset.motionNavigation = mode
+    if (mode === 'instant') {
+      clearTransientMotionState(html)
+      completePendingFallbackNavigation?.()
+    }
+    return mode
+  }
+  const handlePageShow = () => {
+    clearTransientMotionState(html)
+    syncNavigationMode()
+  }
+
+  syncNavigationMode()
+  reducedMotion.addEventListener('change', syncNavigationMode)
+  view.addEventListener('pageshow', handlePageShow)
 
   root.addEventListener('click', (event) => {
     const mouseEvent = event as MouseEvent
     const target = event.target
     if (!(target instanceof Element)) return
     const link = target.closest<HTMLAnchorElement>('a[href]')
-    if (!link || !isEligibleNavigation(mouseEvent, link, new URL(location.href))) return
+    if (!link || !isEligibleNavigation(mouseEvent, link, new URL(view.location.href))) return
 
-    event.preventDefault()
-    if (html.dataset.motionPageState === 'exiting') return
+    const mode = syncNavigationMode()
+    if (mode === 'instant') return
+    if (mode === 'fallback') {
+      event.preventDefault()
+      if (html.dataset.motionPageState === 'exiting') return
+    }
 
-    const url = new URL(link.href, location.href)
+    const url = new URL(link.href, view.location.href)
     const domain = link.dataset.domain ?? domainFromPathname(url.pathname)
     if (domain) html.dataset.motionTargetDomain = domain
+
+    if (mode === 'native') {
+      if (domain) html.dataset.motionPageState = 'exiting'
+      return
+    }
+
     html.dataset.motionPageState = 'exiting'
 
     let navigated = false
     const navigate = () => {
       if (navigated) return
       navigated = true
+      if (completePendingFallbackNavigation === navigate) {
+        completePendingFallbackNavigation = undefined
+      }
       main?.removeEventListener('animationend', handleAnimationEnd)
-      location.assign(url.href)
+      view.location.assign(url.href)
     }
 
     const main = root.querySelector<HTMLElement>('.page-main')
@@ -75,7 +118,8 @@ export function initPageMotion(root: Document = document): void {
       ) navigate()
     }
 
+    completePendingFallbackNavigation = navigate
     main?.addEventListener('animationend', handleAnimationEnd)
-    window.setTimeout(navigate, fallbackTimeout)
+    view.setTimeout(navigate, fallbackTimeout)
   })
 }

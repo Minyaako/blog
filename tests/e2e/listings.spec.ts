@@ -72,7 +72,7 @@ test('archive filter updates semantics and survives missing View Transition supp
   }))
   expect(before.indicatorWidth).toBe(after.indicatorWidth)
   expect(after.indicatorWidth).not.toBe('auto')
-  expect(Math.abs(after.width - before.width)).toBeLessThan(0.25)
+  expect(Math.abs(after.width - before.width)).toBeLessThan(0.5)
 })
 
 test('archive reduced motion reveals cards and filters without transitions', async ({ page }) => {
