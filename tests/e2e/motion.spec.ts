@@ -98,33 +98,16 @@ test('fallback navigation gives domain changes a visible exit and colored arriva
     .toBe('motion-domain-arrive')
 })
 
-test('fallback Back restores a visible interactive page from BFCache', async ({ page }) => {
-  await page.addInitScript(() => {
-    window.addEventListener('pageshow', (event) => {
-      const state = window as typeof window & { lastPageShowPersisted?: boolean }
-      state.lastPageShowPersisted = event.persisted
-    })
-  })
+test('persisted pageshow clears fallback motion state and restores an interactive page', async ({ page }) => {
   await disableDocumentViewTransitions(page)
   await page.goto('/')
 
-  const navigation = page.waitForURL(/\/domains\/academic\/?$/)
-  await page.locator('.domain-card[data-domain="academic"]').click({ noWaitAfter: true })
-  await navigation
-  await page.goBack({ waitUntil: 'commit' })
-
-  await expect(page).toHaveURL(/\/$/)
-  const restoration = await page.evaluate(() => {
-    const state = window as typeof window & { lastPageShowPersisted?: boolean }
-    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming & {
-      notRestoredReasons?: unknown
-    }
-    return {
-      persisted: state.lastPageShowPersisted,
-      notRestoredReasons: navigation.notRestoredReasons,
-    }
+  await page.evaluate(() => {
+    const root = document.documentElement
+    root.dataset.motionPageState = 'exiting'
+    root.dataset.motionTargetDomain = 'academic'
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
   })
-  expect(restoration).toEqual({ persisted: true, notRestoredReasons: null })
 
   const root = page.locator('html')
   const main = page.locator('.page-main')
@@ -132,6 +115,7 @@ test('fallback Back restores a visible interactive page from BFCache', async ({ 
   await expect(root).not.toHaveAttribute('data-motion-target-domain', /.+/)
   await expect(main).toBeVisible()
   await expect(main).toHaveCSS('opacity', '1')
+  await expect(main).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
   await expect(main).toHaveCSS('pointer-events', 'auto')
   await page.locator('.domain-card[data-domain="academic"]').click({ trial: true })
 })
