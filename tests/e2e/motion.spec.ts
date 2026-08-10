@@ -111,8 +111,8 @@ test('persisted pageshow clears fallback motion state and restores an interactiv
 
   const root = page.locator('html')
   const main = page.locator('.page-main')
-  await expect(root).not.toHaveAttribute('data-motion-page-state', 'exiting')
-  await expect(root).not.toHaveAttribute('data-motion-target-domain', /.+/)
+  await expect(await root.evaluate((element) => element.getAttribute('data-motion-page-state'))).toBeNull()
+  await expect(await root.evaluate((element) => element.getAttribute('data-motion-target-domain'))).toBeNull()
   await expect(main).toBeVisible()
   await expect(main).toHaveCSS('opacity', '1')
   await expect(main).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
