@@ -32,6 +32,16 @@ async function suppressFallbackTimeout(page: import('@playwright/test').Page) {
   })
 }
 
+async function delayFallbackTimeout(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    const nativeSetTimeout = window.setTimeout.bind(window)
+    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+      if (timeout === 420) return nativeSetTimeout(handler, 60_000, ...args)
+      return nativeSetTimeout(handler, timeout, ...args)
+    }) as typeof window.setTimeout
+  })
+}
+
 test('motion foundation exposes computed timing semantics and page scope', async ({ page }) => {
   await page.goto('/')
   const values = await page.locator('html').evaluate((root) => {
@@ -96,6 +106,35 @@ test('fallback navigation gives domain changes a visible exit and colored arriva
   await expect(page.locator('.page-main')).toHaveCSS('animation-name', 'motion-fallback-page-in')
   await expect.poll(() => page.locator('body').evaluate((body) => getComputedStyle(body, '::before').animationName))
     .toBe('motion-domain-arrive')
+})
+
+test('fallback handoff keeps page content visible on both sides of navigation', async ({ page }) => {
+  await delayFallbackTimeout(page)
+  await disableDocumentViewTransitions(page)
+  await page.goto('/')
+
+  const main = page.locator('.page-main')
+  const entryOpacity = await main.evaluate((element) => {
+    const animation = element.getAnimations().find((candidate) => (
+      candidate instanceof CSSAnimation && candidate.animationName === 'motion-fallback-page-in'
+    ))
+    const firstFrame = (animation?.effect as KeyframeEffect | null)?.getKeyframes()[0]
+    return Number(firstFrame?.opacity)
+  })
+
+  const exitOpacity = await page.evaluate(() => {
+    document.querySelector<HTMLElement>('.domain-card[data-domain="academic"]')!.click()
+    const main = document.querySelector<HTMLElement>('.page-main')!
+    const animation = main.getAnimations().find((candidate) => (
+      candidate instanceof CSSAnimation && candidate.animationName === 'motion-fallback-page-out'
+    ))
+    animation?.pause()
+    const frames = (animation?.effect as KeyframeEffect | null)?.getKeyframes() ?? []
+    return Number(frames.at(-1)?.opacity)
+  })
+
+  expect(entryOpacity).toBeGreaterThanOrEqual(0.55)
+  expect(exitOpacity).toBeGreaterThanOrEqual(0.55)
 })
 
 test('persisted pageshow clears fallback motion state and restores an interactive page', async ({ page }) => {
