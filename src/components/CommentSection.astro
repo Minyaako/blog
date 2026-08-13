@@ -1,0 +1,177 @@
+---
+import '@waline/client/waline.css'
+
+interface Props {
+  pageKey: string
+}
+
+const { pageKey } = Astro.props
+---
+
+<section
+  class="comments"
+  aria-labelledby="comments-heading"
+  data-comment-slot
+  data-page-key={pageKey}
+  data-pagefind-ignore
+>
+  <header class="comments-header">
+    <h2 id="comments-heading">评论</h2>
+    <p>昵称必填；邮箱选填且不会公开。首版不发送邮件。</p>
+  </header>
+  <div data-comment-mount></div>
+  <div class="comments-state" role="status" aria-live="polite" data-comment-status>评论加载中…</div>
+  <button class="comments-retry" type="button" data-comment-retry hidden>重试</button>
+</section>
+
+<script>
+  import { createWalineProvider } from '../lib/comments/waline'
+
+  const section = document.querySelector<HTMLElement>('[data-comment-slot]:not([data-comment-ready])')
+
+  if (section) {
+    section.setAttribute('data-comment-ready', '')
+    const mountTarget = section.querySelector<HTMLElement>('[data-comment-mount]')
+    const status = section.querySelector<HTMLElement>('[data-comment-status]')
+    const retry = section.querySelector<HTMLButtonElement>('[data-comment-retry]')
+    const pageKey = section.dataset.pageKey
+    const provider = createWalineProvider()
+    let observer: IntersectionObserver | undefined
+    let disposed = false
+
+    const mount = async () => {
+      if (!mountTarget || !status || !retry || !pageKey || disposed) return
+      status.hidden = false
+      status.textContent = '评论加载中…'
+      retry.hidden = true
+
+      try {
+        await provider.mount(mountTarget, pageKey)
+        status.hidden = true
+      } catch {
+        status.hidden = false
+        status.textContent = '评论暂时不可用，请稍后重试。'
+        retry.hidden = false
+      }
+    }
+
+    retry?.addEventListener('click', mount)
+
+    if ('IntersectionObserver' in window) {
+      observer = new IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        observer?.disconnect()
+        void mount()
+      }, { rootMargin: '400px 0px' })
+      observer.observe(section)
+    } else {
+      void mount()
+    }
+
+    const dispose = () => {
+      if (disposed) return
+      disposed = true
+      observer?.disconnect()
+      provider.dispose()
+    }
+
+    document.addEventListener('astro:before-swap', dispose, { once: true })
+    window.addEventListener('pagehide', dispose, { once: true })
+  }
+</script>
+
+<style>
+  .comments {
+    margin-top: var(--space-7);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--border);
+    --waline-font-size: var(--text-body);
+    --waline-white: var(--surface-raised);
+    --waline-light-grey: var(--text-muted);
+    --waline-dark-grey: var(--text);
+    --waline-color: var(--text);
+    --waline-bg-color: var(--surface);
+    --waline-bg-color-light: var(--canvas);
+    --waline-bg-color-hover: var(--surface-raised);
+    --waline-border-color: var(--border);
+    --waline-disable-bg-color: var(--canvas);
+    --waline-disable-color: var(--text-muted);
+    --waline-bq-color: var(--canvas);
+    --waline-info-bg-color: var(--canvas);
+    --waline-info-color: var(--text-muted);
+    --waline-theme-color: var(--focus);
+    --waline-active-color: var(--accent);
+    --waline-code-bg-color: #282c34;
+  }
+
+  .comments-header {
+    margin-bottom: var(--space-5);
+  }
+
+  .comments-header h2 {
+    margin: 0;
+    font: 700 var(--text-title)/1.2 var(--font-display);
+  }
+
+  .comments-header p,
+  .comments-state {
+    color: var(--text-muted);
+  }
+
+  .comments-header p {
+    margin: var(--space-2) 0 0;
+  }
+
+  .comments-state {
+    padding: var(--space-5);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    text-align: center;
+  }
+
+  .comments-retry {
+    display: block;
+    margin: var(--space-3) auto 0;
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--border-strong);
+    border-radius: 99rem;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .comments-retry[hidden] {
+    display: none;
+  }
+
+  :global(.comments .wl-avatar),
+  :global(.comments .wl-user-avatar),
+  :global(.comments .wl-login-info),
+  :global(.comments .wl-power),
+  :global(.comments .wl-rss) {
+    display: none;
+  }
+
+  :global(.comments .wl-card-item .wl-card-item) {
+    margin-inline-start: var(--space-5);
+  }
+
+  :global(.comments .wl-card-item .wl-card-item .wl-card-item) {
+    margin-inline-start: 0;
+  }
+
+  :global(.comments .wl-content),
+  :global(.comments .wl-card) {
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 44rem) {
+    :global(.comments .wl-card-item .wl-card-item) {
+      margin-inline-start: var(--space-3);
+    }
+
+    :global(.comments .wl-card-item .wl-card-item .wl-card-item) {
+      margin-inline-start: 0;
+    }
+  }
+</style>
