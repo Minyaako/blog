@@ -58,4 +58,15 @@ describe('blog comments deployment', () => {
     expect(report).toContain('replies=0')
     expect(report).toContain('admins=0')
   })
+
+  it('reads root-private backup directories as root inside helper containers', () => {
+    const script = read('deploy/comments/bin/comments-data')
+    const readonlyBackupMount = '--mount "type=bind,src=$daily,dst=/backup,readonly"'
+    const mountIndex = script.indexOf(readonlyBackupMount)
+    const verificationRun = script.slice(script.lastIndexOf('"$docker_bin" run --rm', mountIndex))
+
+    expect(verificationRun).toMatch(
+      /^"\$docker_bin" run --rm \\\n\s+--user 0:0 \\\n\s+--mount[^\n]+"\$sqlite_image"/m
+    )
+  })
 })

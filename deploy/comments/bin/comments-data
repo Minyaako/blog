@@ -46,7 +46,9 @@ backup_database() {
     --mount "type=bind,src=$data_root,dst=/data,readonly" \
     --mount "type=bind,src=$daily,dst=/backup" \
     "$sqlite_image" sqlite3 /data/waline.sqlite ".backup '/backup/.$name'"
-  test "$("$docker_bin" run --rm --mount "type=bind,src=$daily,dst=/backup,readonly" "$sqlite_image" sqlite3 "/backup/.$name" 'PRAGMA integrity_check;')" = ok
+  test "$("$docker_bin" run --rm \
+    --user 0:0 \
+    --mount "type=bind,src=$daily,dst=/backup,readonly" "$sqlite_image" sqlite3 "/backup/.$name" 'PRAGMA integrity_check;')" = ok
   gzip -c "$temp" > "$archive.tmp"
   mv "$archive.tmp" "$archive"
   rm -f "$temp"
