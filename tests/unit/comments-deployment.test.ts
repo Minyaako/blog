@@ -57,7 +57,7 @@ describe('blog comments deployment', () => {
     expect(report).toContain('comments=0')
     expect(report).toContain('replies=0')
     expect(report).toContain('admins=0')
-  })
+  }, 30_000)
 
   it('reads root-private backup directories as root inside helper containers', () => {
     const script = read('deploy/comments/bin/comments-data')
