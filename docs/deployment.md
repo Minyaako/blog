@@ -334,3 +334,87 @@ gh secret set DEPLOY_SSH_KNOWN_HOSTS --repo Minyaako/blog --env production < "/p
 博客当前是无持久业务数据的静态站。源码与文章由 Git 保留，发布物由不可变 SHA 镜像保留；共享 Caddy 配置由 `server-infra` 管理并在变更前做带时间戳备份。`/srv/apps/blog/state` 只有 `current`、`previous`、锁和最近失败信息，是发布控制状态，不是业务数据。
 
 因此当前不备份容器的 `/config`、`/data` 临时文件系统，也没有博客数据库卷。将来的 Waline、媒体管理器、服务器文章图片或对象存储各自拥有独立的数据保留与备份策略，不应被误认为由本静态站镜像或回滚程序保护。
+
+## 评论服务
+
+评论服务是独立于静态博客发布器的 Waline Compose 项目。博客发布、回滚和 `blog-release` 不得启动、停止、替换或删除评论容器、SQLite 数据与备份。
+
+### 首次安装
+
+以下命令在服务器执行，并假定当前检出的是经过审核的不可变博客提交：
+
+```sh
+sudo install -d -m 0750 /srv/apps/blog-comments
+sudo install -d -m 0750 /srv/apps/blog-comments/data
+sudo install -d -m 0700 /srv/secrets/blog-comments
+sudo install -d -m 0700 /srv/backups/blog-comments/daily
+sudo install -d -m 0700 /srv/backups/blog-comments/weekly
+
+sudo install -m 0644 deploy/comments/compose.yml /srv/apps/blog-comments/compose.yml
+sudo install -m 0644 deploy/comments/waline.sqlite.sql /srv/apps/blog-comments/waline.sqlite.sql
+sudo install -m 0755 deploy/comments/bin/comments-data /usr/local/sbin/comments-data
+sudo install -m 0644 deploy/comments/blog-comments-backup.service /etc/systemd/system/blog-comments-backup.service
+sudo install -m 0644 deploy/comments/blog-comments-backup.timer /etc/systemd/system/blog-comments-backup.timer
+```
+
+使用交互式编辑器创建 `/srv/secrets/blog-comments/waline.env`，文件中仅放一个随机、足够长的 `JWT_TOKEN`。不得把值放入命令行参数、Shell 历史、Git、截图或日志。完成后执行：
+
+```sh
+sudo chmod 0600 /srv/secrets/blog-comments/waline.env
+sudo /usr/local/sbin/comments-data init
+sudo docker compose -f /srv/apps/blog-comments/compose.yml config
+sudo docker compose -f /srv/apps/blog-comments/compose.yml up -d
+sudo docker compose -f /srv/apps/blog-comments/compose.yml ps
+sudo docker compose -f /srv/apps/blog-comments/compose.yml logs --tail 100 blog-comments
+```
+
+首次注册管理员时，不安装或启用 `comments.minyako.top` 的 Caddy 路由。临时创建仅绑定服务器回环地址的代理或通过 SSH 隧道访问 Waline，再使用会话中提供的凭据注册首个管理员。凭据只输入浏览器表单。验证登录和管理能力后，通知用户修改临时密码；用户明确确认改密之前不得开放公网路由。
+
+### 备份与恢复验证
+
+启用每日备份：
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now blog-comments-backup.timer
+sudo systemctl list-timers blog-comments-backup.timer
+sudo systemctl start blog-comments-backup.service
+sudo journalctl -u blog-comments-backup.service --no-pager -n 100
+```
+
+手动备份会打印新归档的绝对路径。只将该路径传给校验子命令：
+
+```sh
+backup_file=$(sudo /usr/local/sbin/comments-data backup)
+sudo /usr/local/sbin/comments-data verify "$backup_file"
+```
+
+恢复演练使用独立目录，禁止覆盖生产数据：
+
+```sh
+sudo install -d -m 0700 /srv/apps/blog-comments-restore/data
+sudo sh -c 'gzip -dc "$1" > /srv/apps/blog-comments-restore/data/waline.sqlite' sh "$backup_file"
+sudo docker run --rm \
+  -v /srv/apps/blog-comments-restore/data:/verify:ro \
+  keinos/sqlite3:3.50.4@sha256:7ea29f0c7e91a8c3f315e831459d07000f34e9e9b25fbc30be2e0481b3e0450f \
+  /verify/waline.sqlite 'PRAGMA integrity_check;'
+```
+
+如需验证管理员登录，以恢复目录启动一个名称明确、只绑定 `127.0.0.1` 随机高端口的临时 Waline 容器，通过 SSH 隧道登录；验证完成后按容器名停止并删除。先解析并核对临时目录绝对路径，再删除 `/srv/apps/blog-comments-restore`，不得使用未展开变量或宽泛通配符。
+
+### 升级与回滚
+
+升级前执行一次备份和校验，记录当前镜像标签及摘要。只把 `compose.yml` 中的固定版本与摘要更新为经过验证的新值，然后运行 `docker compose config`、拉取镜像、重建服务并检查健康状态。
+
+失败时优先恢复原镜像标签与摘要并重建容器。只有确认升级执行了与旧版本不兼容的数据库迁移，才停止评论服务并从已校验的备份恢复 SQLite。静态博客镜像回滚不会回滚评论数据库。
+
+### 故障检查
+
+```sh
+sudo docker compose -f /srv/apps/blog-comments/compose.yml ps
+sudo docker compose -f /srv/apps/blog-comments/compose.yml logs --tail 200 blog-comments
+sudo systemctl status blog-comments-backup.timer --no-pager
+sudo journalctl -u blog-comments-backup.service --no-pager -n 200
+```
+
+评论服务故障不得阻止文章阅读。恢复服务前保留 SQLite 数据与备份，不得通过删除数据卷尝试修复容器启动问题。

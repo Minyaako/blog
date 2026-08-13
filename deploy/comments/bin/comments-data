@@ -1,0 +1,111 @@
+#!/bin/sh
+set -eu
+
+data_root=${COMMENTS_DATA_ROOT:-/srv/apps/blog-comments/data}
+backup_root=${COMMENTS_BACKUP_ROOT:-/srv/backups/blog-comments}
+schema_file=${COMMENTS_SCHEMA:-/srv/apps/blog-comments/waline.sqlite.sql}
+db_file="$data_root/waline.sqlite"
+sqlite_image='keinos/sqlite3:3.50.4@sha256:7ea29f0c7e91a8c3f315e831459d07000f34e9e9b25fbc30be2e0481b3e0450f'
+docker_bin=${COMMENTS_DOCKER_BIN:-docker}
+
+run_sqlite() {
+  "$docker_bin" run --rm \
+    --user "$(id -u):$(id -g)" \
+    --mount "type=bind,src=$data_root,dst=/data" \
+    "$sqlite_image" sqlite3 "$@"
+}
+
+init_database() {
+  mkdir -p "$data_root"
+  if [ -e "$db_file" ]; then
+    printf '%s\n' "database already exists: $db_file" >&2
+    exit 1
+  fi
+  test -f "$schema_file"
+  "$docker_bin" run --rm \
+    --user "$(id -u):$(id -g)" \
+    --mount "type=bind,src=$data_root,dst=/data" \
+    --mount "type=bind,src=$schema_file,dst=/schema.sql,readonly" \
+    "$sqlite_image" sqlite3 /data/waline.sqlite '.read /schema.sql'
+  test "$(run_sqlite /data/waline.sqlite 'PRAGMA integrity_check;')" = ok
+  printf '%s\n' "$db_file"
+}
+
+backup_database() {
+  test -f "$db_file"
+  daily="$backup_root/daily"
+  mkdir -p "$daily"
+  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  name="waline-$stamp.sqlite"
+  temp="$daily/.$name"
+  archive="$daily/$name.gz"
+  rm -f "$temp" "$archive" "$archive.sha256"
+
+  "$docker_bin" run --rm \
+    --user "$(id -u):$(id -g)" \
+    --mount "type=bind,src=$data_root,dst=/data,readonly" \
+    --mount "type=bind,src=$daily,dst=/backup" \
+    "$sqlite_image" sqlite3 /data/waline.sqlite ".backup '/backup/.$name'"
+  test "$("$docker_bin" run --rm --mount "type=bind,src=$daily,dst=/backup,readonly" "$sqlite_image" sqlite3 "/backup/.$name" 'PRAGMA integrity_check;')" = ok
+  gzip -c "$temp" > "$archive.tmp"
+  mv "$archive.tmp" "$archive"
+  rm -f "$temp"
+  (cd "$daily" && sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256.tmp")
+  mv "$archive.sha256.tmp" "$archive.sha256"
+  printf '%s\n' "$archive"
+}
+
+verify_backup() {
+  archive=${1:-}
+  test -n "$archive"
+  archive=$(realpath "$archive")
+  allowed=$(realpath "$backup_root")
+  case "$archive" in
+    "$allowed"/*) ;;
+    *) printf '%s\n' 'backup must be inside the configured backup root' >&2; exit 1 ;;
+  esac
+  test -f "$archive"
+  test -f "$archive.sha256"
+  (cd "$(dirname "$archive")" && sha256sum -c "$(basename "$archive").sha256" >/dev/null)
+
+  temp_dir=$(mktemp -d "$backup_root/.verify.XXXXXX")
+  trap 'rm -rf "$temp_dir"' EXIT INT TERM
+  gzip -dc "$archive" > "$temp_dir/waline.sqlite"
+  query='SELECT "integrity=" || (SELECT integrity_check FROM pragma_integrity_check); SELECT "comments=" || count(*) FROM wl_Comment; SELECT "replies=" || count(*) FROM wl_Comment WHERE coalesce(rid,0) <> 0 OR coalesce(pid,0) <> 0; SELECT "admins=" || count(*) FROM wl_Users WHERE type = "administrator";'
+  "$docker_bin" run --rm \
+    --user 0:0 \
+    --mount "type=bind,src=$temp_dir,dst=/verify,readonly" \
+    "$sqlite_image" sqlite3 /verify/waline.sqlite "$query"
+  rm -rf "$temp_dir"
+  trap - EXIT INT TERM
+}
+
+remove_pair() {
+  file=$1
+  rm -f "$file" "$file.sha256"
+}
+
+prune_backups() {
+  daily="$backup_root/daily"
+  weekly="$backup_root/weekly"
+  mkdir -p "$daily" "$weekly"
+  find "$daily" -type f -name 'waline-*.sqlite.gz' -mtime +14 -print | while IFS= read -r file; do remove_pair "$file"; done
+
+  if [ "$(date -u +%u)" = 7 ]; then
+    latest=$(find "$daily" -type f -name 'waline-*.sqlite.gz' -print | sort | tail -n 1)
+    if [ -n "$latest" ] && [ -f "$latest.sha256" ]; then
+      cp -p "$latest" "$weekly/"
+      cp -p "$latest.sha256" "$weekly/"
+    fi
+  fi
+
+  find "$weekly" -type f -name 'waline-*.sqlite.gz' -mtime +56 -print | while IFS= read -r file; do remove_pair "$file"; done
+}
+
+case ${1:-} in
+  init) init_database ;;
+  backup) backup_database ;;
+  verify) verify_backup "${2:-}" ;;
+  prune) prune_backups ;;
+  *) printf '%s\n' 'usage: comments-data init|backup|verify <backup.gz>|prune' >&2; exit 64 ;;
+esac
