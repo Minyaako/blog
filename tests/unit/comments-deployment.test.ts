@@ -1,11 +1,22 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 
 const read = (path: string) => readFileSync(path, 'utf8')
+
+const hasDockerDaemon = () => {
+  if (process.platform === 'win32' || !existsSync('/var/run/docker.sock')) return false
+
+  try {
+    execFileSync('docker', ['info'], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
 
 describe('blog comments deployment', () => {
   it('pins and isolates the Waline service with the approved runtime policy', () => {
@@ -36,7 +47,7 @@ describe('blog comments deployment', () => {
   })
 
   it('initializes, backs up, verifies, and prunes a disposable SQLite database', () => {
-    if (process.platform === 'win32') return
+    if (!hasDockerDaemon()) return
 
     const root = mkdtempSync(join(tmpdir(), 'blog-comments-data-'))
     const env = {
