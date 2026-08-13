@@ -18,7 +18,21 @@ export const test = base.extend<{ stableEnvironment: void }>({
       }
       await route.fulfill({ path: file, contentType: 'image/webp' })
     })
-    await page.route('**/api/comments/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' }))
+    await page.route('https://comments.minyako.top/**', (route) => {
+      const url = new URL(route.request().url())
+      if (url.pathname === '/api/comment') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            errno: 0,
+            data: { count: 0, data: [], page: 1, totalPages: 0 }
+          })
+        })
+      }
+
+      return route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Comments</title>' })
+    })
     await page.addInitScript(() => {
       const style = document.createElement('style')
       style.textContent = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}'
