@@ -346,11 +346,15 @@ gh secret set DEPLOY_SSH_KNOWN_HOSTS --repo Minyaako/blog --env production < "/p
 ```sh
 sudo install -d -m 0750 /srv/apps/blog-comments
 sudo install -d -m 0750 /srv/apps/blog-comments/data
+sudo install -d -m 0750 /srv/apps/blog-comments/server
 sudo install -d -m 0700 /srv/secrets/blog-comments
 sudo install -d -m 0700 /srv/backups/blog-comments/daily
 sudo install -d -m 0700 /srv/backups/blog-comments/weekly
 
 sudo install -m 0644 deploy/comments/compose.yml /srv/apps/blog-comments/compose.yml
+sudo install -m 0644 deploy/comments/Dockerfile /srv/apps/blog-comments/Dockerfile
+sudo install -m 0644 deploy/comments/server/config.cjs /srv/apps/blog-comments/server/config.cjs
+sudo install -m 0644 deploy/comments/server/rate-limit.cjs /srv/apps/blog-comments/server/rate-limit.cjs
 sudo install -m 0644 deploy/comments/waline.sqlite.sql /srv/apps/blog-comments/waline.sqlite.sql
 sudo install -m 0755 deploy/comments/bin/comments-data /usr/local/sbin/comments-data
 sudo install -m 0644 deploy/comments/blog-comments-backup.service /etc/systemd/system/blog-comments-backup.service
@@ -363,7 +367,8 @@ sudo install -m 0644 deploy/comments/blog-comments-backup.timer /etc/systemd/sys
 sudo chmod 0600 /srv/secrets/blog-comments/waline.env
 sudo /usr/local/sbin/comments-data init
 sudo docker compose -f /srv/apps/blog-comments/compose.yml config
-sudo docker compose -f /srv/apps/blog-comments/compose.yml up -d
+sudo docker compose -f /srv/apps/blog-comments/compose.yml build --pull blog-comments
+sudo docker compose -f /srv/apps/blog-comments/compose.yml up -d --no-build
 sudo docker compose -f /srv/apps/blog-comments/compose.yml ps
 sudo docker compose -f /srv/apps/blog-comments/compose.yml logs --tail 100 blog-comments
 ```
@@ -404,9 +409,9 @@ sudo docker run --rm \
 
 ### 升级与回滚
 
-升级前执行一次备份和校验，记录当前镜像标签及摘要。只把 `compose.yml` 中的固定版本与摘要更新为经过验证的新值，然后运行 `docker compose config`、拉取镜像、重建服务并检查健康状态。
+升级前执行一次备份和校验，记录当前派生镜像 ID、Waline 基础镜像标签与摘要。把经过审核的 `compose.yml`、`Dockerfile` 和 `server/` 一起安装到 `/srv/apps/blog-comments`，运行 `docker compose config`、`docker compose build --pull blog-comments`、`docker compose up -d --no-build`，再检查健康状态。定制镜像只在固定 Waline 1.41.4 基础上加入官方插件配置与滑动窗口中间件；Compose 的 `pull_policy: never` 确保部署使用刚刚在本机生成的派生镜像。`IPQPS=3` 防瞬时连点，中间件按 IP 限制滚动 10 分钟内最多 10 条并返回 `429` 与 `Retry-After`。成功提交的预约记录在 SQLite 的 `wl_RateLimitEvent` 独立事件表中，删除评论不会提前释放配额；该表随整个 SQLite 文件一起备份。
 
-失败时优先恢复原镜像标签与摘要并重建容器。只有确认升级执行了与旧版本不兼容的数据库迁移，才停止评论服务并从已校验的备份恢复 SQLite。静态博客镜像回滚不会回滚评论数据库。
+失败时优先恢复上一提交的 Compose、Dockerfile 与 `server/`，重新构建并替换容器。只有确认升级执行了与旧版本不兼容的数据库迁移，才停止评论服务并从已校验的备份恢复 SQLite。静态博客镜像回滚不会回滚评论数据库。
 
 ### 故障检查
 
