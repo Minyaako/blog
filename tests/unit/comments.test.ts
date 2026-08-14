@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { WALINE_OPTIONS, createWalineProvider } from '../../src/lib/comments/waline'
 
 describe('Waline comment provider', () => {
-  it('mounts the approved guest-only client with the permanent page key', async () => {
+  it('mounts the reusable login and emoji client with the permanent page key', async () => {
     const destroy = vi.fn()
     const init = vi.fn(() => ({ destroy }))
     const probe = vi.fn().mockResolvedValue(undefined)
@@ -25,9 +25,9 @@ describe('Waline comment provider', () => {
       lang: 'zh-CN',
       meta: ['nick', 'mail'],
       requiredMeta: ['nick'],
-      login: 'disable',
+      login: 'enable',
       imageUploader: false,
-      emoji: false,
+      emoji: ['https://gsk.minyako.top/comments/emoji/tw-emoji'],
       reaction: false,
       pageview: false,
       commentSorting: 'latest'

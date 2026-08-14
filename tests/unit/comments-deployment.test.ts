@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 
-const read = (path: string) => readFileSync(path, 'utf8')
+const read = (path: string) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
 
 const hasDockerDaemon = () => {
   if (process.platform === 'win32' || !existsSync('/var/run/docker.sock')) return false
@@ -23,7 +23,9 @@ describe('blog comments deployment', () => {
     const compose = parse(read('deploy/comments/compose.yml'))
     const service = compose.services['blog-comments']
 
-    expect(service.image).toBe('lizheming/waline:1.41.4@sha256:a3c87cb50fdb3aa786d73ac7afed492811d5dbc217866b12f3d5a4eda5c5e4bc')
+    expect(service.image).toBe('minyako/blog-comments:1.41.4-comment-policy-v1')
+    expect(service.build).toEqual({ context: '.', dockerfile: 'Dockerfile' })
+    expect(service.pull_policy).toBe('never')
     expect(service.ports).toBeUndefined()
     expect(service.networks.server_proxy.aliases).toEqual(['blog-comments'])
     expect(service.env_file).toEqual(['/srv/secrets/blog-comments/waline.env'])
@@ -35,7 +37,9 @@ describe('blog comments deployment', () => {
       SERVER_URL: 'https://comments.minyako.top',
       SECURE_DOMAINS: 'gsk.minyako.top,comments.minyako.top',
       COMMENT_AUDIT: 'false',
-      IPQPS: '60',
+      IPQPS: '3',
+      COMMENT_RATE_LIMIT: '10',
+      COMMENT_RATE_WINDOW_SECONDS: '600',
       AKISMET_KEY: 'false',
       DISABLE_USERAGENT: 'true',
       DISABLE_REGION: 'true',
@@ -44,6 +48,9 @@ describe('blog comments deployment', () => {
     })
     expect(service.environment.GRAVATAR_STR).toMatch(/^data:image\/svg\+xml/)
     expect(JSON.stringify(service)).not.toMatch(/SMTP_|TURNSTILE|RECAPTCHA|latest/)
+    expect(read('deploy/comments/Dockerfile')).toMatch(
+      /^FROM lizheming\/waline:1\.41\.4@sha256:a3c87cb50fdb3aa786d73ac7afed492811d5dbc217866b12f3d5a4eda5c5e4bc$/m
+    )
   })
 
   it('initializes, backs up, verifies, and prunes a disposable SQLite database', () => {

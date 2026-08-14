@@ -17,7 +17,7 @@ const { pageKey } = Astro.props
 >
   <header class="comments-header">
     <h2 id="comments-heading">评论</h2>
-    <p>昵称必填；邮箱选填且不会公开。首版不发送邮件。</p>
+    <p>可匿名评论，也可登录同步昵称与头像；邮箱选填且不会公开。</p>
   </header>
   <div data-comment-mount></div>
   <div class="comments-state" role="status" aria-live="polite" data-comment-status>评论加载中…</div>
@@ -26,6 +26,7 @@ const { pageKey } = Astro.props
 
 <script>
   import { createWalineProvider } from '../lib/comments/waline'
+  import { watchAnonymousAvatars } from '../lib/comments/avatar'
 
   const section = document.querySelector<HTMLElement>('[data-comment-slot]:not([data-comment-ready])')
 
@@ -37,6 +38,7 @@ const { pageKey } = Astro.props
     const pageKey = section.dataset.pageKey
     const provider = createWalineProvider()
     let observer: IntersectionObserver | undefined
+    let stopAvatarWatch: (() => void) | undefined
     let disposed = false
 
     const mount = async () => {
@@ -47,6 +49,8 @@ const { pageKey } = Astro.props
 
       try {
         await provider.mount(mountTarget, pageKey)
+        stopAvatarWatch?.()
+        stopAvatarWatch = watchAnonymousAvatars(mountTarget)
         status.hidden = true
       } catch {
         status.hidden = false
@@ -72,6 +76,7 @@ const { pageKey } = Astro.props
       if (disposed) return
       disposed = true
       observer?.disconnect()
+      stopAvatarWatch?.()
       provider.dispose()
     }
 
@@ -85,7 +90,8 @@ const { pageKey } = Astro.props
     margin-top: var(--space-7);
     padding-top: var(--space-6);
     border-top: 1px solid var(--border);
-    --waline-font-size: var(--text-body);
+    --waline-font-size: 1.0625rem;
+    --waline-avatar-size: 3rem;
     --waline-white: var(--surface-raised);
     --waline-light-grey: var(--text-muted);
     --waline-dark-grey: var(--text);
@@ -120,6 +126,8 @@ const { pageKey } = Astro.props
 
   .comments-header p {
     margin: var(--space-2) 0 0;
+    font-size: 1rem;
+    line-height: 1.7;
   }
 
   .comments-state {
@@ -144,11 +152,95 @@ const { pageKey } = Astro.props
     display: none;
   }
 
-  :global(.comments .wl-avatar),
-  :global(.comments .wl-user-avatar),
-  :global(.comments .wl-login-info),
   :global(.comments .wl-power),
   :global(.comments .wl-rss) {
+    display: none;
+  }
+
+  :global(.comments [data-waline]) {
+    font-family: var(--font-body);
+  }
+
+  :global(.comments .wl-comment) {
+    gap: var(--space-3);
+  }
+
+  :global(.comments .wl-panel) {
+    overflow: hidden;
+    margin: 0;
+    border-color: var(--border-strong);
+    border-radius: var(--radius-md);
+  }
+
+  :global(.comments .wl-header) {
+    padding-inline: var(--space-2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  :global(.comments .wl-header label) {
+    padding: 0.8rem 0.65rem;
+    font-size: 0.9rem;
+  }
+
+  :global(.comments .wl-header input) {
+    padding: 0.8rem 0.65rem;
+    font-size: 1rem;
+  }
+
+  :global(.comments .wl-editor) {
+    box-sizing: border-box;
+    width: calc(100% - 1.5rem);
+    min-height: 10rem;
+    margin: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--canvas);
+    font: 400 1.0625rem/1.75 var(--font-body);
+  }
+
+  :global(.comments .wl-editor:focus) {
+    border-color: var(--focus);
+    background: var(--surface);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent);
+  }
+
+  :global(.comments .wl-btn),
+  :global(.comments .wl-sort li),
+  :global(.comments .wl-info .wl-text-number) {
+    font-size: 0.875rem;
+  }
+
+  :global(.comments .wl-card .wl-head .wl-nick) {
+    font-size: 1rem;
+  }
+
+  :global(.comments .wl-card .wl-time) {
+    font-size: 0.875rem;
+  }
+
+  :global(.comments .wl-card .wl-content) {
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  :global(.comments .wl-cards .wl-user[data-avatar-initial]) {
+    display: grid;
+    place-items: center;
+    width: var(--avatar-size);
+    height: var(--avatar-size);
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+    color: var(--accent);
+    font: 700 1.1rem/1 var(--font-display);
+  }
+
+  :global(.comments .wl-cards .wl-user[data-avatar-initial]::before) {
+    content: attr(data-avatar-initial);
+  }
+
+  :global(.comments .wl-user-avatar[hidden]) {
     display: none;
   }
 

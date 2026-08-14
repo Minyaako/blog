@@ -28,18 +28,69 @@ test('existing public articles use their mapped WebP headers', async ({ page }) 
   }
 })
 
-test('comment section keeps the permanent article id and guest-only fields', async ({ page }) => {
+test('comment section keeps the permanent article id and optional guest fields', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture')
   const comments = page.locator('[data-comment-slot]')
 
   await expect(comments).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
   await comments.scrollIntoViewIfNeeded()
-  await expect(comments.getByText('昵称必填；邮箱选填且不会公开。首版不发送邮件。')).toBeVisible()
+  await expect(comments.getByText('可匿名评论，也可登录同步昵称与头像；邮箱选填且不会公开。')).toBeVisible()
   await expect(comments.locator('input[name="nick"]')).toBeVisible()
   await expect(comments.locator('input[name="mail"]')).toBeVisible()
   await expect(comments.locator('input[name="link"]')).toHaveCount(0)
-  await expect(comments.locator('.wl-avatar img')).toHaveCount(0)
-  await expect(comments.getByRole('button', { name: /登录|上传图片/ })).toHaveCount(0)
+  await expect(comments.getByRole('button', { name: /登录/ })).toBeVisible()
+  await expect(comments.getByRole('button', { name: /上传图片/ })).toHaveCount(0)
+})
+
+test('comment composer exposes a readable editable surface, emoji, and initial avatars', async ({ page }) => {
+  const emojiRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('/comments/emoji/tw-emoji/')) emojiRequests.push(request.url())
+  })
+  await page.goto('/posts/astro-content-architecture')
+  const comments = page.locator('[data-comment-slot]')
+  await comments.scrollIntoViewIfNeeded()
+  const editor = comments.locator('.wl-editor')
+  await expect(editor).toBeVisible()
+
+  const metrics = await editor.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      backgroundColor: style.backgroundColor,
+      borderWidth: style.borderTopWidth,
+      fontSize: Number.parseFloat(style.fontSize),
+      paddingLeft: Number.parseFloat(style.paddingLeft)
+    }
+  })
+  expect(metrics.fontSize).toBeGreaterThanOrEqual(17)
+  expect(metrics.paddingLeft).toBeGreaterThanOrEqual(12)
+  expect(metrics.borderWidth).not.toBe('0px')
+  expect(metrics.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+
+  await editor.click({ position: { x: 8, y: 24 } })
+  await editor.fill('left-edge-input')
+  await expect(editor).toHaveValue('left-edge-input')
+  await comments.getByRole('button', { name: '表情' }).click()
+  await expect(comments.locator('.wl-emoji-popup img').first()).toBeVisible()
+  await expect.poll(() => emojiRequests.some((url) => url.endsWith('/comments/emoji/tw-emoji/info.json'))).toBe(true)
+  await expect(comments.locator('.wl-emoji-popup img').first()).toHaveAttribute('src', /^http:\/\/127\.0\.0\.1:4321\/comments\/emoji\/tw-emoji\//)
+
+  const mount = comments.locator('[data-comment-mount]')
+  await mount.evaluate((element) => {
+    const fixture = document.createElement('div')
+    fixture.dataset.avatarFixture = ''
+    fixture.className = 'wl-card-item'
+    fixture.innerHTML = `
+      <div class="wl-user"><img class="wl-user-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="avatar"></div>
+      <div class="wl-card"><span class="wl-nick">匿名猫</span></div>`
+    element.append(fixture)
+  })
+  const avatarUser = mount.locator('[data-avatar-fixture] .wl-user')
+  const avatarImage = avatarUser.locator('img')
+  await expect(avatarUser).toHaveAttribute('data-avatar-initial', '匿')
+  await avatarImage.evaluate((image) => image.setAttribute('src', '/comments/emoji/tw-emoji/1f603.png'))
+  await expect(avatarUser).not.toHaveAttribute('data-avatar-initial')
+  await expect(avatarImage).not.toHaveAttribute('hidden')
 })
 
 test('comment outage leaves the article readable and offers retry', async ({ page }) => {

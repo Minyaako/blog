@@ -2,15 +2,25 @@ import type { WalineInitOptions } from '@waline/client'
 import type { CommentProvider } from './contracts'
 
 const COMMENT_SERVER_URL = 'https://comments.minyako.top'
+const COMMENT_EMOJI_PATH = '/comments/emoji/tw-emoji'
+type EmojiPresetList = Exclude<WalineInitOptions['emoji'], boolean | undefined>
+type EmojiPreset = EmojiPresetList[number]
+
+export function resolveEmojiPreset(origin = globalThis.location?.origin): EmojiPreset {
+  // Waline accepts custom preset URLs at runtime, while its type only lists built-in URLs.
+  return new URL(COMMENT_EMOJI_PATH, origin ?? 'https://gsk.minyako.top')
+    .toString()
+    .replace(/\/$/, '') as EmojiPreset
+}
 
 export const WALINE_OPTIONS = {
   serverURL: COMMENT_SERVER_URL,
   lang: 'zh-CN',
   meta: ['nick', 'mail'],
   requiredMeta: ['nick'],
-  login: 'disable',
+  login: 'enable',
   imageUploader: false,
-  emoji: false,
+  emoji: [resolveEmojiPreset()],
   reaction: false,
   pageview: false,
   comment: false,
@@ -60,7 +70,12 @@ export function createWalineProvider(
       mounting = (async () => {
         await dependencies.probe()
         const { init } = await dependencies.load()
-        const mounted = init({ ...WALINE_OPTIONS, el: target, path: pageKey })
+        const mounted = init({
+          ...WALINE_OPTIONS,
+          emoji: [resolveEmojiPreset()],
+          el: target,
+          path: pageKey
+        })
         if (!mounted) throw new Error('Comment client failed to initialize')
         instance = mounted
       })().finally(() => {
