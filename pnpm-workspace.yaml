@@ -2,4 +2,4 @@ packages:
   - .
 allowBuilds:
   esbuild: true
-  '@minyaako/media-publisher@https://codeload.github.com/Minyaako/media-publisher/tar.gz/86e5cde20b8102079e4b41d8e1c222c81b28836d': true
+  '@minyaako/media-publisher@https://codeload.github.com/Minyaako/media-publisher/tar.gz/915fa94a8ded2b837c02548792e413d13208886d': true
