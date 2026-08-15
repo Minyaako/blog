@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import mediaLock from '../../media/media.lock.json'
-import { resolveCover, resolveMedia } from '../../src/lib/media'
+import { createMediaResolver, resolveCover, resolveMedia } from '../../src/lib/media'
+
+const hostedSha = 'ab'.repeat(32)
 
 describe('locked media resolver', () => {
   it('resolves every logical id from the committed lock', () => {
@@ -39,5 +41,33 @@ describe('locked media resolver', () => {
 
   it('rejects an unknown logical id', () => {
     expect(() => resolveMedia('missing-cover')).toThrow('Unknown media id: missing-cover')
+  })
+
+  it('resolves a hosted fixture with the same public shape while all seven legacy values stay unchanged', () => {
+    const legacyBefore = mediaLock.assets.map((asset) => resolveMedia(asset.id))
+    const hosted = {
+      id: 'hosted-cover',
+      mode: 'hosted' as const,
+      provider: 'minyako-image' as const,
+      providerId: 'img_AAAAAAAAAAAAAAAAAAAAAAAA',
+      sha256: hostedSha,
+      bytes: 123,
+      contentType: 'image/webp' as const,
+      width: 12,
+      height: 8,
+      frames: 1 as const,
+      url: `https://pic.minyako.top/blog/ab/${hostedSha}.webp`,
+      createdAt: '2026-08-15T00:00:00.000Z'
+    }
+    const mixed = createMediaResolver([...mediaLock.assets, hosted])
+
+    expect(mixed('hosted-cover')).toEqual({
+      id: 'hosted-cover',
+      url: `https://pic.minyako.top/blog/ab/${hostedSha}.webp`,
+      width: 12,
+      height: 8,
+      contentType: 'image/webp'
+    })
+    expect(mediaLock.assets.map((asset) => mixed(asset.id))).toEqual(legacyBefore)
   })
 })
