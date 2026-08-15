@@ -12,7 +12,7 @@ describe('media publishing contract', () => {
     const dockerIgnore = read('.dockerignore')
 
     expect(pkg.devDependencies['@minyaako/media-publisher'])
-      .toBe('github:Minyaako/media-publisher#15ec9d50e410a6a660e84342fb7257746cf41121')
+      .toBe('github:Minyaako/media-publisher#ededa7f0af445f568b4954cac25408288cac5f05')
     expect(pkg.scripts['media:verify'])
       .toBe('media-publisher verify --lock media/media.lock.json --all')
     expect(manifest.assets).toHaveLength(7)
