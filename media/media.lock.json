@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "publisherVersion": "0.2.0",
   "namespace": "blog",
   "cdnBaseUrl": "https://pic.minyako.top",
@@ -101,6 +101,20 @@
       "cacheControl": "public, max-age=31536000, immutable",
       "sourceRef": "shared://minyako/blog/2026-initial/profile/avatar.png",
       "rights": "user-provided"
+    },
+    {
+      "id": "acceptance-pipeline-cover",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_M7toMgkbwj1IEF0MrMvstgtw",
+      "sha256": "4df1df236cda3c8ddf34f9acb8d5d86e378b6ece98ed8522f858926158bb05cd",
+      "bytes": 308078,
+      "contentType": "image/webp",
+      "width": 1916,
+      "height": 1076,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/4d/4df1df236cda3c8ddf34f9acb8d5d86e378b6ece98ed8522f858926158bb05cd.webp",
+      "createdAt": "2026-08-16T11:52:03.269Z"
     }
   ]
 }
