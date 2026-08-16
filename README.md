@@ -74,6 +74,6 @@ pnpm exec playwright test tests/e2e/visual.spec.ts --update-snapshots
 
 ## 媒体发布状态
 
-图片源文件 PNG 保存在服务器公共素材库 `/srv/shared-assets`，不进入博客仓库或 COS 备份。`media/assets` 中的七张 WebP 是经过版本控制的上传输入，页面通过 `media/media.lock.json` 中的逻辑 ID、尺寸和 `https://pic.minyako.top/blog/` 不可变 URL 使用它们。旧的七份 `public/images` WebP 交付副本已经移除。
+图片源文件 PNG 保存在COS图床。
 
 生产工作流通过 GitHub OIDC 获取腾讯云临时凭证，不保存永久 SecretId/SecretKey。`MEDIA_PUBLISH_ENABLED` 控制是否在镜像构建前写入并验证锁定对象；相同 SHA 的重试是幂等操作，不覆盖冲突对象，也不会自动删除旧对象。关闭该闸门只能阻止未来写入，不能让缺少 CDN 对象的新版本安全发布。
