@@ -1,5 +1,5 @@
 ---
-import { resolveMedia } from '../lib/media'
+import { isSafePublicHttpsUrl, resolveMedia } from '../lib/media'
 
 interface Props {
   media: string
@@ -12,6 +12,9 @@ interface Props {
 
 const { media: mediaId, alt, caption, credit, sourceUrl, layout = 'normal' } = Astro.props
 const media = resolveMedia(mediaId)
+if (sourceUrl && !isSafePublicHttpsUrl(sourceUrl)) {
+  throw new Error(`Invalid MediaFigure source URL for ${mediaId}`)
+}
 ---
 
 <figure class:list={['media-figure', { 'media-figure--wide': layout === 'wide' }]}>
@@ -31,7 +34,7 @@ const media = resolveMedia(mediaId)
       {(credit || sourceUrl) && (
         <span class="media-figure__credit">
           {credit}
-          {sourceUrl && <a href={sourceUrl} target="_blank" rel="noreferrer">来源</a>}
+          {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer">来源</a>}
         </span>
       )}
     </figcaption>
@@ -69,10 +72,17 @@ const media = resolveMedia(mediaId)
   }
 
   .media-figure__credit {
-    flex: 0 0 auto;
+    min-width: 0;
+    flex: 0 1 auto;
     font-family: var(--font-mono);
     font-size: .72rem;
     text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .media-figure__caption {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .media-figure__credit a {

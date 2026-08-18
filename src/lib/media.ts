@@ -12,6 +12,24 @@ export type LockedMedia = {
 
 type LockEntry = Omit<LockedMedia, 'contentType'> & { contentType: string }
 
+const RESERVED_HOST_SUFFIXES = ['.localhost', '.local', '.internal', '.test', '.example', '.invalid'] as const
+const IPV4_LITERAL = /^\d{1,3}(?:\.\d{1,3}){3}$/
+
+export function isSafePublicHttpsUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.+$/, '')
+    return url.protocol === 'https:'
+      && !url.username && !url.password && !url.search && !url.hash
+      && !IPV4_LITERAL.test(hostname)
+      && !hostname.includes(':')
+      && hostname !== 'localhost'
+      && !RESERVED_HOST_SUFFIXES.some((suffix) => hostname.endsWith(suffix))
+  } catch {
+    return false
+  }
+}
+
 export type MediaReference = {
   media: string
   alt: string

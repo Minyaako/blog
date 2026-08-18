@@ -434,7 +434,7 @@ test('archive cards reveal once and expose stable motion order', async ({ page }
   await card.scrollIntoViewIfNeeded()
   await expect(card).toHaveAttribute('data-motion-state', 'visible')
   await expect(card).toHaveAttribute('data-motion-initialized', 'true')
-  await expect(card).toHaveCSS('--motion-order', '3')
+  await expect(card).toHaveCSS('--motion-order', '0')
 })
 
 test('reduced motion keeps A2 content visible', async ({ page }) => {

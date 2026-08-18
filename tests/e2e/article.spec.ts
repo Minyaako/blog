@@ -28,6 +28,26 @@ test('existing public articles use their mapped WebP headers', async ({ page }) 
   }
 })
 
+test('hosted media figures load and resist narrow-screen text overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/posts/visual-novel-choice-and-memory')
+
+  const figure = page.locator('.media-figure')
+  const image = figure.locator('img')
+  await expect(image).toHaveAttribute(
+    'src',
+    'https://pic.minyako.top/blog/4d/4df1df236cda3c8ddf34f9acb8d5d86e378b6ece98ed8522f858926158bb05cd.webp'
+  )
+  await expect(image).toHaveAttribute('width', '1916')
+  await expect(image).toHaveAttribute('height', '1076')
+  await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+
+  await figure.locator('.media-figure__caption, .media-figure__credit').evaluateAll((elements) => {
+    for (const element of elements) element.textContent = 'unbroken-credit-'.repeat(40)
+  })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+})
+
 test('comment section keeps the permanent article id and optional guest fields', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture')
   const comments = page.locator('[data-comment-slot]')

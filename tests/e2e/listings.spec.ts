@@ -45,9 +45,9 @@ test('archive and tag pages keep decorative utility icons out of the heading out
 test('archive filters use stable tag ids and registry labels', async ({ page }) => {
   await page.goto('/archives')
   await page.getByRole('button', { name: '视觉小说' }).click()
-  await expect(page.locator('[data-post-card]:not([hidden])')).toHaveCount(1)
-  await expect(page.locator('[data-post-card]:not([hidden])')).toContainText('视觉小说中的记忆与重访')
-  await expect(page.getByText('筛选结果：1 篇文章')).toBeVisible()
+  await expect(page.locator('[data-post-card]:not([hidden])')).toHaveCount(2)
+  await expect(page.locator('[data-post-card]:not([hidden])', { hasText: '视觉小说中的记忆与重访' })).toBeVisible()
+  await expect(page.getByText('筛选结果：2 篇文章')).toBeVisible()
 })
 
 test('archive filter updates semantics and survives missing View Transition support', async ({ page }) => {
@@ -64,8 +64,8 @@ test('archive filter updates semantics and survives missing View Transition supp
   await filter.click()
 
   await expect(filter).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('[data-post-card]:not([hidden])')).toHaveCount(1)
-  await expect(page.locator('[data-filter-status]')).toContainText('1')
+  await expect(page.locator('[data-post-card]:not([hidden])')).toHaveCount(2)
+  await expect(page.locator('[data-filter-status]')).toContainText('2')
   const after = await filter.evaluate((button) => ({
     indicatorWidth: getComputedStyle(button, '::after').width,
     width: button.getBoundingClientRect().width,
@@ -79,8 +79,8 @@ test('archive reduced motion reveals cards and filters without transitions', asy
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/archives')
   const cards = page.locator('[data-post-card]')
-  await expect(cards).toHaveCount(4)
-  for (let index = 0; index < 4; index += 1) {
+  await expect(cards).toHaveCount(5)
+  for (let index = 0; index < 5; index += 1) {
     await expect(cards.nth(index)).toBeVisible()
   }
 
@@ -95,7 +95,7 @@ test('archive reduced motion reveals cards and filters without transitions', asy
     visible: document.querySelectorAll('[data-post-card]:not([hidden])').length,
   }))).toEqual({
     pressed: 'true',
-    status: '筛选结果：1 篇文章',
-    visible: 1,
+    status: '筛选结果：2 篇文章',
+    visible: 2,
   })
 })

@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import mediaLock from '../../media/media.lock.json'
 import { createMediaResolver, resolveCover, resolveMedia } from '../../src/lib/media'
+import * as mediaModule from '../../src/lib/media'
 
 const hostedSha = 'ab'.repeat(32)
 
 describe('locked media resolver', () => {
+  it('accepts only safe public HTTPS citation URLs', () => {
+    const validator = (mediaModule as unknown as { isSafePublicHttpsUrl?: (value: string) => boolean }).isSafePublicHttpsUrl
+    expect(validator).toBeTypeOf('function')
+    expect(validator?.('https://example.org/reference')).toBe(true)
+    expect(validator?.('javascript:alert(1)')).toBe(false)
+    expect(validator?.('https://example.org/reference?token=secret')).toBe(false)
+    expect(validator?.('https://127.0.0.1/reference')).toBe(false)
+  })
+
   it('resolves every logical id from the committed lock', () => {
     for (const asset of mediaLock.assets) {
       expect(resolveMedia(asset.id)).toEqual({
