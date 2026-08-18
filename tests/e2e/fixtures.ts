@@ -2,10 +2,11 @@ import { test as base } from '@playwright/test'
 import path from 'node:path'
 import mediaLock from '../../media/media.lock.json' with { type: 'json' }
 
-const mediaByUrl = new Map(mediaLock.assets.map((asset) => [
-  asset.url,
-  path.resolve('media', asset.file)
-]))
+const mediaByUrl = new Map(mediaLock.assets.flatMap((asset) => (
+  typeof asset.file === 'string'
+    ? [[asset.url, path.resolve('media', asset.file)] as const]
+    : []
+)))
 
 export const test = base.extend<{ stableEnvironment: void }>({
   stableEnvironment: [async ({ page }, use) => {
