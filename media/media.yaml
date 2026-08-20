@@ -58,3 +58,10 @@ assets:
     name: acceptance-pipeline-cover
     alt: 博客全链路发布验收封面
     rights: Minyako · full-chain acceptance
+  - id: test211
+    mode: hosted
+    provider: minyako-image
+    providerId: img_8b00iyOEmFgBxiDhpR28s2Ef
+    name: tst
+    alt: tst
+    rights: 允许署名转载
