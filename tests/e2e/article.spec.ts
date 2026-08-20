@@ -1,4 +1,42 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import path from 'node:path'
 import { expect, test } from './fixtures'
+import mediaLock from '../../media/media.lock.json' with { type: 'json' }
+
+function findPublishedHostedMediaFigure() {
+  const postsRoot = path.resolve('src/content/posts')
+  const hostedMedia = new Map(
+    mediaLock.assets
+      .filter((asset) => asset.mode === 'hosted')
+      .map((asset) => [asset.id, asset] as const)
+  )
+
+  const pending = [postsRoot]
+  while (pending.length > 0) {
+    const directory = pending.pop()
+    if (!directory) break
+
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const entryPath = path.join(directory, entry.name)
+      if (entry.isDirectory()) {
+        pending.push(entryPath)
+        continue
+      }
+      if (!entry.name.endsWith('.mdx')) continue
+
+      const source = readFileSync(entryPath, 'utf8')
+      if (!/^draft:\s*false\s*$/m.test(source)) continue
+
+      const articleId = source.match(/^id:\s*([^\s]+)\s*$/m)?.[1]
+      const mediaIds = [...source.matchAll(/<MediaFigure\b[^>]*\bmedia=["']([^"']+)["'][^>]*>/gs)]
+        .map((match) => match[1])
+      const media = mediaIds.map((mediaId) => hostedMedia.get(mediaId)).find(Boolean)
+      if (articleId && media) return { articleId, media }
+    }
+  }
+
+  throw new Error('Expected a published article containing a hosted MediaFigure fixture')
+}
 
 test('technical article renders metadata, toc, code, and math', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture')
@@ -29,17 +67,15 @@ test('existing public articles use their mapped WebP headers', async ({ page }) 
 })
 
 test('hosted media figures load and resist narrow-screen text overflow', async ({ page }) => {
+  const { articleId, media } = findPublishedHostedMediaFigure()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/posts/visual-novel-choice-and-memory')
+  await page.goto(`/posts/${articleId}`)
 
-  const figure = page.locator('.media-figure')
-  const image = figure.locator('img')
-  await expect(image).toHaveAttribute(
-    'src',
-    'https://pic.minyako.top/blog/4d/4df1df236cda3c8ddf34f9acb8d5d86e378b6ece98ed8522f858926158bb05cd.webp'
-  )
-  await expect(image).toHaveAttribute('width', '1916')
-  await expect(image).toHaveAttribute('height', '1076')
+  const image = page.locator(`.media-figure img[src="${media.url}"]`)
+  const figure = image.locator('xpath=ancestor::figure[1]')
+  await expect(image).toHaveAttribute('src', media.url)
+  await expect(image).toHaveAttribute('width', String(media.width))
+  await expect(image).toHaveAttribute('height', String(media.height))
   await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
 
   await figure.locator('.media-figure__caption, .media-figure__credit').evaluateAll((elements) => {

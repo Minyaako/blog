@@ -1,7 +1,6 @@
 import { expect, test } from './fixtures'
 
 const routes = {
-  home: '/',
   article: '/posts/astro-content-architecture',
   search: '/search',
   about: '/about',
