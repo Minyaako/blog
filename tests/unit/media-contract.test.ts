@@ -4,6 +4,20 @@ import { parse } from 'yaml'
 
 const read = (path: string) => readFileSync(path, 'utf8')
 
+interface HostedManifestEntry {
+  id: string
+  mode: 'hosted'
+  provider: string
+  providerId: string
+}
+
+interface HostedLockEntry extends HostedManifestEntry {
+  sha256: string
+  url: string
+  width: number
+  height: number
+}
+
 describe('media publishing contract', () => {
   it('pins the shared publisher and preserves the exact legacy object identities', () => {
     const pkg = JSON.parse(read('package.json'))
@@ -28,34 +42,41 @@ describe('media publishing contract', () => {
       .toEqual(expectedLegacy.map(([id]) => id).sort())
     expect(lock.assets.filter((asset: { mode?: string }) => asset.mode !== 'hosted').map((asset: { id: string, sha256: string }) => [asset.id, asset.sha256]).sort())
       .toEqual(expectedLegacy.sort())
-    expect(lock.assets).toHaveLength(8)
-    expect(new Set(lock.assets.map((asset: { id: string }) => asset.id)).size).toBe(8)
+    expect(new Set(lock.assets.map((asset: { id: string }) => asset.id)).size)
+      .toBe(lock.assets.length)
     expect(lock.assets.every((asset: { url: string }) =>
       asset.url.startsWith('https://pic.minyako.top/blog/'))).toBe(true)
     expect(dockerIgnore.split(/\r?\n/)).toContain('media/assets')
   })
 
-  it('records the editor-hosted acceptance image without local object fields', () => {
+  it('validates every editor-hosted image without pinning the content inventory', () => {
     const manifest = parse(read('media/media.yaml'))
     const lock = JSON.parse(read('media/media.lock.json'))
-    const manifestEntry = manifest.assets.find((asset: { id: string }) => asset.id === 'acceptance-pipeline-cover')
-    const lockEntry = lock.assets.find((asset: { id: string }) => asset.id === 'acceptance-pipeline-cover')
+    const hostedManifest = manifest.assets.filter((asset: { mode?: string }) => asset.mode === 'hosted') as HostedManifestEntry[]
+    const hostedLock = lock.assets.filter((asset: { mode?: string }) => asset.mode === 'hosted') as HostedLockEntry[]
+    const lockById = new Map(hostedLock.map((asset) => [asset.id, asset]))
 
-    expect(manifestEntry).toMatchObject({
-      mode: 'hosted',
-      provider: 'minyako-image',
-      providerId: 'img_M7toMgkbwj1IEF0MrMvstgtw'
-    })
-    expect(lockEntry).toMatchObject({
-      mode: 'hosted',
-      provider: 'minyako-image',
-      providerId: 'img_M7toMgkbwj1IEF0MrMvstgtw',
-      sha256: '4df1df236cda3c8ddf34f9acb8d5d86e378b6ece98ed8522f858926158bb05cd',
-      url: 'https://pic.minyako.top/blog/4d/4df1df236cda3c8ddf34f9acb8d5d86e378b6ece98ed8522f858926158bb05cd.webp',
-      width: 1916,
-      height: 1076
-    })
-    expect(lockEntry).not.toHaveProperty('file')
-    expect(lockEntry).not.toHaveProperty('objectKey')
+    expect(hostedLock.map((asset: { id: string }) => asset.id).sort())
+      .toEqual(hostedManifest.map((asset: { id: string }) => asset.id).sort())
+    for (const manifestEntry of hostedManifest) {
+      const lockEntry = lockById.get(manifestEntry.id)
+      expect(lockEntry).toBeDefined()
+      if (!lockEntry) continue
+      expect(manifestEntry).toMatchObject({ mode: 'hosted', provider: 'minyako-image' })
+      expect(manifestEntry.providerId).toMatch(/^img_[A-Za-z0-9]{24}$/)
+      expect(lockEntry).toMatchObject({
+        mode: 'hosted',
+        provider: manifestEntry.provider,
+        providerId: manifestEntry.providerId
+      })
+      expect(lockEntry.sha256).toMatch(/^[a-f0-9]{64}$/)
+      expect(lockEntry.url).toMatch(/^https:\/\/pic\.minyako\.top\/blog\/[a-f0-9]{2}\/[a-f0-9]{64}\.webp$/)
+      expect(lockEntry.width).toBeGreaterThan(0)
+      expect(lockEntry.height).toBeGreaterThan(0)
+      expect(manifestEntry).not.toHaveProperty('file')
+      expect(manifestEntry).not.toHaveProperty('objectKey')
+      expect(lockEntry).not.toHaveProperty('file')
+      expect(lockEntry).not.toHaveProperty('objectKey')
+    }
   })
 })

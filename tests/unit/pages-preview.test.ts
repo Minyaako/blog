@@ -39,6 +39,6 @@ describe('editor-preview Pages deployment', () => {
     expect(baseLayout).toContain('PUBLIC_PREVIEW_BUILD_TIME')
     expect(articleLayout).toContain('PUBLIC_BLOG_PREVIEW')
     expect(articleLayout).toContain('预览环境已禁用评论')
-    expect(read('public/CNAME')).toBe('preview.gsk.minyako.top\n')
+    expect(read('public/CNAME').trim()).toBe('preview.gsk.minyako.top')
   })
 })
