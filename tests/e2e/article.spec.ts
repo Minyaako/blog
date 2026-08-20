@@ -71,9 +71,24 @@ test('comment composer exposes a readable editable surface, emoji, and initial a
   await editor.fill('left-edge-input')
   await expect(editor).toHaveValue('left-edge-input')
   await comments.getByRole('button', { name: '表情' }).click()
-  await expect(comments.locator('.wl-emoji-popup img').first()).toBeVisible()
+  const emojiPopup = comments.locator('.wl-emoji-popup')
+  await expect(emojiPopup.locator('img').first()).toBeVisible()
   await expect.poll(() => emojiRequests.some((url) => url.endsWith('/comments/emoji/tw-emoji/info.json'))).toBe(true)
-  await expect(comments.locator('.wl-emoji-popup img').first()).toHaveAttribute('src', /^http:\/\/127\.0\.0\.1:4321\/comments\/emoji\/tw-emoji\//)
+  await expect(emojiPopup.locator('img').first()).toHaveAttribute('src', /^http:\/\/127\.0\.0\.1:4321\/comments\/emoji\/tw-emoji\//)
+  const popupLayout = await emojiPopup.evaluate((popup) => {
+    const panel = popup.closest('.wl-panel')
+    if (!panel) throw new Error('Emoji popup panel was not found')
+    const popupRect = popup.getBoundingClientRect()
+    const panelRect = panel.getBoundingClientRect()
+    return {
+      extendsBeyondPanel: popupRect.bottom > panelRect.bottom,
+      panelOverflowY: getComputedStyle(panel).overflowY
+    }
+  })
+  expect(popupLayout).toEqual({
+    extendsBeyondPanel: true,
+    panelOverflowY: 'visible'
+  })
 
   const mount = comments.locator('[data-comment-mount]')
   await mount.evaluate((element) => {
