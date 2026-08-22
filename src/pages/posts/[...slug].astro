@@ -1,6 +1,7 @@
 ---
 import type { GetStaticPaths } from 'astro'
 import { render } from 'astro:content'
+import MediaFigure from '../../components/MediaFigure.astro'
 import ArticleLayout from '../../layouts/ArticleLayout.astro'
 import { getPublishedPosts, getRelatedPosts, toPostCard } from '../../lib/posts'
 import { getReadingTime } from '../../lib/reading-time'
@@ -12,4 +13,4 @@ const { post, previous, next, related } = Astro.props
 const { Content, headings } = await render(post)
 const { minutes } = getReadingTime(post.body ?? '')
 ---
-<ArticleLayout {post} {headings} {minutes} {previous} {next} {related}><Content /></ArticleLayout>
+<ArticleLayout {post} {headings} {minutes} {previous} {next} {related}><Content components={{ MediaFigure }} /></ArticleLayout>

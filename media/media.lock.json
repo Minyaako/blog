@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "publisherVersion": "0.1.0",
+  "version": 2,
+  "publisherVersion": "0.2.0",
   "namespace": "blog",
   "cdnBaseUrl": "https://pic.minyako.top",
   "assets": [
@@ -101,6 +101,34 @@
       "cacheControl": "public, max-age=31536000, immutable",
       "sourceRef": "shared://minyako/blog/2026-initial/profile/avatar.png",
       "rights": "user-provided"
+    },
+    {
+      "id": "acceptance-pipeline-cover",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_M7toMgkbwj1IEF0MrMvstgtw",
+      "sha256": "4df1df236cda3c8ddf34f9acb8d5d86e378b6ece98ed8522f858926158bb05cd",
+      "bytes": 308078,
+      "contentType": "image/webp",
+      "width": 1916,
+      "height": 1076,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/4d/4df1df236cda3c8ddf34f9acb8d5d86e378b6ece98ed8522f858926158bb05cd.webp",
+      "createdAt": "2026-08-16T11:52:03.269Z"
+    },
+    {
+      "id": "test211",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_8b00iyOEmFgBxiDhpR28s2Ef",
+      "sha256": "410f7d6b99be04c869172fc956260280b2c0e546606afa193c770dd9a113a942",
+      "bytes": 215322,
+      "contentType": "image/webp",
+      "width": 2559,
+      "height": 1439,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/41/410f7d6b99be04c869172fc956260280b2c0e546606afa193c770dd9a113a942.webp",
+      "createdAt": "2026-08-20T04:58:48.689Z"
     }
   ]
 }

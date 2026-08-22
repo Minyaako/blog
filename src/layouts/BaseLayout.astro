@@ -24,6 +24,10 @@ const {
 const pageTitle = title ? `${title} · ${SITE.title}` : SITE.title
 const canonical = new URL(Astro.url.pathname, SITE.origin)
 const socialImage = image ? new URL(image, SITE.origin) : undefined
+const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
+const previewBranch = import.meta.env.PUBLIC_PREVIEW_BRANCH || 'editor-preview'
+const previewSha = import.meta.env.PUBLIC_PREVIEW_SHA || 'local-build'
+const previewBuildTime = import.meta.env.PUBLIC_PREVIEW_BUILD_TIME || 'local'
 ---
 
 <!doctype html>
@@ -34,7 +38,7 @@ const socialImage = image ? new URL(image, SITE.origin) : undefined
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#f4f0e9" />
-    {noindex && <meta name="robots" content="noindex" />}
+    {(noindex || isPreview) && <meta name="robots" content="noindex, noarchive" />}
     <link rel="canonical" href={canonical} />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href="/rss.xml" />
     <meta property="og:type" content="website" />
@@ -74,6 +78,15 @@ const socialImage = image ? new URL(image, SITE.origin) : undefined
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到正文</a>
+    {isPreview && (
+      <aside class="preview-banner" data-preview-banner aria-label="公开预览环境">
+        <strong>公开预览</strong>
+        <span>分支 {previewBranch}</span>
+        <span>提交 <code>{previewSha.slice(0, 12)}</code></span>
+        <time datetime={previewBuildTime}>构建于 {previewBuildTime}</time>
+        <span>评论与统计已停用</span>
+      </aside>
+    )}
     <SiteHeader />
     <main class="page-main" id="main-content">
       <slot />
@@ -87,3 +100,21 @@ const socialImage = image ? new URL(image, SITE.origin) : undefined
     </script>
   </body>
 </html>
+
+<style is:global>
+  .preview-banner {
+    position: relative;
+    z-index: 30;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .35rem 1rem;
+    padding: .65rem 1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+    color: var(--text);
+    font: 600 var(--text-caption)/1.5 var(--font-mono);
+  }
+  .preview-banner strong { color: var(--accent); }
+  .preview-banner code { font: inherit; }
+</style>

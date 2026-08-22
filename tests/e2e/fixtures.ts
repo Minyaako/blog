@@ -2,10 +2,15 @@ import { test as base } from '@playwright/test'
 import path from 'node:path'
 import mediaLock from '../../media/media.lock.json' with { type: 'json' }
 
-const mediaByUrl = new Map(mediaLock.assets.map((asset) => [
-  asset.url,
-  path.resolve('media', asset.file)
-]))
+const mediaByUrl = new Map(mediaLock.assets.flatMap((asset) => (
+  typeof asset.file === 'string'
+    ? [[asset.url, path.resolve('media', asset.file)] as const]
+    : []
+)))
+const hostedMediaUrls = new Set(mediaLock.assets.flatMap((asset) => (
+  asset.mode === 'hosted' ? [asset.url] : []
+)))
+const deterministicHostedImage = path.resolve('media/assets/posts/games-cover.webp')
 
 export const test = base.extend<{ stableEnvironment: void }>({
   stableEnvironment: [async ({ page }, use) => {
@@ -13,6 +18,10 @@ export const test = base.extend<{ stableEnvironment: void }>({
     await page.route('https://pic.minyako.top/blog/**', async (route) => {
       const file = mediaByUrl.get(route.request().url())
       if (!file) {
+        if (hostedMediaUrls.has(route.request().url())) {
+          await route.fulfill({ path: deterministicHostedImage, contentType: 'image/webp' })
+          return
+        }
         await route.abort('failed')
         return
       }

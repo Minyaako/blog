@@ -17,7 +17,7 @@
     "media:prepare": "media-publisher prepare --manifest media/media.yaml --lock media/media.lock.json",
     "media:validate": "media-publisher validate --manifest media/media.yaml --lock media/media.lock.json",
     "media:publish": "media-publisher publish --manifest media/media.yaml --lock media/media.lock.json --credentials github-oidc --bucket $MEDIA_COS_BUCKET --region $MEDIA_COS_REGION --report .media-publish-report.json",
-    "media:verify": "media-publisher verify --lock media/media.lock.json --report .media-publish-report.json",
+    "media:verify": "media-publisher verify --lock media/media.lock.json --all",
     "build:astro": "astro build",
     "build:search": "pagefind --site dist",
     "build": "pnpm check && pnpm test:unit && pnpm build:astro && pnpm build:search",
@@ -43,7 +43,7 @@
   "devDependencies": {
     "@astrojs/check": "0.9.9",
     "@axe-core/playwright": "4.12.1",
-    "@minyaako/media-publisher": "github:Minyaako/media-publisher#33b31fee5dbac622c76e242b52bac961f78c91b3",
+    "@minyaako/media-publisher": "github:Minyaako/media-publisher#ededa7f0af445f568b4954cac25408288cac5f05",
     "@playwright/test": "1.61.1",
     "@types/node": "24.13.3",
     "typescript": "6.0.3",
