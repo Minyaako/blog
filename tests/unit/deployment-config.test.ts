@@ -68,10 +68,12 @@ const assertDockerIgnoreContract = (source: string) => {
     '!.github/workflows',
     '.github/workflows/*',
     '!.github/workflows/ci.yml',
+    '!.github/workflows/pages-preview.yml',
   ])
   expect(negations).toEqual([
     '!.github/workflows',
     '!.github/workflows/ci.yml',
+    '!.github/workflows/pages-preview.yml',
   ])
 }
 
@@ -495,7 +497,7 @@ describe('production container contract', () => {
     expect(ignored).toContain('.env*')
   })
 
-  it('includes only the workflow required by container build tests', () => {
+  it('includes only the workflows required by container build tests', () => {
     assertDockerIgnoreContract(read('.dockerignore'))
   })
 
