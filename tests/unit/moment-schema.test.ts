@@ -34,6 +34,18 @@ describe('moment schema', () => {
       .toThrow(/time zone/i)
   })
 
+  it.each([
+    ['2026-08-23T14:35:01+14:00', true],
+    ['2026-08-23T14:35:01+14:30', false],
+    ['2026-08-23T14:35:01+15:00', false],
+    ['2026-08-23T14:35:01+23:59', false],
+    ['2026-08-23T14:35:01-14:30', false],
+  ])('enforces the shared explicit timezone boundary for %s', (publishedAt, valid) => {
+    const parse = () => momentSchema.parse({ ...validMoment, publishedAt })
+    if (valid) expect(parse).not.toThrow()
+    else expect(parse).toThrow(/time zone/i)
+  })
+
   it('rejects non-boolean pinned values', () => {
     expect(() => momentSchema.parse({ ...validMoment, pinned: 'false' }))
       .toThrow(/boolean/i)
