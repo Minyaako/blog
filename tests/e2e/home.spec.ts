@@ -1,13 +1,14 @@
 import { globSync, readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { expect, test } from './fixtures'
+import { FIXTURE_POSTS_ROOT } from './content-fixtures'
 
 function latestPublishedTitle() {
   const posts = [
-    ...globSync('src/content/posts/**/*.md'),
-    ...globSync('src/content/posts/**/*.mdx')
+    ...globSync('**/*.md', { cwd: FIXTURE_POSTS_ROOT }),
+    ...globSync('**/*.mdx', { cwd: FIXTURE_POSTS_ROOT })
   ].map((path) => {
-    const source = readFileSync(path, 'utf8')
+    const source = readFileSync(`${FIXTURE_POSTS_ROOT}/${path}`, 'utf8')
     const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1]
     if (!frontmatter) throw new Error(`Missing frontmatter: ${path}`)
     return parse(frontmatter) as { title: string; publishedAt: string; draft?: boolean }

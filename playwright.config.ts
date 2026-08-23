@@ -13,7 +13,8 @@ export default defineConfig({
   webServer: {
     command: 'pnpm build && pnpm preview --host 127.0.0.1',
     url: 'http://127.0.0.1:4321',
-    reuseExistingServer: !process.env.CI
+    reuseExistingServer: !process.env.CI,
+    env: { BLOG_E2E_FIXTURES: 'true' }
   },
   projects: [
     {
