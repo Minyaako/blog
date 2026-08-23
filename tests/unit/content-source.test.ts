@@ -16,6 +16,10 @@ describe('post content source', () => {
     expect(resolvePostContentBase({ BLOG_E2E_FIXTURES: 'false' })).toBe('./src/content/posts')
   })
 
+  it('uses a dedicated empty source only for empty-state browser checks', () => {
+    expect(resolvePostContentBase({ BLOG_E2E_EMPTY_CONTENT: 'true' })).toBe('./tests/fixtures/empty-posts')
+  })
+
   it('keeps production moments empty-capable by default and enables moment fixtures only under an explicit env flag', () => {
     expect(resolveMomentContentBase({})).toBe('./src/content/moments')
     expect(resolveMomentContentBase({ BLOG_MOMENT_FIXTURES: 'true' })).toBe('./tests/fixtures/moments')
