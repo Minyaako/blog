@@ -257,7 +257,15 @@ set -eu
 printf '%s\n' "$*" >> "$SLEEP_LOG"
 SH
 
-chmod +x "$DOCKER_BIN" "$CURL_BIN" "$TMP/bin/date" "$TMP/bin/ln" "$TMP/bin/mv" "$TMP/bin/rm" "$TMP/bin/sleep"
+cat > "$TMP/bin/timeout" <<'SH'
+#!/bin/sh
+set -eu
+printf '%s\n' "$1" >> "$PULL_TIMEOUT_LOG"
+shift
+exec "$@"
+SH
+
+chmod +x "$DOCKER_BIN" "$CURL_BIN" "$TMP/bin/date" "$TMP/bin/ln" "$TMP/bin/mv" "$TMP/bin/rm" "$TMP/bin/sleep" "$TMP/bin/timeout"
 export PATH="$TMP/bin:$ORIGINAL_PATH"
 
 one=1111111111111111111111111111111111111111
@@ -273,6 +281,7 @@ reset_case() {
   export DOCKER_LOG="$TMP/$case_name/docker.log"
   export CURL_LOG="$TMP/$case_name/curl.log"
   export SLEEP_LOG="$TMP/$case_name/sleep.log"
+  export PULL_TIMEOUT_LOG="$TMP/$case_name/pull-timeout.log"
   export ACTIVE_IMAGE="$TMP/$case_name/active-image"
   export CANDIDATE_STATE="$TMP/$case_name/candidate-state"
   export CANDIDATE_RM_FAIL_MARKER="$TMP/$case_name/candidate-rm-failed"
@@ -295,6 +304,7 @@ reset_case() {
   : > "$DOCKER_LOG"
   : > "$CURL_LOG"
   : > "$SLEEP_LOG"
+  : > "$PULL_TIMEOUT_LOG"
   : > "$CASE_OUTPUT"
 }
 
@@ -401,6 +411,7 @@ test_pull_retry_success() {
   export FAIL_PULL_ATTEMPTS=2
   "$RELEASE" deploy "$one" >/dev/null || fail 'transient pull failure was not recovered'
   assert_eq 3 "$(cat "$PULL_ATTEMPT_FILE")" 'transient pull did not succeed on the third attempt'
+  assert_eq 3 "$(grep -c '^300$' "$PULL_TIMEOUT_LOG")" 'pull attempts were not bounded to 300 seconds'
   assert_eq 2 "$(grep -c '^5$' "$SLEEP_LOG")" 'pull retries did not use the bounded delay'
   assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'recovered pull did not deploy the release'
 }
