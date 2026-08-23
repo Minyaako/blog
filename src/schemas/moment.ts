@@ -23,7 +23,7 @@ function hasValidExplicitZone(match: RegExpExecArray): boolean {
 }
 
 export function isStrictMomentPublishedAt(value: string): boolean {
-  const match = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2})(?<zone>Z|(?<sign>[+-])(?<offsetHour>\d{2}):(?<offsetMinute>\d{2}))$/.exec(value)
+  const match = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2})(?:\.\d+)?(?<zone>Z|(?<sign>[+-])(?<offsetHour>\d{2}):(?<offsetMinute>\d{2}))$/.exec(value)
   if (!match?.groups) return false
   const year = Number(match.groups.year)
   const month = Number(match.groups.month)
