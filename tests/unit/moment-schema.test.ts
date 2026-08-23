@@ -35,11 +35,19 @@ describe('moment schema', () => {
   })
 
   it.each([
+    ['2026-02-29T14:35:01+08:00', false],
+    ['2028-02-29T14:35:01+08:00', true],
+    ['2026-02-30T14:35:01+08:00', false],
+    ['2026-04-31T14:35:01+08:00', false],
+    ['2026-08-23T24:00:00+08:00', false],
     ['2026-08-23T14:35:01+14:00', true],
+    ['2026-08-23T14:35:01-14:00', true],
     ['2026-08-23T14:35:01+14:30', false],
-    ['2026-08-23T14:35:01+15:00', false],
-    ['2026-08-23T14:35:01+23:59', false],
     ['2026-08-23T14:35:01-14:30', false],
+    ['2026-08-23T14:35:01+15:00', false],
+    ['2026-08-23T14:35:01-15:00', false],
+    ['2026-08-23T14:35:01+23:59', false],
+    ['2026-08-23T14:35:01Z', true],
   ])('enforces the shared explicit timezone boundary for %s', (publishedAt, valid) => {
     const parse = () => momentSchema.parse({ ...validMoment, publishedAt })
     if (valid) expect(parse).not.toThrow()
@@ -53,7 +61,7 @@ describe('moment schema', () => {
 
   it('rejects filename and frontmatter id mismatches during entry validation', () => {
     expect(() => validateMomentEntries([
-      entry('wrong-file.mdx')
+      entry('20260823-143502-a7c31e4f.mdx')
     ])).toThrow(/filename.*id/i)
   })
 

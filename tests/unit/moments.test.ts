@@ -85,8 +85,34 @@ describe('moment collection adapter', () => {
   it('rejects duplicate ids before publishing', () => {
     expect(() => validateMomentEntries([
       entry('20260823-143501-a7c31e4f.mdx'),
-      entry('nested/20260823-143501-a7c31e4f.mdx')
+      entry('20260823-143501-a7c31e4f.mdx')
     ])).toThrow(/duplicate/i)
+  })
+
+  it.each([
+    'nested/20260823-143501-a7c31e4f.mdx',
+    '20260823-143501-a7c31e4f.md',
+    'bad-id.mdx',
+  ])('rejects any moment entry outside the exact top-level mdx contract: %s', (filename) => {
+    expect(() => validateMomentEntries([
+      entry(filename)
+    ])).toThrow(/top-level|mdx|id/i)
+  })
+
+  it.each([
+    '2026-02-29T14:35:01+08:00',
+    '2026-02-30T14:35:01+08:00',
+    '2026-04-31T14:35:01+08:00',
+    '2026-08-23T24:00:00+08:00',
+    '2026-08-23T14:35:01+14:30',
+    '2026-08-23T14:35:01+15:00',
+    '2026-08-23T14:35:01+23:59',
+  ])('fails closed on an invalid moment timestamp even if the collection loader yields it: %s', (publishedAt) => {
+    expect(() => validateMomentEntries([
+      entry('20260823-143501-a7c31e4f.mdx', {
+        publishedAt,
+      })
+    ])).toThrow(/publishedAt|time zone|calendar/i)
   })
 
   it('rejects unknown tags before publishing', () => {
@@ -121,5 +147,16 @@ describe('moment collection adapter', () => {
     ])
 
     await expect(getPublishedMoments()).rejects.toThrow(/Unknown tag: missing-tag/)
+  })
+
+  it('throws when the collection yields a nested or markdown moment entry instead of silently accepting it', async () => {
+    mockGetCollection.mockResolvedValueOnce([
+      entry('nested/20260823-143501-a7c31e4f.mdx'),
+      entry('20260823-143502-a7c31e4f.md', {
+        id: '20260823-143502-a7c31e4f',
+      })
+    ])
+
+    await expect(getPublishedMoments()).rejects.toThrow(/top-level|mdx/i)
   })
 })

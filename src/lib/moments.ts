@@ -1,6 +1,6 @@
 import type { CollectionEntry } from 'astro:content'
 import { getTag, type Tag } from './tags'
-import type { MomentData } from '../schemas/moment'
+import { isStrictMomentPublishedAt, type MomentData } from '../schemas/moment'
 
 export interface MomentEntryLike {
   id: string
@@ -18,8 +18,13 @@ export interface MomentView {
   contentWarning?: string
 }
 
+const MOMENT_ENTRY_ID_PATTERN = /^\d{8}-\d{6}-[a-f0-9]{8}\.mdx$/
+
 function entryBasename(id: string) {
-  return (id.split(/[\\/]/).at(-1) ?? id).replace(/\.(md|mdx)$/i, '')
+  if (!MOMENT_ENTRY_ID_PATTERN.test(id)) {
+    throw new Error(`Moment entry must be a top-level src/content/moments/{id}.mdx file: ${id}`)
+  }
+  return id.replace(/\.mdx$/i, '')
 }
 
 function assertMomentEntry(entry: MomentEntryLike, seenIds: Set<string>) {
@@ -36,6 +41,10 @@ function assertMomentEntry(entry: MomentEntryLike, seenIds: Set<string>) {
 
   if (typeof entry.body !== 'string' || entry.body.trim() === '') {
     throw new Error(`Moment body must not be empty: ${entry.data.id}`)
+  }
+
+  if (!isStrictMomentPublishedAt(entry.data.publishedAt)) {
+    throw new Error(`Moment publishedAt must be a strict RFC3339 timestamp: ${entry.data.id}`)
   }
 
   const seenTags = new Set<string>()

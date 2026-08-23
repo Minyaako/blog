@@ -62,7 +62,13 @@ describe('post schema', () => {
 
     expect(collections).toHaveProperty('moments')
     expect(collections).not.toHaveProperty('rankings')
-    expect(source).toMatch(/moments/)
+    expect(collections.moments).toMatchObject({
+      loader: {
+        pattern: '*.mdx',
+        base: './src/content/moments',
+      },
+    })
+    expect(source).toMatch(/pattern:\s*'\*\.mdx'/)
     expect(source).not.toMatch(/rankings/)
   })
 })

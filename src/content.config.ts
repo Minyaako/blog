@@ -15,7 +15,7 @@ const tags = defineCollection({
 })
 
 const moments = defineCollection({
-  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/moments' }),
+  loader: glob({ pattern: '*.mdx', base: './src/content/moments' }),
   schema: momentSchema
 })
 
