@@ -1,0 +1,28 @@
+---
+import type { GetStaticPaths } from 'astro'
+import CommentSection from '../../components/CommentSection.astro'
+import MomentCard from '../../components/MomentCard.astro'
+import MomentLayout from '../../layouts/MomentLayout.astro'
+import { getPublishedMoments } from '../../lib/moments'
+
+export const getStaticPaths = (async () => {
+  const moments = await getPublishedMoments()
+  return moments.map((moment) => ({
+    params: { id: moment.id },
+    props: { moment }
+  }))
+}) satisfies GetStaticPaths
+
+const { moment } = Astro.props
+---
+
+<MomentLayout title={moment.title ?? '动态详情'} description="这条记录的永久页面。" eyebrow="Permanent moment">
+  <div class="detail-shell">
+    <MomentCard moment={moment} detail />
+    <CommentSection pageKey={moment.id} />
+  </div>
+</MomentLayout>
+
+<style>
+  .detail-shell { max-width: 48rem; margin-inline: auto; }
+</style>

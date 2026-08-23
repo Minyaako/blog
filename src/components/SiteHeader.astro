@@ -1,5 +1,6 @@
 ---
 import { SITE } from '../config/site'
+import SmallFeaturesMenu from './SmallFeaturesMenu.astro'
 import ThemeToggle from './ThemeToggle.astro'
 ---
 
@@ -11,6 +12,7 @@ import ThemeToggle from './ThemeToggle.astro'
         {SITE.navigation.map((item) => (
           <li><a class="nav-link" href={item.href}>{item.label}</a></li>
         ))}
+        <SmallFeaturesMenu />
       </ul>
     </nav>
     <ThemeToggle />

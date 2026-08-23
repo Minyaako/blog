@@ -2,13 +2,16 @@
 import BaseLayout from '../layouts/BaseLayout.astro'
 import DomainGrid from '../components/DomainGrid.astro'
 import HeroBanner from '../components/HeroBanner.astro'
+import LatestMoments from '../components/LatestMoments.astro'
 import LatestPosts from '../components/LatestPosts.astro'
 import ProfileStrip from '../components/ProfileStrip.astro'
+import { getPublishedMoments } from '../lib/moments'
 import { getPublishedPosts, toPostCard } from '../lib/posts'
 
 const posts = (await getPublishedPosts()).map(toPostCard)
 const featured = posts.find((post) => post.pageKey === 'engineering-astro-content-architecture')
 const ordered = featured ? [featured, ...posts.filter((post) => post.pageKey !== featured.pageKey)] : posts
+const moments = (await getPublishedMoments()).slice(0, 2)
 ---
 
 <BaseLayout>
@@ -16,4 +19,5 @@ const ordered = featured ? [featured, ...posts.filter((post) => post.pageKey !==
   <ProfileStrip />
   <DomainGrid />
   <LatestPosts posts={ordered} />
+  {moments.length > 0 && <LatestMoments moments={moments} />}
 </BaseLayout>

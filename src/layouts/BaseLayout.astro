@@ -56,6 +56,7 @@ const previewBuildTime = import.meta.env.PUBLIC_PREVIEW_BUILD_TIME || 'local'
     <title>{pageTitle}</title>
     <script is:inline>
       (() => {
+        document.documentElement.classList.add('js')
         const stored = localStorage.getItem('minyako-theme')
         const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
         document.documentElement.dataset.theme = stored === 'dark' || stored === 'light'
@@ -95,8 +96,15 @@ const previewBuildTime = import.meta.env.PUBLIC_PREVIEW_BUILD_TIME || 'local'
     <script>
       import { initPageMotion } from '../scripts/page-motion'
       import { initRevealMotion } from '../scripts/motion'
+      import { initMomentStream } from '../scripts/moment-stream'
+      import { initMomentWarnings } from '../scripts/moment-warning'
       initPageMotion()
-      initRevealMotion()
+      const initMomentEnhancements = (root: ParentNode = document) => {
+        initMomentWarnings(root)
+        initRevealMotion(root)
+      }
+      initMomentEnhancements()
+      initMomentStream(document, initMomentEnhancements)
     </script>
   </body>
 </html>

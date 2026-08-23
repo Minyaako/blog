@@ -1,0 +1,43 @@
+---
+import type { GetStaticPaths } from 'astro'
+import RankingList from '../../components/RankingList.astro'
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { rankings, type RankingDefinition } from '../../lib/ranking-fixtures'
+
+export const getStaticPaths = (() => rankings.map((ranking) => ({
+  params: { id: ranking.id },
+  props: { ranking }
+}))) satisfies GetStaticPaths
+
+interface Props {
+  ranking: RankingDefinition
+}
+
+const { ranking } = Astro.props
+---
+
+<BaseLayout title={ranking.title} description={ranking.description}>
+  <nav class="ranking-back" aria-label="榜单路径"><a href="/ranking">← 返回榜单入口</a></nav>
+  <header class="ranking-header" data-motion-reveal>
+    <p class="eyebrow">RANKING / {ranking.id}</p>
+    <h1>{ranking.title}</h1>
+    <p>{ranking.description}</p>
+    <p class="ranking-updated">{ranking.updatedLabel}</p>
+  </header>
+  <section aria-label={`${ranking.title}排序`} data-motion-reveal style="--motion-order: 1">
+    <RankingList ranking={ranking} />
+  </section>
+  <p class="demo-note">以下内容均为虚构示例，不代表真实评价。</p>
+</BaseLayout>
+
+<style>
+  .ranking-back { margin-bottom: var(--space-6); }
+  .ranking-back a { color: var(--text-muted); font-size: .82rem; text-underline-offset: .2em; }
+  .ranking-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-3) var(--space-6); max-width: 58rem; margin-bottom: var(--space-7); }
+  .eyebrow { grid-column: 1 / -1; margin: 0; color: var(--accent); font: var(--text-caption)/1.4 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+  h1 { margin: 0; font: 760 var(--text-display)/1 var(--font-display); }
+  .ranking-header > p:not(.eyebrow, .ranking-updated) { grid-column: 1; max-width: 60ch; margin: 0; color: var(--text-muted); line-height: 1.75; }
+  .ranking-updated { grid-column: 2; grid-row: 2 / 4; margin: 0; color: var(--text-muted); font: var(--text-caption)/1.4 var(--font-mono); }
+  .demo-note { margin-top: var(--space-6); padding-left: var(--space-3); border-left: 2px solid var(--accent); color: var(--text-muted); font-size: .82rem; }
+  @media (max-width: 40rem) { .ranking-header { grid-template-columns: 1fr; } .ranking-updated { grid-column: 1; grid-row: auto; } }
+</style>

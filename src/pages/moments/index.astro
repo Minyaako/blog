@@ -1,0 +1,11 @@
+---
+import MomentStream from '../../components/MomentStream.astro'
+import MomentLayout from '../../layouts/MomentLayout.astro'
+import { getPublishedMoments } from '../../lib/moments'
+
+const moments = await getPublishedMoments()
+---
+
+<MomentLayout title="动态" description="短一些的图文、途中记下的片段，以及还不需要长篇展开的想法。">
+  <MomentStream moments={moments} />
+</MomentLayout>

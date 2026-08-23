@@ -1,0 +1,45 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { rankings } from '../../lib/ranking-fixtures'
+---
+
+<BaseLayout title="榜单" description="一个用于试验轻量排序表达的小功能入口。">
+  <header class="ranking-header" data-motion-reveal>
+    <p class="eyebrow">小功能 / 实验性</p>
+    <h1>榜单</h1>
+    <p>每份榜单拥有独立、可设置的 ID。这里是入口，具体排序与短评留在各自页面。</p>
+  </header>
+  <ol class="ranking-directory" aria-label="榜单目录">
+    {rankings.map((ranking, index) => (
+      <li data-ranking-entry data-motion-reveal style={`--motion-order: ${index + 1}`}>
+        <a href={`/ranking/${ranking.id}`}>
+          <span class="directory-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+          <span class="directory-copy">
+            <strong>{ranking.title}</strong>
+            <span>{ranking.description}</span>
+          </span>
+          <span class="directory-meta">{ranking.updatedLabel}<span aria-hidden="true">↗</span></span>
+        </a>
+      </li>
+    ))}
+  </ol>
+  <p class="demo-note">以下内容均为虚构示例，不代表真实评价。</p>
+</BaseLayout>
+
+<style>
+  .ranking-header { max-width: 48rem; margin-bottom: var(--space-7); }
+  .eyebrow { margin: 0; color: var(--accent); font: var(--text-caption)/1.4 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+  h1 { margin: var(--space-2) 0 var(--space-3); font: 760 var(--text-display)/1 var(--font-display); }
+  .ranking-header > p:not(.eyebrow) { max-width: 60ch; color: var(--text-muted); line-height: 1.75; }
+  .ranking-directory { margin: 0; padding: 0; border-top: 3px solid var(--accent); list-style: none; }
+  .ranking-directory li { border-bottom: 1px solid var(--border); }
+  .ranking-directory a { display: grid; grid-template-columns: 3rem minmax(0, 1fr) auto; align-items: start; gap: var(--space-4); padding: var(--space-5) 0; text-decoration: none; }
+  .directory-index { color: var(--accent); font: 720 1rem/1.3 var(--font-mono); }
+  .directory-copy { display: grid; gap: var(--space-2); }
+  .directory-copy strong { font: 720 var(--text-title)/1.2 var(--font-display); }
+  .directory-copy > span { max-width: 50ch; color: var(--text-muted); font-size: .86rem; line-height: 1.65; }
+  .directory-meta { display: flex; gap: var(--space-3); color: var(--text-muted); font: var(--text-caption)/1.4 var(--font-mono); white-space: nowrap; }
+  .ranking-directory a:hover .directory-copy strong { color: var(--accent); }
+  .demo-note { margin-top: var(--space-6); padding-left: var(--space-3); border-left: 2px solid var(--accent); color: var(--text-muted); font-size: .82rem; }
+  @media (max-width: 40rem) { .ranking-directory a { grid-template-columns: 2rem 1fr; } .directory-meta { grid-column: 2; } }
+</style>

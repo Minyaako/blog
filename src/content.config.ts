@@ -1,5 +1,6 @@
 import { defineCollection } from 'astro:content'
 import { glob } from 'astro/loaders'
+import { momentSchema } from './schemas/moment'
 import { postSchema } from './schemas/post'
 import { tagSchema } from './schemas/tag'
 
@@ -13,4 +14,9 @@ const tags = defineCollection({
   schema: tagSchema
 })
 
-export const collections = { posts, tags }
+const moments = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/moments' }),
+  schema: momentSchema
+})
+
+export const collections = { posts, tags, moments }
