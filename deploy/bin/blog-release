@@ -6,6 +6,7 @@ STATE_DIR=${BLOG_STATE_DIR:-$APP_DIR/state}
 COMPOSE_FILE=${BLOG_COMPOSE_FILE:-$APP_DIR/compose.yml}
 DOCKER=${DOCKER_BIN:-docker}
 CURL=${CURL_BIN:-curl}
+TIMEOUT=${TIMEOUT_BIN:-timeout}
 IMAGE_REPO=ghcr.io/minyaako/blog
 ORIGIN=https://gsk.minyako.top
 LOCK_FILE=$STATE_DIR/deploy.lock
@@ -130,6 +131,16 @@ release_owned_lock() {
 compose_up() {
   BLOG_IMAGE="$IMAGE_REPO:$1" "$DOCKER" compose \
     -f "$COMPOSE_FILE" up -d --wait --remove-orphans
+}
+
+pull_image() {
+  pull_image_ref=$1
+  pull_attempt=1
+  while ! "$TIMEOUT" 300 "$DOCKER" pull "$pull_image_ref"; do
+    if test "$pull_attempt" -ge 3; then return 1; fi
+    sleep 5
+    pull_attempt=$((pull_attempt + 1))
+  done
 }
 
 # Invoked only through the EXIT-trap rollback path; ShellCheck cannot trace that call graph.
@@ -305,7 +316,7 @@ if test -e "$STATE_DIR/previous" || test -L "$STATE_DIR/previous"; then
 fi
 
 image=$IMAGE_REPO:$sha
-"$DOCKER" pull "$image" || die "could not pull $image"
+pull_image "$image" || die "could not pull $image"
 CANDIDATE=blog-candidate-$short
 "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
 "$DOCKER" run -d --name "$CANDIDATE" \

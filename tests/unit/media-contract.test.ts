@@ -19,6 +19,13 @@ interface HostedLockEntry extends HostedManifestEntry {
 }
 
 describe('media publishing contract', () => {
+  it('pins manifest and lock files to the publisher LF byte contract', () => {
+    const attributes = read('.gitattributes').split(/\r?\n/)
+
+    expect(attributes).toContain('media/media.yaml text eol=lf')
+    expect(attributes).toContain('media/media.lock.json text eol=lf')
+  })
+
   it('pins the shared publisher and preserves the exact legacy object identities', () => {
     const pkg = JSON.parse(read('package.json'))
     const manifest = parse(read('media/media.yaml'))
