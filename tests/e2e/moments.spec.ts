@@ -6,22 +6,28 @@ const injectIntoMomentItems = (html: string, fragment: string) => html.replace(
   `$1${fragment}`
 )
 
+const injectedWarningMomentId = '20260823-143502-bbbbbbbb'
+
 test('production moments are collection-backed and rankings stay static', () => {
   expect(existsSync('src/lib/moment-fixtures.ts')).toBe(false)
   expect(readFileSync('src/content.config.ts', 'utf8')).not.toMatch(/rankings\s*=/)
   expect(readFileSync('src/lib/ranking-fixtures.ts', 'utf8')).toContain('export const rankings')
 })
 
-test('moments route renders an empty state and the homepage omits fake previews when the collection is empty', async ({ page }) => {
+test('fixture-backed moments survive the real Astro build and render on stream, homepage, and matching tag pages', async ({ page }) => {
   await page.goto('/moments')
-
-  await expect(page.getByRole('heading', { level: 1, name: '动态' })).toBeVisible()
-  await expect(page.locator('[data-moment-card]')).toHaveCount(0)
-  await expect(page.getByText('还没有公开的动态。', { exact: true })).toBeVisible()
+  await expect(page.locator('[data-moment-card]')).toHaveCount(1)
+  await expect(page.getByText('雨停以后，窗外的颜色变得很慢。')).toBeVisible()
 
   await page.goto('/')
-  await expect(page.locator('[data-latest-moments]')).toHaveCount(0)
-  await expect(page.locator('[data-moment-preview]')).toHaveCount(0)
+  await expect(page.locator('[data-latest-moments]')).toHaveCount(1)
+  await expect(page.locator('[data-moment-preview]')).toHaveCount(1)
+  await expect(page.getByRole('link', { name: '一则没有标题的动态' })).toBeVisible()
+
+  await page.goto('/tags/life-notes')
+  await expect(page.getByRole('region', { name: '相关动态' })).toBeVisible()
+  await expect(page.locator('[data-moment-card]')).toHaveCount(1)
+  await expect(page.getByText('尚无公开动态使用此标签。')).toHaveCount(0)
 })
 
 test('unknown moment ids are not generated', async ({ page }) => {
@@ -33,7 +39,7 @@ test('content warning progressively enhances a route-injected moment', async ({ 
   await page.route('**/moments', async (route) => {
     const response = await route.fetch()
     const body = injectIntoMomentItems(await response.text(), `
-      <article class="moment-card" data-moment-card data-moment-id="20260823-143501-a7c31e4f">
+      <article class="moment-card" data-moment-card data-moment-id="${injectedWarningMomentId}">
         <div class="moment-warning" data-moment-warning>
           <p><strong>内容提示：</strong>需要确认后查看。</p>
           <button type="button" data-warning-accept>显示这条动态</button>
@@ -47,7 +53,7 @@ test('content warning progressively enhances a route-injected moment', async ({ 
 
   await page.goto('/moments')
 
-  const card = page.locator('[data-moment-id="20260823-143501-a7c31e4f"]')
+  const card = page.locator(`[data-moment-id="${injectedWarningMomentId}"]`)
   const protectedContent = card.locator('[data-moment-protected-content]')
   await expect(card.locator('[data-moment-warning]')).toBeVisible()
   await expect(protectedContent).toBeHidden()
@@ -55,7 +61,7 @@ test('content warning progressively enhances a route-injected moment', async ({ 
   await expect(protectedContent).toBeVisible()
   await expect(protectedContent).toBeFocused()
   await page.reload()
-  await expect(page.locator('[data-moment-id="20260823-143501-a7c31e4f"] [data-moment-protected-content]')).toBeVisible()
+  await expect(page.locator(`[data-moment-id="${injectedWarningMomentId}"] [data-moment-protected-content]`)).toBeVisible()
 })
 
 test('content warning remains readable without JavaScript and exposes no dead action', async ({ browser }) => {
@@ -63,7 +69,7 @@ test('content warning remains readable without JavaScript and exposes no dead ac
   await context.route('**/moments', async (route) => {
     const response = await route.fetch()
     const body = injectIntoMomentItems(await response.text(), `
-      <article class="moment-card" data-moment-card data-moment-id="20260823-143501-a7c31e4f">
+      <article class="moment-card" data-moment-card data-moment-id="${injectedWarningMomentId}">
         <div class="moment-warning" data-moment-warning>
           <p><strong>内容提示：</strong>需要确认后查看。</p>
           <button type="button" data-warning-accept>显示这条动态</button>
@@ -77,7 +83,7 @@ test('content warning remains readable without JavaScript and exposes no dead ac
   const page = await context.newPage()
   await page.goto('/moments')
 
-  const card = page.locator('[data-moment-id="20260823-143501-a7c31e4f"]')
+  const card = page.locator(`[data-moment-id="${injectedWarningMomentId}"]`)
   await expect(card.locator('[data-moment-warning]')).toBeVisible()
   await expect(card.locator('[data-moment-protected-content]')).toBeVisible()
   await expect(card.getByRole('button', { name: '显示这条动态' })).toBeHidden()

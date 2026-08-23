@@ -59,16 +59,22 @@ describe('post schema', () => {
 
   it('registers moments but keeps rankings outside astro content collections', () => {
     const source = readFileSync(new URL('../../src/content.config.ts', import.meta.url), 'utf8')
+    const momentsCollection = collections.moments as unknown as {
+      loader: { pattern: string; base: string; generateId?: unknown }
+    }
 
     expect(collections).toHaveProperty('moments')
     expect(collections).not.toHaveProperty('rankings')
-    expect(collections.moments).toMatchObject({
+    expect(momentsCollection).toMatchObject({
       loader: {
         pattern: '*.mdx',
-        base: './src/content/moments',
       },
     })
+    expect(momentsCollection.loader).toHaveProperty('generateId')
+    expect(momentsCollection.loader.base).toMatch(/^\.\/(?:src\/content|tests\/fixtures)\/moments$/)
+    expect(source).toMatch(/base:\s*resolveMomentContentBase\(\)/)
     expect(source).toMatch(/pattern:\s*'\*\.mdx'/)
+    expect(source).toMatch(/generateId:\s*\(\{\s*entry\s*\}\)\s*=>\s*generateMomentContentId\(entry\)/)
     expect(source).not.toMatch(/rankings/)
   })
 })

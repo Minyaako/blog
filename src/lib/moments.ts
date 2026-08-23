@@ -1,6 +1,6 @@
 import type { CollectionEntry } from 'astro:content'
 import { getTag, type Tag } from './tags'
-import { isStrictMomentPublishedAt, type MomentData } from '../schemas/moment'
+import { isStrictMomentPublishedAt, MOMENT_ID_PATTERN, type MomentData } from '../schemas/moment'
 
 export interface MomentEntryLike {
   id: string
@@ -18,17 +18,15 @@ export interface MomentView {
   contentWarning?: string
 }
 
-const MOMENT_ENTRY_ID_PATTERN = /^\d{8}-\d{6}-[a-f0-9]{8}\.mdx$/
-
-function entryBasename(id: string) {
-  if (!MOMENT_ENTRY_ID_PATTERN.test(id)) {
-    throw new Error(`Moment entry must be a top-level src/content/moments/{id}.mdx file: ${id}`)
+function assertMomentEntryId(id: string) {
+  if (!MOMENT_ID_PATTERN.test(id)) {
+    throw new Error(`Moment entry must use the generated top-level moment id: ${id}`)
   }
-  return id.replace(/\.mdx$/i, '')
+  return id
 }
 
 function assertMomentEntry(entry: MomentEntryLike, seenIds: Set<string>) {
-  const filenameId = entryBasename(entry.id)
+  const filenameId = assertMomentEntryId(entry.id)
 
   if (filenameId !== entry.data.id) {
     throw new Error(`Moment filename must equal id: filename ${filenameId} does not match id ${entry.data.id}`)

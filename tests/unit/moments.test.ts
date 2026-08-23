@@ -30,12 +30,12 @@ const entry = (
 describe('moment collection adapter', () => {
   it('sorts pinned moments ahead of newer unpinned ones', () => {
     const moments = sortMoments([
-      entry('20260823-143501-a7c31e4f.mdx'),
-      entry('20260824-143501-a7c31e4f.mdx', {
+      entry('20260823-143501-a7c31e4f'),
+      entry('20260824-143501-a7c31e4f', {
         id: '20260824-143501-a7c31e4f',
         publishedAt: '2026-08-24T14:35:01+08:00'
       }),
-      entry('20260822-143501-a7c31e4f.mdx', {
+      entry('20260822-143501-a7c31e4f', {
         id: '20260822-143501-a7c31e4f',
         publishedAt: '2026-08-22T14:35:01+08:00',
         pinned: true
@@ -51,10 +51,10 @@ describe('moment collection adapter', () => {
 
   it('sorts by absolute publish time across different offsets', () => {
     const moments = sortMoments([
-      entry('20260823-143501-a7c31e4f.mdx', {
+      entry('20260823-143501-a7c31e4f', {
         publishedAt: '2026-08-23T14:35:01+08:00'
       }),
-      entry('20260823-143502-a7c31e4f.mdx', {
+      entry('20260823-143502-a7c31e4f', {
         id: '20260823-143502-a7c31e4f',
         publishedAt: '2026-08-23T03:00:00-04:00'
       })
@@ -68,10 +68,10 @@ describe('moment collection adapter', () => {
 
   it('uses the stable id as the final tie-breaker', () => {
     const moments = sortMoments([
-      entry('20260823-143501-bbbbbbbb.mdx', {
+      entry('20260823-143501-bbbbbbbb', {
         id: '20260823-143501-bbbbbbbb'
       }),
-      entry('20260823-143501-aaaaaaaa.mdx', {
+      entry('20260823-143501-aaaaaaaa', {
         id: '20260823-143501-aaaaaaaa'
       })
     ])
@@ -84,8 +84,8 @@ describe('moment collection adapter', () => {
 
   it('rejects duplicate ids before publishing', () => {
     expect(() => validateMomentEntries([
-      entry('20260823-143501-a7c31e4f.mdx'),
-      entry('20260823-143501-a7c31e4f.mdx')
+      entry('20260823-143501-a7c31e4f'),
+      entry('20260823-143501-a7c31e4f')
     ])).toThrow(/duplicate/i)
   })
 
@@ -96,7 +96,7 @@ describe('moment collection adapter', () => {
   ])('rejects any moment entry outside the exact top-level mdx contract: %s', (filename) => {
     expect(() => validateMomentEntries([
       entry(filename)
-    ])).toThrow(/top-level|mdx|id/i)
+    ])).toThrow(/top-level|id/i)
   })
 
   it.each([
@@ -109,7 +109,7 @@ describe('moment collection adapter', () => {
     '2026-08-23T14:35:01+23:59',
   ])('fails closed on an invalid moment timestamp even if the collection loader yields it: %s', (publishedAt) => {
     expect(() => validateMomentEntries([
-      entry('20260823-143501-a7c31e4f.mdx', {
+      entry('20260823-143501-a7c31e4f', {
         publishedAt,
       })
     ])).toThrow(/publishedAt|time zone|calendar/i)
@@ -117,7 +117,7 @@ describe('moment collection adapter', () => {
 
   it('rejects unknown tags before publishing', () => {
     expect(() => validateMomentEntries([
-      entry('20260823-143501-a7c31e4f.mdx', {
+      entry('20260823-143501-a7c31e4f', {
         tags: ['missing-tag']
       })
     ])).toThrow(/Unknown tag: missing-tag/)
@@ -125,7 +125,7 @@ describe('moment collection adapter', () => {
 
   it('rejects duplicate tag ids before publishing', () => {
     expect(() => validateMomentEntries([
-      entry('20260823-143501-a7c31e4f.mdx', {
+      entry('20260823-143501-a7c31e4f', {
         tags: ['life-notes', 'life-notes']
       })
     ])).toThrow(/Duplicate moment tag id: life-notes/)
@@ -137,10 +137,22 @@ describe('moment collection adapter', () => {
     await expect(getPublishedMoments()).resolves.toEqual([])
   })
 
+  it('accepts real collection entry ids from the configured Astro moments loader instead of requiring a .mdx suffix', async () => {
+    mockGetCollection.mockResolvedValueOnce([
+      entry('20260823-143501-a7c31e4f')
+    ])
+
+    await expect(getPublishedMoments()).resolves.toMatchObject([
+      {
+        id: '20260823-143501-a7c31e4f',
+      }
+    ])
+  })
+
   it('throws when the collection contains an invalid moment instead of silently dropping it', async () => {
     mockGetCollection.mockResolvedValueOnce([
-      entry('20260823-143501-a7c31e4f.mdx'),
-      entry('20260823-143502-a7c31e4f.mdx', {
+      entry('20260823-143501-a7c31e4f'),
+      entry('20260823-143502-a7c31e4f', {
         id: '20260823-143502-a7c31e4f',
         tags: ['missing-tag']
       })
@@ -157,6 +169,6 @@ describe('moment collection adapter', () => {
       })
     ])
 
-    await expect(getPublishedMoments()).rejects.toThrow(/top-level|mdx/i)
+    await expect(getPublishedMoments()).rejects.toThrow(/top-level|id/i)
   })
 })

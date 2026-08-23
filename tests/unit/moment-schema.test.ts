@@ -68,19 +68,19 @@ describe('moment schema', () => {
 
   it('rejects filename and frontmatter id mismatches during entry validation', () => {
     expect(() => validateMomentEntries([
-      entry('20260823-143502-a7c31e4f.mdx')
+      entry('20260823-143502-a7c31e4f')
     ])).toThrow(/filename.*id/i)
   })
 
   it('rejects unknown tag ids during entry validation', () => {
     expect(() => validateMomentEntries([
-      entry(`${validMoment.id}.mdx`, { ...validMoment, tags: ['missing-tag'] })
+      entry(validMoment.id, { ...validMoment, tags: ['missing-tag'] })
     ])).toThrow(/Unknown tag: missing-tag/)
   })
 
   it('rejects whitespace-only bodies during entry validation', () => {
     expect(() => validateMomentEntries([
-      entry(`${validMoment.id}.mdx`, validMoment, '   ')
+      entry(validMoment.id, validMoment, '   ')
     ])).toThrow(/body/i)
   })
 })
