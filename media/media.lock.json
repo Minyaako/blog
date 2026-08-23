@@ -143,6 +143,20 @@
       "frames": 1,
       "url": "https://pic.minyako.top/blog/33/33186e9fb044ed536211db6dd15c694898e6792f7b0bb8762872a82acb5d51fb.webp",
       "createdAt": "2026-08-23T12:27:17.871Z"
+    },
+    {
+      "id": "miyako-nya-1",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_hOK4mkAvj3_N4f59I6UF1HFx",
+      "sha256": "3c78b31521767303342ed695ae053789a76b42c832d8ef372b3015148449f508",
+      "bytes": 10514,
+      "contentType": "image/webp",
+      "width": 209,
+      "height": 189,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/3c/3c78b31521767303342ed695ae053789a76b42c832d8ef372b3015148449f508.webp",
+      "createdAt": "2026-08-23T13:12:21.676Z"
     }
   ]
 }
