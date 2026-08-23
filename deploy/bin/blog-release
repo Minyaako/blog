@@ -132,6 +132,16 @@ compose_up() {
     -f "$COMPOSE_FILE" up -d --wait --remove-orphans
 }
 
+pull_image() {
+  pull_image_ref=$1
+  pull_attempt=1
+  while ! "$DOCKER" pull "$pull_image_ref"; do
+    if test "$pull_attempt" -ge 3; then return 1; fi
+    sleep 5
+    pull_attempt=$((pull_attempt + 1))
+  done
+}
+
 # Invoked only through the EXIT-trap rollback path; ShellCheck cannot trace that call graph.
 # shellcheck disable=SC2317
 compose_down() {
@@ -305,7 +315,7 @@ if test -e "$STATE_DIR/previous" || test -L "$STATE_DIR/previous"; then
 fi
 
 image=$IMAGE_REPO:$sha
-"$DOCKER" pull "$image" || die "could not pull $image"
+pull_image "$image" || die "could not pull $image"
 CANDIDATE=blog-candidate-$short
 "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
 "$DOCKER" run -d --name "$CANDIDATE" \

@@ -82,6 +82,11 @@ image_matches() {
 
 case ${1:-} in
   pull)
+    pull_attempt=0
+    if test -f "$PULL_ATTEMPT_FILE"; then pull_attempt=$(cat "$PULL_ATTEMPT_FILE"); fi
+    pull_attempt=$((pull_attempt + 1))
+    printf '%s\n' "$pull_attempt" > "$PULL_ATTEMPT_FILE"
+    if test "$pull_attempt" -le "${FAIL_PULL_ATTEMPTS:-0}"; then exit 1; fi
     if test "${FAIL_PULL:-false}" = true; then exit 1; fi
     if test "${ASSERT_OWNED_LOCK:-false}" = true; then
       test -f "$BLOG_STATE_DIR/deploy.lock" || exit 1
@@ -277,7 +282,8 @@ reset_case() {
   export ROLLBACK_LOCK_ASSERTED="$TMP/$case_name/rollback-lock-asserted"
   export LOCK_ASSERTED="$TMP/$case_name/lock-asserted"
   export CASE_OUTPUT="$TMP/$case_name/output.log"
-  unset FAIL_PULL FAIL_RUN FAIL_INSPECT CANDIDATE_HEALTH FAIL_COMPOSE_BEFORE_IMAGE
+  export PULL_ATTEMPT_FILE="$TMP/$case_name/pull-attempts"
+  unset FAIL_PULL FAIL_PULL_ATTEMPTS FAIL_RUN FAIL_INSPECT CANDIDATE_HEALTH FAIL_COMPOSE_BEFORE_IMAGE
   unset FAIL_COMPOSE_AFTER_IMAGE FAIL_COMPOSE_DOWN FAIL_ENDPOINT FAIL_IMAGE
   unset SIGNAL_ENDPOINT SIGNAL_IMAGE FAIL_MV_DEST FAIL_CANDIDATE_RM_ONCE
   unset FAIL_LOCK_RELEASE_ONCE ASSERT_OWNED_LOCK
@@ -385,8 +391,18 @@ test_pull_failure() {
   reset_case pull_failure
   export FAIL_PULL=true
   if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'pull failure was accepted'; fi
+  assert_eq 3 "$(cat "$PULL_ATTEMPT_FILE")" 'permanent pull failure was not retried a bounded number of times'
   assert_failure_state "$one"
   assert_missing "$BLOG_STATE_DIR/current" 'pull failure recorded current'
+}
+
+test_pull_retry_success() {
+  reset_case pull_retry_success
+  export FAIL_PULL_ATTEMPTS=2
+  "$RELEASE" deploy "$one" >/dev/null || fail 'transient pull failure was not recovered'
+  assert_eq 3 "$(cat "$PULL_ATTEMPT_FILE")" 'transient pull did not succeed on the third attempt'
+  assert_eq 2 "$(grep -c '^5$' "$SLEEP_LOG")" 'pull retries did not use the bounded delay'
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'recovered pull did not deploy the release'
 }
 
 test_run_failure() {
@@ -745,6 +761,7 @@ run_case endpoint-archives test_endpoint_failure /archives archives
 run_case endpoint-rss test_endpoint_failure /rss.xml rss
 run_case endpoint-sitemap test_endpoint_failure /sitemap-index.xml sitemap
 run_case pull-failure test_pull_failure
+run_case pull-retry-success test_pull_retry_success
 run_case run-failure test_run_failure
 run_case inspect-failure test_inspect_failure
 run_case unhealthy-candidate test_unhealthy_candidate
