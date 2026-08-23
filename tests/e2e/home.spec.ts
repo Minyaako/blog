@@ -1,4 +1,23 @@
+import { globSync, readFileSync } from 'node:fs'
+import { parse } from 'yaml'
 import { expect, test } from './fixtures'
+import { FIXTURE_POSTS_ROOT } from './content-fixtures'
+
+function latestPublishedTitle() {
+  const posts = [
+    ...globSync('**/*.md', { cwd: FIXTURE_POSTS_ROOT }),
+    ...globSync('**/*.mdx', { cwd: FIXTURE_POSTS_ROOT })
+  ].map((path) => {
+    const source = readFileSync(`${FIXTURE_POSTS_ROOT}/${path}`, 'utf8')
+    const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1]
+    if (!frontmatter) throw new Error(`Missing frontmatter: ${path}`)
+    return parse(frontmatter) as { title: string; publishedAt: string; draft?: boolean }
+  }).filter((post) => post.draft !== true)
+
+  return posts.sort((left, right) => (
+    Date.parse(right.publishedAt) - Date.parse(left.publishedAt)
+  ))[0]?.title
+}
 
 test('homepage presents identity, four domains, and recent writing', async ({ page }) => {
   await page.goto('/')
@@ -18,6 +37,13 @@ test('homepage presents identity, four domains, and recent writing', async ({ pa
   }
 
   await expect(page.getByRole('heading', { name: '最新长文' })).toBeVisible()
+})
+
+test('homepage leads with the newest published long read', async ({ page }) => {
+  await page.goto('/')
+
+  const latest = page.locator('.latest .lead-post h3 a')
+  await expect(latest).toHaveText(latestPublishedTitle() ?? '')
 })
 
 test('homepage renders one decorative vector icon per domain', async ({ page }) => {

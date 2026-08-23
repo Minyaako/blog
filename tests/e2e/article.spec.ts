@@ -1,10 +1,11 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from './fixtures'
+import { FIXTURE_POSTS_ROOT } from './content-fixtures'
 import mediaLock from '../../media/media.lock.json' with { type: 'json' }
 
 function findPublishedHostedMediaFigure() {
-  const postsRoot = path.resolve('src/content/posts')
+  const postsRoot = FIXTURE_POSTS_ROOT
   const hostedMedia = new Map(
     mediaLock.assets
       .filter((asset) => asset.mode === 'hosted')

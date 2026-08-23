@@ -65,3 +65,9 @@ assets:
     name: tst
     alt: tst
     rights: 允许署名转载
+  - id: post-journey-begin
+    mode: hosted
+    provider: minyako-image
+    providerId: img_5Tz_-RIcGyUiUaJJAA3FCQxx
+    name: post-journey-begin
+    rights: 允许署名转载
