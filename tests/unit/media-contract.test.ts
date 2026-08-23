@@ -35,7 +35,7 @@ describe('media publishing contract', () => {
     ]
 
     expect(pkg.devDependencies['@minyaako/media-publisher'])
-      .toBe('github:Minyaako/media-publisher#ededa7f0af445f568b4954cac25408288cac5f05')
+      .toBe('github:Minyaako/media-publisher#4b376c06b142c2500404dd0faf4c05b09959ecb0')
     expect(pkg.scripts['media:verify'])
       .toBe('media-publisher verify --lock media/media.lock.json --all')
     expect(manifest.assets.filter((asset: { mode?: string }) => asset.mode !== 'hosted').map((asset: { id: string }) => asset.id).sort())
