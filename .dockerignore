@@ -3,6 +3,7 @@
 !.github/workflows
 .github/workflows/*
 !.github/workflows/ci.yml
+!.github/workflows/pages-preview.yml
 .worktrees
 .superpowers
 .env*
