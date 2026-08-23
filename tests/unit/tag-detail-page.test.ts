@@ -1,12 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const routeSource = readFileSync(
-  'D:/seRver/apps/blog/.worktrees/moments-editor-integration/src/pages/tags/[id].astro',
-  'utf8',
-)
+const testSource = readFileSync(new URL('./tag-detail-page.test.ts', import.meta.url), 'utf8')
+const routeSource = readFileSync(new URL('../../src/pages/tags/[id].astro', import.meta.url), 'utf8')
+const checkoutRootLiteral = ['D', ':/', 'seRver'].join('')
+const worktreeLiteral = ['.', 'worktrees'].join('')
 
 describe('tag detail route wiring', () => {
+  it('keeps the test harness free of checkout-specific absolute paths', () => {
+    expect(testSource).not.toContain(checkoutRootLiteral)
+    expect(testSource).not.toContain(worktreeLiteral)
+    expect(testSource).not.toMatch(/['"`][A-Z]:\//)
+  })
+
   it('filters moment props by tag id before rendering the page', () => {
     expect(routeSource).toContain("moments: moments.filter((moment) => moment.tags.some((item) => item.id === tag.id))")
   })
