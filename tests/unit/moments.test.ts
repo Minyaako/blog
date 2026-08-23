@@ -97,6 +97,14 @@ describe('moment collection adapter', () => {
     ])).toThrow(/Unknown tag: missing-tag/)
   })
 
+  it('rejects duplicate tag ids before publishing', () => {
+    expect(() => validateMomentEntries([
+      entry('20260823-143501-a7c31e4f.mdx', {
+        tags: ['life-notes', 'life-notes']
+      })
+    ])).toThrow(/Duplicate moment tag id: life-notes/)
+  })
+
   it('returns an empty list when the collection is empty instead of falling back to sample moments', async () => {
     mockGetCollection.mockResolvedValueOnce([])
 
