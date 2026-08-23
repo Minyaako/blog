@@ -63,7 +63,7 @@ describe('media publishing contract', () => {
       expect(lockEntry).toBeDefined()
       if (!lockEntry) continue
       expect(manifestEntry).toMatchObject({ mode: 'hosted', provider: 'minyako-image' })
-      expect(manifestEntry.providerId).toMatch(/^img_[A-Za-z0-9]{24}$/)
+      expect(manifestEntry.providerId).toMatch(/^img_[A-Za-z0-9_-]{24}$/)
       expect(lockEntry).toMatchObject({
         mode: 'hosted',
         provider: manifestEntry.provider,

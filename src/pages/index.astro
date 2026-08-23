@@ -9,8 +9,6 @@ import { getPublishedMoments } from '../lib/moments'
 import { getPublishedPosts, toPostCard } from '../lib/posts'
 
 const posts = (await getPublishedPosts()).map(toPostCard)
-const featured = posts.find((post) => post.pageKey === 'engineering-astro-content-architecture')
-const ordered = featured ? [featured, ...posts.filter((post) => post.pageKey !== featured.pageKey)] : posts
 const moments = (await getPublishedMoments()).slice(0, 2)
 ---
 
@@ -18,6 +16,6 @@ const moments = (await getPublishedMoments()).slice(0, 2)
   <HeroBanner />
   <ProfileStrip />
   <DomainGrid />
-  <LatestPosts posts={ordered} />
+  <LatestPosts posts={posts} />
   {moments.length > 0 && <LatestMoments moments={moments} />}
 </BaseLayout>
