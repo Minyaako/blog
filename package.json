@@ -8,8 +8,8 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "check": "astro check",
+    "dev": "node scripts/ensure-content-cache-mode.mjs && astro dev",
+    "check": "node scripts/ensure-content-cache-mode.mjs && astro check",
     "test:unit": "vitest run",
     "test:e2e": "pnpm test:e2e:empty && playwright test",
     "test:e2e:empty": "playwright test --config playwright.empty.config.ts",
@@ -19,7 +19,7 @@
     "media:validate": "media-publisher validate --manifest media/media.yaml --lock media/media.lock.json",
     "media:publish": "media-publisher publish --manifest media/media.yaml --lock media/media.lock.json --credentials github-oidc --bucket $MEDIA_COS_BUCKET --region $MEDIA_COS_REGION --report .media-publish-report.json",
     "media:verify": "media-publisher verify --lock media/media.lock.json --all",
-    "build:astro": "astro build",
+    "build:astro": "node scripts/ensure-content-cache-mode.mjs && astro build",
     "build:search": "pagefind --site dist",
     "build": "pnpm check && pnpm test:unit && pnpm build:astro && pnpm build:search",
     "preview": "astro preview"

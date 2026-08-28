@@ -42,6 +42,10 @@
 }
 
 @layer components {
+  [data-warning-accept] { display: none; }
+  .js [data-warning-accept] { display: inline-flex; align-items: center; }
+  .js [data-moment-card]:not([data-warning-accepted]) [data-moment-warning] + [data-moment-protected-content] { display: none; }
+
   .skip-link {
     position: fixed;
     inset: var(--space-3) auto auto var(--space-3);
@@ -132,6 +136,12 @@
     padding-block: var(--space-7) var(--space-8);
   }
 
+  .moment-stream-status {
+    margin: var(--space-3) 0;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+  }
+
   .site-footer {
     padding-block: var(--space-6);
     border-top: 1px solid var(--border);
@@ -168,7 +178,7 @@
   .primary-nav { grid-column: 1 / -1; justify-self: stretch; }
   .nav-list {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
   .nav-link {
     justify-content: center;

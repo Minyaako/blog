@@ -96,7 +96,7 @@ test('mobile identity and primary navigation fit the initial viewport', async ({
 
   const geometry = await page.evaluate(() => {
     const navigation = document.querySelector('.primary-nav')
-    const lastNavigationItem = document.querySelector('.nav-list li:last-child')?.getBoundingClientRect()
+    const lastNavigationItem = document.querySelector('.nav-list li:last-of-type')?.getBoundingClientRect()
     const id = document.querySelector('.name-row span')?.getBoundingClientRect()
     return {
       navigationScrollWidth: navigation?.scrollWidth ?? Number.POSITIVE_INFINITY,

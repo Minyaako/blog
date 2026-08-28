@@ -34,6 +34,21 @@ test('stable tag routes display labels and aliases', async ({ page }) => {
   await expect(page.getByRole('link', { name: /视觉小说中的记忆与重访/ })).toBeVisible()
 })
 
+test('tag detail pages separate matching articles from moments and keep empty states explicit', async ({ page }) => {
+  await page.goto('/tags/visual-novel')
+  await expect(page.getByRole('region', { name: '相关文章' })).toBeVisible()
+  await expect(page.getByRole('region', { name: '相关动态' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /视觉小说中的记忆与重访/ })).toBeVisible()
+  await expect(page.getByText('七月田野札记')).toHaveCount(0)
+  await expect(page.getByText('尚无公开动态使用此标签。')).toBeVisible()
+
+  await page.goto('/tags/test')
+  await expect(page.getByRole('region', { name: '相关文章' })).toBeVisible()
+  await expect(page.getByRole('region', { name: '相关动态' })).toBeVisible()
+  await expect(page.getByText('尚无公开文章使用此标签。')).toBeVisible()
+  await expect(page.getByText('尚无公开动态使用此标签。')).toBeVisible()
+})
+
 test('archive and tag pages keep decorative utility icons out of the heading outline', async ({ page }) => {
   for (const path of ['/archives', '/tags']) {
     await page.goto(path)

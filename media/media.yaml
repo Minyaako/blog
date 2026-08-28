@@ -77,3 +77,21 @@ assets:
     providerId: img_hOK4mkAvj3_N4f59I6UF1HFx
     name: miyako-nya-1
     rights: 允许署名转载
+  - id: post-ccr-cover
+    mode: hosted
+    provider: minyako-image
+    providerId: img_7OsujvaAkSjB-rT6d2dOBFwo
+    name: post-ccr-cover
+    rights: 允许署名转载
+  - id: post-ccr-1
+    mode: hosted
+    provider: minyako-image
+    providerId: img_dm9vjwfJg1t5PnR8rUP6QZfU
+    name: post-ccr-1
+    rights: 允许署名转载
+  - id: post-ccr-2
+    mode: hosted
+    provider: minyako-image
+    providerId: img_8VaJ9tZR86tw8N2zHSuC3-wu
+    name: post-ccr-2
+    rights: 允许署名转载

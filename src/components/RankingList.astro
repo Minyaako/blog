@@ -1,0 +1,33 @@
+---
+import type { RankingDefinition } from '../lib/ranking-fixtures'
+
+interface Props {
+  ranking: RankingDefinition
+}
+
+const { ranking } = Astro.props
+---
+
+<ol data-ranking-list>
+  {ranking.items.map((item) => (
+    <li data-ranking-item data-rank={item.rank}>
+      <span class="rank" aria-label={`第 ${item.rank} 名`}>{String(item.rank).padStart(2, '0')}</span>
+      <div>
+        <p class="item-name">{item.name}</p>
+        <p class="category">{item.category}</p>
+        <details><summary>查看短评</summary><p class="ranking-note">{item.note}</p></details>
+      </div>
+    </li>
+  ))}
+</ol>
+
+<style>
+  ol { margin: 0; padding: 0; border-top: 3px solid var(--accent); list-style: none; }
+  li { display: grid; grid-template-columns: 3rem 1fr; gap: var(--space-4); padding: var(--space-5) 0; border-bottom: 1px solid var(--border); }
+  .rank { color: var(--accent); font: 720 1.35rem/1 var(--font-mono); }
+  .item-name { margin: 0; font: 680 1rem/1.4 var(--font-display); }
+  .category { margin: var(--space-1) 0 var(--space-3); color: var(--text-muted); font-size: .76rem; }
+  details { color: var(--text-muted); font-size: .82rem; }
+  summary { width: fit-content; cursor: pointer; text-underline-offset: .2em; }
+  .ranking-note { margin: var(--space-2) 0 0; line-height: 1.65; }
+</style>

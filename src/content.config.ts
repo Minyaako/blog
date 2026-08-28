@@ -1,6 +1,12 @@
 import { defineCollection } from 'astro:content'
 import { glob } from 'astro/loaders'
-import { resolvePostContentBase } from './lib/content-source'
+import {
+  clearCollectionBeforeLoad,
+  generateMomentContentId,
+  resolveMomentContentBase,
+  resolvePostContentBase,
+} from './lib/content-source'
+import { momentSchema } from './schemas/moment'
 import { postSchema } from './schemas/post'
 import { tagSchema } from './schemas/tag'
 
@@ -14,4 +20,13 @@ const tags = defineCollection({
   schema: tagSchema
 })
 
-export const collections = { posts, tags }
+const moments = defineCollection({
+  loader: clearCollectionBeforeLoad(glob({
+    pattern: '*.mdx',
+    base: resolveMomentContentBase(),
+    generateId: ({ entry }) => generateMomentContentId(entry)
+  })),
+  schema: momentSchema
+})
+
+export const collections = { posts, tags, moments }
