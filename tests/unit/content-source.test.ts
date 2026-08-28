@@ -26,6 +26,14 @@ describe('post content source', () => {
     expect(resolveMomentContentBase({ BLOG_MOMENT_FIXTURES: 'false' })).toBe('./src/content/moments')
   })
 
+  it('uses an isolated empty moment source before any populated fixture source', () => {
+    expect(resolveMomentContentBase({ BLOG_E2E_EMPTY_CONTENT: 'true' })).toBe('./tests/fixtures/empty-moments')
+    expect(resolveMomentContentBase({
+      BLOG_E2E_EMPTY_CONTENT: 'true',
+      BLOG_MOMENT_FIXTURES: 'true',
+    })).toBe('./tests/fixtures/empty-moments')
+  })
+
   it('derives the exact top-level moment id from a fixture or content filename', () => {
     expect(generateMomentContentId('20260823-143501-a7c31e4f.mdx')).toBe('20260823-143501-a7c31e4f')
   })

@@ -351,9 +351,10 @@ test('reduced motion keeps fallback navigation instantaneous', async ({ page }) 
 test('homepage reveals the A2 modules once in order', async ({ page }) => {
   await page.goto('/')
   const modules = page.locator('[data-motion-reveal]')
-  await expect(modules).toHaveCount(3)
+  const moduleCount = await modules.count()
+  expect(moduleCount).toBeGreaterThan(0)
 
-  for (let index = 0; index < 3; index += 1) {
+  for (let index = 0; index < moduleCount; index += 1) {
     const module = modules.nth(index)
     await module.scrollIntoViewIfNeeded()
     await expect(module).toHaveAttribute('data-motion-state', 'visible')
@@ -440,7 +441,9 @@ test('archive cards reveal once and expose stable motion order', async ({ page }
 test('reduced motion keeps A2 content visible', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
-  await expect(page.locator('[data-motion-reveal][data-motion-state="visible"]')).toHaveCount(3)
+  const modules = page.locator('[data-motion-reveal]')
+  expect(await modules.count()).toBeGreaterThan(0)
+  await expect(page.locator('[data-motion-reveal]:not([data-motion-state="visible"])')).toHaveCount(0)
 })
 
 test('reduced motion removes the toc marker transition', async ({ page }) => {

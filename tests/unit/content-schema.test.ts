@@ -10,6 +10,7 @@ vi.mock('astro/loaders', () => ({
 }))
 
 import { collections } from '../../src/content.config'
+import { resolveMomentContentBase } from '../../src/lib/content-source'
 import { postSchema } from '../../src/schemas/post'
 
 const validPost = {
@@ -71,7 +72,7 @@ describe('post schema', () => {
       },
     })
     expect(momentsCollection.loader).toHaveProperty('generateId')
-    expect(momentsCollection.loader.base).toMatch(/^\.\/(?:src\/content|tests\/fixtures)\/moments$/)
+    expect(momentsCollection.loader.base).toBe(resolveMomentContentBase())
     expect(source).toMatch(/base:\s*resolveMomentContentBase\(\)/)
     expect(source).toMatch(/pattern:\s*'\*\.mdx'/)
     expect(source).toMatch(/generateId:\s*\(\{\s*entry\s*\}\)\s*=>\s*generateMomentContentId\(entry\)/)

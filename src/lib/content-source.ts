@@ -18,6 +18,7 @@ export function resolvePostContentBase(environment: ContentEnvironment = process
 }
 
 export function resolveMomentContentBase(environment: ContentEnvironment = process.env): string {
+  if (environment.BLOG_E2E_EMPTY_CONTENT === 'true') return './tests/fixtures/empty-moments'
   return environment.BLOG_MOMENT_FIXTURES === 'true'
     ? './tests/fixtures/moments'
     : './src/content/moments'

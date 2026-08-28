@@ -17,5 +17,5 @@ const moments = (await getPublishedMoments()).slice(0, 2)
   <ProfileStrip />
   <DomainGrid />
   <LatestPosts posts={posts} />
-  {moments.length > 0 && <LatestMoments moments={moments} />}
+  <LatestMoments moments={moments} />
 </BaseLayout>

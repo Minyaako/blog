@@ -15,13 +15,15 @@ const formatDate = (date: Date) => new Intl.DateTimeFormat('zh-CN', { month: 'sh
     <a href="/moments">进入时间流 <span class="motion-arrow" aria-hidden="true">→</span></a>
   </header>
   <div class="moment-previews">
-    {moments.slice(0, 2).map((moment) => (
-      <article data-moment-preview>
-        <p><time datetime={moment.publishedAt.toISOString()}>{formatDate(moment.publishedAt)}</time></p>
-        <h3><a href={`/moments/${moment.id}`}>{moment.title ?? '一则没有标题的动态'}</a></h3>
-        <p>{toMomentSummary(moment, 96)}</p>
-      </article>
-    ))}
+    {moments.length > 0
+      ? moments.slice(0, 2).map((moment) => (
+          <article data-moment-preview>
+            <p><time datetime={moment.publishedAt.toISOString()}>{formatDate(moment.publishedAt)}</time></p>
+            <h3><a href={`/moments/${moment.id}`}>{moment.title ?? '一则没有标题的动态'}</a></h3>
+            <p>{toMomentSummary(moment, 96)}</p>
+          </article>
+        ))
+      : <p class="empty" role="status">还没有公开的动态。</p>}
   </div>
 </section>
 
@@ -32,6 +34,7 @@ const formatDate = (date: Date) => new Intl.DateTimeFormat('zh-CN', { month: 'sh
   h2 { margin: var(--space-2) 0 0; font: 750 var(--text-title)/1.2 var(--font-display); }
   header a { color: var(--text-muted); font-size: .82rem; }
   .moment-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+  .empty { grid-column: 1 / -1; margin: 0; padding: var(--space-5) 0; color: var(--text-muted); }
   article { padding: var(--space-5) 0; border-bottom: 1px solid var(--border); }
   h3 { margin: var(--space-2) 0; font: 680 1rem/1.45 var(--font-display); }
   h3 a { text-decoration: none; }

@@ -4,8 +4,9 @@ import { join } from 'node:path'
 const MARKER_FILE = '.content-mode'
 
 export function getAstroContentMode(environment = process.env) {
-  const postsMode = environment.BLOG_E2E_FIXTURES === 'true' ? 'fixtures' : 'default'
-  const momentsMode = environment.BLOG_MOMENT_FIXTURES === 'true' ? 'fixtures' : 'default'
+  const empty = environment.BLOG_E2E_EMPTY_CONTENT === 'true'
+  const postsMode = empty ? 'empty' : environment.BLOG_E2E_FIXTURES === 'true' ? 'fixtures' : 'default'
+  const momentsMode = empty ? 'empty' : environment.BLOG_MOMENT_FIXTURES === 'true' ? 'fixtures' : 'default'
   return `posts=${postsMode};moments=${momentsMode}`
 }
 

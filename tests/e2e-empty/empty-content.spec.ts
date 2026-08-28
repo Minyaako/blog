@@ -5,8 +5,10 @@ test('an empty blog keeps its public navigation and explicit empty states', asyn
   await expect(page.getByRole('heading', { name: '最新长文' })).toBeVisible()
   await expect(page.getByText('第一篇长文正在准备中。')).toBeVisible()
   await expect(page.locator('[data-post-card]')).toHaveCount(0)
-  await expect(page.locator('[data-latest-moments]')).toHaveCount(0)
-  await expect(page.locator('[data-moment-preview]')).toHaveCount(0)
+  const latestMoments = page.getByRole('region', { name: '最新动态' })
+  await expect(latestMoments).toBeVisible()
+  await expect(latestMoments.locator('[data-moment-preview]')).not.toBeVisible()
+  await expect(latestMoments.getByRole('status')).toBeVisible()
 
   await page.goto('/archives')
   await expect(page.getByRole('heading', { name: '文章归档' })).toBeVisible()

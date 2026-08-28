@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it } from 'vitest'
 import { rmSync } from 'node:fs'
-import { syncAstroContentCacheMode } from '../../scripts/lib/astro-content-cache.js'
+import { getAstroContentMode, syncAstroContentCacheMode } from '../../scripts/lib/astro-content-cache.js'
 
 const roots: string[] = []
 
@@ -20,6 +20,14 @@ function makeRoot() {
 }
 
 describe('syncAstroContentCacheMode', () => {
+  it('gives empty content its own cache mode before populated fixture modes', () => {
+    expect(getAstroContentMode({
+      BLOG_E2E_EMPTY_CONTENT: 'true',
+      BLOG_E2E_FIXTURES: 'true',
+      BLOG_MOMENT_FIXTURES: 'true',
+    })).toBe('posts=empty;moments=empty')
+  })
+
   it('clears stale Astro content artifacts when switching between fixture and default content modes', () => {
     const root = makeRoot()
     const astroDir = join(root, '.astro')
