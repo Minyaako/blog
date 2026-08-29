@@ -6,7 +6,7 @@ const routes = {
   article: '/posts/astro-content-architecture',
   game: '/posts/visual-novel-memory',
   moments: '/moments',
-  momentDetail: '/moments/20260824-005615-de5f1a7f',
+  momentDetail: '/moments/20260823-143501-a7c31e4f',
   search: '/search',
   about: '/about',
   notFound: '/404'
@@ -17,9 +17,13 @@ for (const theme of ['light', 'dark'] as const) {
     test(`${name} ${theme}`, async ({ page }) => {
       await page.addInitScript((value) => localStorage.setItem('minyako-theme', value), theme)
       if (name === 'momentDetail') {
-        await page.addInitScript(() => sessionStorage.setItem('minyako-warning:20260824-005615-de5f1a7f', 'accepted'))
+        await page.addInitScript(() => sessionStorage.setItem('minyako-warning:20260823-143501-a7c31e4f', 'accepted'))
       }
-      await page.goto(path)
+      const response = await page.goto(path)
+      if (name === 'momentDetail') {
+        expect(response?.status()).toBe(200)
+        await expect(page.locator('[data-moment-card]')).toHaveCount(1)
+      }
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await expect(page).toHaveScreenshot(`${name}-${theme}.png`, {
         fullPage: name !== 'moments' && name !== 'momentDetail',
