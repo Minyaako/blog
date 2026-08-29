@@ -19,6 +19,10 @@ test('fixture-backed moments survive the real Astro build and render on stream, 
   await expect(page.locator('[data-moment-card]')).toHaveCount(1)
   await expect(page.getByText('雨停以后，窗外的颜色变得很慢。')).toBeVisible()
 
+  const momentRadius = await page.locator('[data-moment-card]').first()
+    .evaluate((node) => getComputedStyle(node).borderRadius)
+  expect(Number.parseFloat(momentRadius)).toBeGreaterThan(0)
+
   await page.goto('/')
   await expect(page.locator('[data-latest-moments]')).toHaveCount(1)
   await expect(page.locator('[data-moment-preview]')).toHaveCount(1)

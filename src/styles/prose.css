@@ -16,20 +16,53 @@
     text-underline-offset: 0.2em;
   }
 
-  .prose :is(pre, blockquote) {
+  .prose pre {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--surface);
-  }
-
-  .prose pre {
+    position: relative;
     overflow-x: auto;
     padding: var(--space-5);
+  }
+
+  .prose pre[data-language]::before {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-3);
+    color: var(--text-muted);
+    content: attr(data-language);
+    font: var(--text-caption)/1 var(--font-mono);
+    text-transform: uppercase;
   }
 
   .prose blockquote {
     margin-inline: 0;
     padding: var(--space-3) var(--space-5);
-    color: var(--text-muted);
+    border: 0;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+    color: var(--text);
+  }
+
+  .prose blockquote::before {
+    color: var(--accent);
+    content: '“';
+    font: 700 1.5em/0 var(--font-display);
+  }
+
+  .prose :not(pre) > code {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  }
+
+  :root[data-theme='dark'] .prose pre.astro-code {
+    background-color: var(--shiki-dark-bg) !important;
+  }
+
+  :root[data-theme='dark'] .prose pre.astro-code span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
   }
 }
