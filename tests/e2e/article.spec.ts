@@ -54,6 +54,40 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
   await expect(page.getByRole('link', { name: '#Astro' })).toHaveAttribute('href', '/tags/astro/')
 })
 
+test('prose keeps blockquotes accented and updates Shiki colors without reloading', async ({ page }) => {
+  await page.goto('/posts/astro-content-architecture')
+  const quote = page.locator('.prose blockquote')
+  await expect(quote).toBeVisible()
+  await expect(quote).toHaveCSS('border-left-width', '3px')
+  await expect(quote).toHaveCSS('border-top-width', '0px')
+
+  await page.goto('/posts/astro-content-architecture')
+  const code = page.locator('.prose pre.astro-code').first()
+  const token = code.locator('span').first()
+  const [lightBackground, lightTokenColor] = await Promise.all([
+    code.evaluate((node) => getComputedStyle(node).backgroundColor),
+    token.evaluate((node) => getComputedStyle(node).color)
+  ])
+
+  await page.getByRole('button', { name: '切换主题' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  const [darkBackground, darkTokenColor] = await Promise.all([
+    code.evaluate((node) => getComputedStyle(node).backgroundColor),
+    token.evaluate((node) => getComputedStyle(node).color)
+  ])
+  expect(darkBackground).not.toBe(lightBackground)
+  expect(darkTokenColor).not.toBe(lightTokenColor)
+})
+
+test('prose code stays within the document at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.goto('/posts/astro-content-architecture')
+
+  const pre = page.locator('.prose pre').first()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth === document.documentElement.clientWidth)).toBe(true)
+  expect(await pre.evaluate((node) => node.scrollWidth >= node.clientWidth)).toBe(true)
+})
+
 test('existing public articles use their mapped WebP headers', async ({ page }) => {
   const articles = [
     ['/posts/embodied-ai-reading/', 'https://pic.minyako.top/blog/posts/embodied-ai-reading/cover-f03e8a61960275abdd4255138e3e8a5fd471251cefb47024dba6313b04ae5fe2.webp'],
