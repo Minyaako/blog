@@ -1,0 +1,425 @@
+# 生产部署
+
+本文档是博客应用的生产发布与故障处置手册。首次上线仍须与 `server-infra` 仓库的主机初始化和共享网关计划配合执行。
+
+## 媒体发布引导
+
+- PNG 原图只保存在 `/srv/shared-assets` 公共素材库；COS/EdgeOne 不是原图备份。
+- 仓库中的 `media/assets` 保存七张已审核 WebP 上传输入，`media/media.lock.json` 固定其 SHA-256、不可变对象键和公开 URL。
+- 页面位图只通过 `src/lib/media.ts` 解析 `media/media.lock.json` 中的逻辑 ID，运行时读取 `https://pic.minyako.top/blog/` 下的不可变 URL；七份旧的本地 WebP 交付副本已移除。
+- 首次合并前设置 `MEDIA_PUBLISH_ENABLED=false`。此状态下 `publish-media` 只完成安装和验证，不请求上传。
+- 启用后，工作流通过 GitHub OIDC 换取腾讯云临时凭证，不配置永久腾讯云访问密钥。
+- 同一内容 SHA 可安全重试：元数据完全一致时跳过，冲突时失败；发布器不会删除或覆盖旧对象。
+
+引导阶段关闭媒体写入时执行：
+
+```powershell
+gh variable set MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production --body false
+gh variable get MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production
+```
+
+在 CAM/OIDC 配置、最小权限拒绝测试和七个 EdgeOne URL 哈希验证全部完成前，不得把该变量改为 `true`。CDN 切换后，任何新版本还必须先确认其锁中所有对象已存在，才能进入镜像构建与部署。
+
+COS 策略资源中的 `uid/` 必须填写存储桶 APPID，而不是主账号 UIN。当前限定资源为：
+
+```text
+qcs::cos:ap-shanghai:uid/1451980311:minyako-media-1451980311/blog/*
+```
+
+不可变上传需要 `HeadObject` 和 `PutObject`；为大文件上传预留的最小操作还包括
+`InitiateMultipartUpload`、`ListMultipartUploads`、`ListParts`、
+`UploadPart`、`CompleteMultipartUpload` 与 `AbortMultipartUpload`。不得加入
+`DeleteObject`、ACL、存储桶配置、通配操作或 `blog/*` 以外的资源。
+
+如 OIDC、COS 权限、对象哈希或 CDN 可见性检查失败，立即关闭后续媒体写入：
+
+```powershell
+gh variable set MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production --body false
+gh variable get MEDIA_PUBLISH_ENABLED --repo Minyaako/blog --env production
+```
+
+这只会阻止后续工作流写入 COS，不会删除已发布对象，也不会撤回正在运行的任务。
+关闭媒体写入后，只有仍引用本地图片或其全部锁定 CDN 对象已经存在的版本才可安全发布。
+首次 OIDC 预热证据见 `docs/verification/media-oidc-bootstrap.md`。
+生产 CDN 切换、对象完整性及回滚恢复演练证据见
+`docs/verification/media-cdn-cutover.md`。
+
+CDN 切换后，发布检查还必须确认：首页、归档和四篇文章均引用
+`https://pic.minyako.top/blog/` 下的锁定 URL，不再引用旧的
+`/images/home/*.webp`、`/images/posts/*.webp` 或
+`/images/profile/*.webp`；同时逐项核对 `media/media.lock.json` 的字节数和
+SHA-256。关闭 `MEDIA_PUBLISH_ENABLED` 只能阻止后续写入，不能让缺少已发布
+对象的新版本安全运行。
+
+## 固定边界
+
+| 项目 | 固定值 |
+| --- | --- |
+| Canonical origin | `https://gsk.minyako.top` |
+| 旧域名 | `https://minyakogsk.icu`，最终保留路径和查询参数并返回 308 |
+| 不可变镜像 | `ghcr.io/minyaako/blog:$sha`，其中 `$sha` 必须是已部署提交的 40 位小写完整 SHA |
+| 应用运行目录 | `/srv/apps/blog` |
+| 内部服务 | `blog:8080`，只加入外部 Docker 网络 `server_proxy`，不映射主机端口 |
+| 共享网关 | `server-caddy`，由 `server-infra` 仓库和服务器管理员维护 |
+
+本仓库负责 Docker 镜像、`deploy/compose.yml`、`deploy/bin/blog-release` 和 GitHub Actions。它不拥有共享 Caddy 基础配置、主机账号、SSH forced-command 或 80/443 端口；这些属于 `server-infra`。根域名 `minyako.top` 不在本次博客部署范围内。
+
+生产服务器不安装 Node.js 或 pnpm。服务器只匿名拉取公开的 SHA 镜像，不能保存 GitHub PAT、GHCR 密码或其他注册表凭据。博客容器是只读静态站，`/config` 与 `/data` 均为临时文件系统。
+
+## 首次发布
+
+首次发布必须严格按以下顺序执行。所有命令均在仓库 `Minyaako/blog` 上操作；秘密只从本地临时文件重定向，不应粘贴到终端参数、Issue、日志或本文档。
+
+1. 保持发布闸门关闭：
+
+   ```powershell
+   gh variable set DEPLOY_ENABLED --repo Minyaako/blog --body false
+   gh variable get DEPLOY_ENABLED --repo Minyaako/blog
+   ```
+
+   最后一条必须输出 `false`。此时合并到 `main` 可以验证并发布镜像，但不会连接生产服务器。
+
+2. 确认 PR 检查通过后合并。等待 `main` 的 `verify` 与 `publish-image` 成功，并取得完整提交 SHA：
+
+   ```powershell
+   $mainSha = gh api repos/Minyaako/blog/commits/main --jq .sha
+   if ($mainSha -cnotmatch '^[0-9a-f]{40}$') { throw 'main SHA 不是 40 位小写十六进制' }
+   $image = "ghcr.io/minyaako/blog:$mainSha"
+   $image
+   ```
+
+3. 首次创建的 GHCR Package 默认可能不是公开包。由仓库所有者在 GitHub Package 设置中把 `ghcr.io/minyaako/blog` 手动改为 **Public**。不得用服务器 PAT 绕过这一步。
+
+4. 通过已信任的管理员别名证明服务器能够匿名拉取该 SHA 镜像：
+
+   ```powershell
+   ssh tencent-server "sudo docker logout ghcr.io >/dev/null 2>&1 || true"
+   ssh tencent-server "sudo docker pull $image"
+   ssh tencent-server "sudo docker image inspect $image --format '{{index .RepoDigests 0}}'"
+   ```
+
+   拉取必须在无 GHCR 凭据的情况下成功，并返回内容摘要。
+
+5. 按 `server-infra` 的博客部署计划完成 `/srv/apps/blog`、`blog-deploy` forced-command、`server_proxy` 和临时双域名 Caddy 路由初始化。共享 Caddy 的候选配置须先验证并备份，不能从本仓库直接覆盖。
+
+6. 创建或确认 GitHub Environment `production`，设置非秘密仓库变量：
+
+   ```powershell
+   gh variable set DEPLOY_HOST --repo Minyaako/blog --body 124.223.13.233
+   gh variable set DEPLOY_USER --repo Minyaako/blog --body blog-deploy
+   ```
+
+   在现有可信管理员会话中核对服务器 Ed25519 host key 指纹后，把专用部署私钥和已核验的 `known_hosts` 文件写入 Environment Secrets：
+
+   ```bash
+   gh secret set DEPLOY_SSH_PRIVATE_KEY --repo Minyaako/blog --env production < "/path/to/id_ed25519"
+   gh secret set DEPLOY_SSH_KNOWN_HOSTS --repo Minyaako/blog --env production < "/path/to/verified_known_hosts"
+   ```
+
+   两个路径都是本地临时文件占位符。不得打印文件内容；部署私钥不能提交到任一仓库。
+
+7. 只有匿名拉取、主机边界、生产 Secrets 和临时网关都验证通过后，才打开闸门并手动调度当前 `main`：
+
+   ```powershell
+   gh variable set DEPLOY_ENABLED --repo Minyaako/blog --body true
+   if ($LASTEXITCODE -ne 0) { throw '无法启用部署闸门' }
+   $mainSha = gh api repos/Minyaako/blog/commits/main --jq .sha
+   if ($LASTEXITCODE -ne 0 -or $mainSha -cnotmatch '^[0-9a-f]{40}$') { throw '无法取得当前 main 完整 SHA' }
+
+   $beforeJson = gh run list --repo Minyaako/blog --workflow ci.yml --branch main --event workflow_dispatch --limit 100 --json databaseId
+   if ($LASTEXITCODE -ne 0) { throw '无法读取调度前的 workflow run 列表' }
+   $beforeRuns = $beforeJson | ConvertFrom-Json
+   $beforeIds = @($beforeRuns | ForEach-Object { $_.databaseId })
+   $dispatchStartedAt = [DateTimeOffset]::UtcNow
+   gh workflow run ci.yml --repo Minyaako/blog --ref main
+   if ($LASTEXITCODE -ne 0) { throw 'workflow dispatch 失败' }
+
+   $runId = $null
+   for ($attempt = 0; $attempt -lt 30 -and -not $runId; $attempt++) {
+     Start-Sleep -Seconds 2
+     $runsJson = gh run list --repo Minyaako/blog --workflow ci.yml --branch main --event workflow_dispatch --limit 100 --json databaseId,headSha,event,createdAt
+     if ($LASTEXITCODE -ne 0) { throw '无法轮询新 workflow run' }
+     $runs = $runsJson | ConvertFrom-Json
+     $candidates = @($runs | Where-Object {
+       $_.event -eq 'workflow_dispatch' -and
+       $_.headSha -eq $mainSha -and
+       $_.databaseId -notin $beforeIds -and
+       [DateTimeOffset]::Parse($_.createdAt) -ge $dispatchStartedAt.AddSeconds(-5)
+     })
+     if ($candidates.Count -gt 1) { throw '发现多个候选 run，拒绝误选；请在 GitHub Actions 页面人工确认' }
+     if ($candidates.Count -eq 1) { $runId = [string]$candidates[0].databaseId }
+   }
+   if (-not $runId) { throw '60 秒内未找到刚调度的 workflow run' }
+   gh run watch $runId --repo Minyaako/blog --exit-status
+   if ($LASTEXITCODE -ne 0) { throw "workflow run $runId 失败" }
+   ```
+
+   预期顺序是 `verify -> publish-image -> deploy-production`，远端状态的 `current` 等于 `$mainSha`。其中 `main` 的首次 `push` 运行负责构建并推送 SHA 镜像；手动调度和 GitHub Actions 重跑只验证该 SHA 镜像已经存在，不得重新构建或覆盖同一标签。若首次运行在镜像发布前失败，应提交修复产生新的 SHA，不得用重跑覆盖原标签。
+
+## 受限 SSH 与状态检查
+
+Actions 专用账号只允许以下两种 forced-command：
+
+```text
+status
+deploy 40位小写完整SHA
+```
+
+它不能获得通用 shell、PTY、端口转发或 Docker 组权限。不要尝试用 Actions 私钥执行裸 `ssh`、`ssh -t`、日志命令或任意远程命令；管理员也不应取回或复用该私钥。
+
+受限状态检查是：
+
+```powershell
+ssh -o BatchMode=yes blog-deploy@124.223.13.233 status
+```
+
+正常输出只包含 `current=<sha|none>` 和 `previous=<sha|none>`。自动化部署使用同一边界发送 `deploy $sha`，没有任意命令入口。
+
+## 发布后检查
+
+每次部署或回滚后都执行以下检查：
+
+```powershell
+$origin = 'https://gsk.minyako.top'
+curl.exe -fsS -o NUL "$origin/"
+if ($LASTEXITCODE -ne 0) { throw '首页检查失败' }
+curl.exe -fsS -o NUL "$origin/about/"
+if ($LASTEXITCODE -ne 0) { throw 'About 检查失败' }
+curl.exe -fsS -o NUL "$origin/archives/"
+if ($LASTEXITCODE -ne 0) { throw '归档页检查失败' }
+
+$rss = curl.exe -fsS "$origin/rss.xml"
+if ($LASTEXITCODE -ne 0) { throw 'RSS 获取失败' }
+if (-not ($rss | Select-String -SimpleMatch $origin -Quiet)) { throw 'RSS 缺少 canonical origin' }
+
+$sitemap = curl.exe -fsS "$origin/sitemap.xml"
+if ($LASTEXITCODE -ne 0) { throw 'Sitemap 获取失败' }
+if (-not ($sitemap | Select-String -SimpleMatch $origin -Quiet)) { throw 'Sitemap 缺少 canonical origin' }
+
+$health = curl.exe -fsS "$origin/healthz"
+if ($LASTEXITCODE -ne 0) { throw 'healthz 获取失败' }
+$healthText = ($health -join "`n").Trim()
+if ($healthText -cne 'ok') { throw "healthz 返回异常：$healthText" }
+```
+
+最终网关切换后，再验证旧域名的路径和查询参数都被保留：
+
+```powershell
+$headers = curl.exe -sS -o NUL -D - "https://minyakogsk.icu/archives?domain=academic"
+if ($LASTEXITCODE -ne 0) { throw '旧域名请求失败' }
+$headers
+$headerText = $headers -join "`n"
+if (-not ($headerText -match '(?im)^HTTP/2(?:\.0)?[ \t]+308(?:[ \t]+[^\r\n]*)?\r?$')) {
+  throw '旧域名未返回精确的 HTTP/2 308 状态'
+}
+if (-not ($headerText -match '(?im)^Location:[ \t]*https://gsk\.minyako\.top/archives\?domain=academic[ \t]*\r?$')) {
+  throw '旧域名 Location 未保留路径与查询参数'
+}
+```
+
+预期响应包含：
+
+```text
+HTTP/2 308
+Location: https://gsk.minyako.top/archives?domain=academic
+```
+
+此检查不为根域名 `minyako.top` 建立或暗示任何路由。
+
+## 管理员状态与日志
+
+以下命令只能通过已经信任的 `tencent-server` 管理员会话执行：
+
+```powershell
+ssh tencent-server "sudo /usr/local/sbin/blog-release status"
+ssh tencent-server "sudo docker compose -f /srv/apps/blog/compose.yml logs --tail 200 blog"
+ssh tencent-server "sudo docker logs --tail 200 server-caddy"
+ssh tencent-server "sudo sh -c 'if test -f /srv/apps/blog/state/last-failure; then cat /srv/apps/blog/state/last-failure; else echo none; fi'"
+```
+
+`last-failure` 仅记录失败目标 SHA 和 UTC 时间。它不存在时表示当前无失败记录：可能尚未部署，也可能最近一次成功部署已经清除记录。
+
+### 陈旧部署锁
+
+发现 `another deployment is active` 时，先把它视为真实并发部署。只读检查
+`blog-release`、`docker pull` 和 `docker compose` 进程，并读取
+`/srv/apps/blog/state/deploy.lock`；只要记录 PID 存在或锁仍被占用，就等待
+发布器自行结束，禁止删除锁。
+
+只有管理员确认以下条件全部成立时，才能移除陈旧锁：锁文件和对应
+`.deploy.lock-token.*` 都是普通文件、内容完全一致、inode 相同、链接数符合
+发布器约定、记录 PID 不存在，且 `fuser`/`lsof` 均没有报告持有者。删除范围
+只能是这两个已核验文件；之后仍须通过 `blog-release deploy <完整 SHA>`
+恢复发布，不得手工修改 `current`、`previous` 或镜像标签。若任一条件不满足，
+停止并由服务器管理员检查。
+
+## 回滚与恢复
+
+`blog-release` 会先启动独立候选容器，确认容器健康后替换 Compose 服务，再从公网验证 `/healthz`、首页、About、归档、RSS 和 `/sitemap.xml`。任何切换或公网检查失败都会记录 `last-failure`，并自动恢复部署前的 `current` 与 `previous` 状态；若这是首次发布，则停止失败服务。
+
+自动回滚后，管理员应检查 `status`、`last-failure`、博客日志与网关日志，再重复全部发布后检查。不要修改状态文件、重打镜像标签或用 `latest` 模拟恢复。
+
+人工回滚只用于管理员批准的已知良好 `main` SHA，并且只能通过已信任的 `tencent-server` 管理员会话调用发布程序：
+
+```powershell
+$rollbackSha = Read-Host '输入已批准的已知良好 main 完整 SHA'
+if ($rollbackSha -cnotmatch '^[0-9a-f]{40}$') { throw '回滚 SHA 必须是 40 位小写十六进制' }
+ssh tencent-server "sudo /usr/local/sbin/blog-release deploy $rollbackSha"
+```
+
+执行“发布后检查”确认回滚版本正常。需要恢复较新版本时，重新验证并部署它的完整 SHA：
+
+```powershell
+$restoreSha = Read-Host '输入已批准的较新 main 完整 SHA'
+if ($restoreSha -cnotmatch '^[0-9a-f]{40}$') { throw '恢复 SHA 必须是 40 位小写十六进制' }
+ssh tencent-server "sudo /usr/local/sbin/blog-release deploy $restoreSha"
+```
+
+恢复后再次执行全部检查并确认 `current`、`previous`。绝不能从 GitHub Actions 取回私钥、复用 Actions 私钥登录，或为 Actions key 文档化通用 shell/PTY 路径。
+
+## 紧急关闭自动部署
+
+发现供应链、密钥或生产故障时，立即关闭后续自动部署：
+
+```powershell
+gh variable set DEPLOY_ENABLED --repo Minyaako/blog --body false
+gh variable get DEPLOY_ENABLED --repo Minyaako/blog
+```
+
+预期输出 `false`。这不会停止当前健康容器，也不能中断已经进入远端事务的发布；正在运行的发布应由 `blog-release` 完成或自动回滚。随后按上节通过管理员路径处置。
+
+## 密钥轮换
+
+### 部署 key
+
+1. 先把 `DEPLOY_ENABLED` 设为 `false`。
+2. 在仓库外的临时目录生成新的专用 Ed25519 key；不要打印私钥：
+
+   ```powershell
+   $keyDir = Join-Path $env:TEMP 'minyako-blog-deploy-key-rotation'
+   New-Item -ItemType Directory -Force $keyDir | Out-Null
+   ssh-keygen -t ed25519 -N '' -C 'github-actions:minyaako-blog' -f (Join-Path $keyDir 'id_ed25519')
+   ```
+
+3. 通过已信任的 `tencent-server` 管理员会话，使用经过评审的 `server-infra` 安装流程替换 `blog-deploy` 的公钥；不得把账号加入 Docker 组或放宽 forced-command。
+4. 用新私钥验证 `status` 成功，并验证任意其他命令仍以退出码 64 被拒绝。不要输出私钥内容。
+5. 从临时文件重定向更新 `production` Environment Secret：
+
+   ```bash
+   gh secret set DEPLOY_SSH_PRIVATE_KEY --repo Minyaako/blog --env production < "/path/to/new_id_ed25519"
+   ```
+
+6. 恢复 `DEPLOY_ENABLED=true`，手动调度 `main` 并确认受限 SSH 部署成功。成功后立即删除临时私钥；旧公钥和旧 Secret 应失效。若验证失败，保持闸门关闭并由管理员恢复上一把公钥。
+
+### SSH host known_hosts
+
+host key 轮换时，必须先通过既有可信 `tencent-server` 管理员会话取得服务器 Ed25519 公钥指纹，再与新扫描文件的指纹逐字比较：
+
+```powershell
+ssh tencent-server "sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub"
+ssh-keyscan -t ed25519 124.223.13.233 2>$null | Set-Content -Encoding ascii "$env:TEMP\minyako-blog-known_hosts"
+ssh-keygen -lf "$env:TEMP\minyako-blog-known_hosts"
+```
+
+两处指纹不一致就中止，不得更新 Secret。确认一致后，只从已核验文件重定向更新 Environment Secret：
+
+```bash
+gh secret set DEPLOY_SSH_KNOWN_HOSTS --repo Minyaako/blog --env production < "/path/to/verified_known_hosts"
+```
+
+不要在文档、Issue 或日志中展示 `known_hosts` Secret 值。更新后手动调度一次 `main` 验证连接；失败时关闭 `DEPLOY_ENABLED` 并保留现有健康版本。
+
+## 备份与数据边界
+
+博客当前是无持久业务数据的静态站。源码与文章由 Git 保留，发布物由不可变 SHA 镜像保留；共享 Caddy 配置由 `server-infra` 管理并在变更前做带时间戳备份。`/srv/apps/blog/state` 只有 `current`、`previous`、锁和最近失败信息，是发布控制状态，不是业务数据。
+
+因此当前不备份容器的 `/config`、`/data` 临时文件系统，也没有博客数据库卷。将来的 Waline、媒体管理器、服务器文章图片或对象存储各自拥有独立的数据保留与备份策略，不应被误认为由本静态站镜像或回滚程序保护。
+
+## 评论服务
+
+评论服务是独立于静态博客发布器的 Waline Compose 项目。博客发布、回滚和 `blog-release` 不得启动、停止、替换或删除评论容器、SQLite 数据与备份。
+
+### 首次安装
+
+以下命令在服务器执行，并假定当前检出的是经过审核的不可变博客提交：
+
+```sh
+sudo install -d -m 0750 /srv/apps/blog-comments
+sudo install -d -m 0750 /srv/apps/blog-comments/data
+sudo install -d -m 0750 /srv/apps/blog-comments/server
+sudo install -d -m 0700 /srv/secrets/blog-comments
+sudo install -d -m 0700 /srv/backups/blog-comments/daily
+sudo install -d -m 0700 /srv/backups/blog-comments/weekly
+
+sudo install -m 0644 deploy/comments/compose.yml /srv/apps/blog-comments/compose.yml
+sudo install -m 0644 deploy/comments/Dockerfile /srv/apps/blog-comments/Dockerfile
+sudo install -m 0644 deploy/comments/server/config.cjs /srv/apps/blog-comments/server/config.cjs
+sudo install -m 0644 deploy/comments/server/rate-limit.cjs /srv/apps/blog-comments/server/rate-limit.cjs
+sudo install -m 0644 deploy/comments/waline.sqlite.sql /srv/apps/blog-comments/waline.sqlite.sql
+sudo install -m 0755 deploy/comments/bin/comments-data /usr/local/sbin/comments-data
+sudo install -m 0644 deploy/comments/blog-comments-backup.service /etc/systemd/system/blog-comments-backup.service
+sudo install -m 0644 deploy/comments/blog-comments-backup.timer /etc/systemd/system/blog-comments-backup.timer
+```
+
+使用交互式编辑器创建 `/srv/secrets/blog-comments/waline.env`，文件中仅放一个随机、足够长的 `JWT_TOKEN`。不得把值放入命令行参数、Shell 历史、Git、截图或日志。完成后执行：
+
+```sh
+sudo chmod 0600 /srv/secrets/blog-comments/waline.env
+sudo /usr/local/sbin/comments-data init
+sudo docker compose -f /srv/apps/blog-comments/compose.yml config
+sudo docker compose -f /srv/apps/blog-comments/compose.yml build --pull blog-comments
+sudo docker compose -f /srv/apps/blog-comments/compose.yml up -d --no-build
+sudo docker compose -f /srv/apps/blog-comments/compose.yml ps
+sudo docker compose -f /srv/apps/blog-comments/compose.yml logs --tail 100 blog-comments
+```
+
+首次注册管理员时，不安装或启用 `comments.minyako.top` 的 Caddy 路由。临时创建仅绑定服务器回环地址的代理或通过 SSH 隧道访问 Waline，再使用会话中提供的凭据注册首个管理员。凭据只输入浏览器表单。验证登录和管理能力后，通知用户修改临时密码；用户明确确认改密之前不得开放公网路由。
+
+### 备份与恢复验证
+
+启用每日备份：
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now blog-comments-backup.timer
+sudo systemctl list-timers blog-comments-backup.timer
+sudo systemctl start blog-comments-backup.service
+sudo journalctl -u blog-comments-backup.service --no-pager -n 100
+```
+
+手动备份会打印新归档的绝对路径。只将该路径传给校验子命令：
+
+```sh
+backup_file=$(sudo /usr/local/sbin/comments-data backup)
+sudo /usr/local/sbin/comments-data verify "$backup_file"
+```
+
+恢复演练使用独立目录，禁止覆盖生产数据：
+
+```sh
+sudo install -d -m 0700 /srv/apps/blog-comments-restore/data
+sudo sh -c 'gzip -dc "$1" > /srv/apps/blog-comments-restore/data/waline.sqlite' sh "$backup_file"
+sudo docker run --rm \
+  -v /srv/apps/blog-comments-restore/data:/verify:ro \
+  keinos/sqlite3:3.50.4@sha256:7ea29f0c7e91a8c3f315e831459d07000f34e9e9b25fbc30be2e0481b3e0450f \
+  /verify/waline.sqlite 'PRAGMA integrity_check;'
+```
+
+如需验证管理员登录，以恢复目录启动一个名称明确、只绑定 `127.0.0.1` 随机高端口的临时 Waline 容器，通过 SSH 隧道登录；验证完成后按容器名停止并删除。先解析并核对临时目录绝对路径，再删除 `/srv/apps/blog-comments-restore`，不得使用未展开变量或宽泛通配符。
+
+### 升级与回滚
+
+升级前执行一次备份和校验，记录当前派生镜像 ID、Waline 基础镜像标签与摘要。把经过审核的 `compose.yml`、`Dockerfile` 和 `server/` 一起安装到 `/srv/apps/blog-comments`，运行 `docker compose config`、`docker compose build --pull blog-comments`、`docker compose up -d --no-build`，再检查健康状态。定制镜像只在固定 Waline 1.41.4 基础上加入官方插件配置与滑动窗口中间件；Compose 的 `pull_policy: never` 确保部署使用刚刚在本机生成的派生镜像。`IPQPS=3` 防瞬时连点，中间件按 IP 限制滚动 10 分钟内最多 10 条并返回 `429` 与 `Retry-After`。成功提交的预约记录在 SQLite 的 `wl_RateLimitEvent` 独立事件表中，删除评论不会提前释放配额；该表随整个 SQLite 文件一起备份。
+
+失败时优先恢复上一提交的 Compose、Dockerfile 与 `server/`，重新构建并替换容器。只有确认升级执行了与旧版本不兼容的数据库迁移，才停止评论服务并从已校验的备份恢复 SQLite。静态博客镜像回滚不会回滚评论数据库。
+
+### 故障检查
+
+```sh
+sudo docker compose -f /srv/apps/blog-comments/compose.yml ps
+sudo docker compose -f /srv/apps/blog-comments/compose.yml logs --tail 200 blog-comments
+sudo systemctl status blog-comments-backup.timer --no-pager
+sudo journalctl -u blog-comments-backup.service --no-pager -n 200
+```
+
+评论服务故障不得阻止文章阅读。恢复服务前保留 SQLite 数据与备份，不得通过删除数据卷尝试修复容器启动问题。

@@ -1,0 +1,17 @@
+---
+import type { GetStaticPaths } from 'astro'
+import PostCard from '../../components/PostCard.astro'
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import { getPublishedPosts, toPostCard, type PostCardData } from '../../lib/posts'
+
+export const getStaticPaths = (async () => {
+  const posts = await getPublishedPosts()
+  const collections = [...new Set(posts.flatMap((post) => post.data.collections))]
+  return collections.map((collection) => ({ params: { collection }, props: { collection, posts: posts.filter((post) => post.data.collections.includes(collection)).map(toPostCard) } }))
+}) satisfies GetStaticPaths
+
+interface Props { collection: string; posts: PostCardData[] }
+const { collection, posts } = Astro.props
+---
+<BaseLayout title={collection}><div class="listing-page"><header><p>Collection</p><h1>{collection}</h1></header><div class="cards">{posts.map((post) => <PostCard post={post} />)}</div></div></BaseLayout>
+<style>.listing-page{width:min(100% - 2rem,var(--content-wide));margin-inline:auto;padding-block:var(--space-7)}header{padding-bottom:var(--space-5);border-bottom:1px solid var(--border-strong)}header p{color:var(--text-muted);font:var(--text-caption)/1.4 var(--font-mono);text-transform:uppercase}h1{margin:0;font:750 clamp(2rem,6vw,4rem)/1.1 var(--font-display)}.cards{display:grid;gap:var(--space-5);margin-top:var(--space-6)}</style>

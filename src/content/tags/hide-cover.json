@@ -1,0 +1,6 @@
+{
+  "id": "hide-cover",
+  "label": "隐藏封面",
+  "aliases": ["Hide Cover"],
+  "description": "控制文章封面不在列表与归档中显示的编辑标记"
+}

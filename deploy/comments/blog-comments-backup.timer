@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the blog comments backup every day
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=30m
+Unit=blog-comments-backup.service
+
+[Install]
+WantedBy=timers.target

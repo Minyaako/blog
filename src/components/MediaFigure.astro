@@ -1,0 +1,111 @@
+---
+import { isSafePublicHttpsUrl, resolveMedia } from '../lib/media'
+
+interface Props {
+  media: string
+  alt: string
+  caption?: string
+  credit?: string
+  sourceUrl?: string
+  layout?: 'normal' | 'wide'
+}
+
+const { media: mediaId, alt, caption, credit, sourceUrl, layout = 'normal' } = Astro.props
+const media = resolveMedia(mediaId)
+if (sourceUrl && !isSafePublicHttpsUrl(sourceUrl)) {
+  throw new Error(`Invalid MediaFigure source URL for ${mediaId}`)
+}
+---
+
+<figure class:list={['media-figure', { 'media-figure--wide': layout === 'wide' }]}>
+  <div class="media-figure__frame">
+    <img
+      src={media.url}
+      alt={alt}
+      width={media.width}
+      height={media.height}
+      loading="lazy"
+      decoding="async"
+    />
+  </div>
+  {(caption || credit || sourceUrl) && (
+    <figcaption>
+      {caption && <span class="media-figure__caption">{caption}</span>}
+      {(credit || sourceUrl) && (
+        <span class="media-figure__credit">
+          {credit}
+          {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer">来源</a>}
+        </span>
+      )}
+    </figcaption>
+  )}
+</figure>
+
+<style>
+  .media-figure {
+    margin: var(--space-6) 0;
+  }
+
+  .media-figure__frame {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--accent);
+    color: var(--text-muted);
+    font-size: .78rem;
+    line-height: 1.6;
+  }
+
+  .media-figure__credit {
+    min-width: 0;
+    flex: 0 1 auto;
+    font-family: var(--font-mono);
+    font-size: .72rem;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .media-figure__caption {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .media-figure__credit a {
+    margin-left: var(--space-2);
+    color: inherit;
+    text-underline-offset: .2em;
+  }
+
+  @media (min-width: 64rem) {
+    .media-figure--wide {
+      width: min(54rem, calc(100vw - 18rem));
+      margin-inline: 50%;
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (max-width: 44rem) {
+    figcaption {
+      display: grid;
+    }
+
+    .media-figure__credit {
+      text-align: left;
+    }
+  }
+</style>

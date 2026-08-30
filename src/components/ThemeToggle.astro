@@ -1,0 +1,29 @@
+---
+import AppIcon from './AppIcon.astro'
+---
+
+<button class="icon-button theme-toggle" type="button" aria-label="切换主题" data-theme-toggle>
+  <span data-theme-icon="light" data-active="true" aria-hidden="true"><AppIcon name="lucide:sun" /></span>
+  <span data-theme-icon="dark" data-active="false" aria-hidden="true"><AppIcon name="lucide:moon" /></span>
+</button>
+
+<script>
+  const themeButton = document.querySelector<HTMLButtonElement>('[data-theme-toggle]')
+
+  function updateIcon(theme: 'light' | 'dark') {
+    document.querySelector<HTMLElement>('[data-theme-icon="light"]')
+      ?.setAttribute('data-active', String(theme !== 'dark'))
+    document.querySelector<HTMLElement>('[data-theme-icon="dark"]')
+      ?.setAttribute('data-active', String(theme === 'dark'))
+  }
+
+  themeButton?.addEventListener('click', () => {
+    const current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+    const next = current === 'dark' ? 'light' : 'dark'
+    localStorage.setItem('minyako-theme', next)
+    document.documentElement.dataset.theme = next
+    updateIcon(next)
+  })
+
+  updateIcon(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+</script>

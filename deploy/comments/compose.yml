@@ -1,0 +1,44 @@
+services:
+  blog-comments:
+    image: minyako/blog-comments:1.41.4-comment-policy-v1
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - /srv/secrets/blog-comments/waline.env
+    environment:
+      TZ: Asia/Shanghai
+      SQLITE_PATH: /app/data
+      SQLITE_DB: waline
+      SITE_NAME: Minyako Blog
+      SITE_URL: https://gsk.minyako.top
+      SERVER_URL: https://comments.minyako.top
+      SECURE_DOMAINS: gsk.minyako.top,comments.minyako.top
+      COMMENT_AUDIT: "false"
+      IPQPS: "3"
+      COMMENT_RATE_LIMIT: "10"
+      COMMENT_RATE_WINDOW_SECONDS: "600"
+      AKISMET_KEY: "false"
+      DISABLE_USERAGENT: "true"
+      DISABLE_REGION: "true"
+      DISABLE_AUTHOR_NOTIFY: "true"
+      AVATAR_PROXY: "false"
+      GRAVATAR_STR: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"
+      MARKDOWN_CONFIG: '{"html":false}'
+    volumes:
+      - /srv/apps/blog-comments/data:/app/data
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8360/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      server_proxy:
+        aliases: [blog-comments]
+
+networks:
+  server_proxy:
+    external: true

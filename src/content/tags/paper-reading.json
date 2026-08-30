@@ -1,0 +1,6 @@
+{
+  "id": "paper-reading",
+  "label": "论文阅读",
+  "aliases": ["Paper Reading"],
+  "description": "论文精读、结构化摘要与复现问题"
+}

@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import DomainGrid from '../components/DomainGrid.astro'
+import HeroBanner from '../components/HeroBanner.astro'
+import LatestMoments from '../components/LatestMoments.astro'
+import LatestPosts from '../components/LatestPosts.astro'
+import ProfileStrip from '../components/ProfileStrip.astro'
+import { getPublishedMoments } from '../lib/moments'
+import { getPublishedPosts, toPostCard } from '../lib/posts'
+
+const posts = (await getPublishedPosts()).map(toPostCard)
+const moments = (await getPublishedMoments()).slice(0, 2)
+---
+
+<BaseLayout>
+  <HeroBanner />
+  <ProfileStrip />
+  <DomainGrid />
+  <LatestPosts posts={posts} />
+  <LatestMoments moments={moments} />
+</BaseLayout>

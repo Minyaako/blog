@@ -1,0 +1,59 @@
+<li class="small-features" data-small-features>
+  <button class="nav-link feature-trigger" type="button" aria-expanded="false" aria-haspopup="menu">小功能 <span aria-hidden="true">⌄</span></button>
+  <div class="feature-popover" hidden>
+    <a class="nav-link" href="/ranking/">榜单</a>
+  </div>
+</li>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-small-features]').forEach((menu) => {
+    if (menu.dataset.initialized === 'true') return
+    menu.dataset.initialized = 'true'
+    const trigger = menu.querySelector<HTMLButtonElement>('.feature-trigger')
+    const popover = menu.querySelector<HTMLElement>('.feature-popover')
+    const firstLink = popover?.querySelector<HTMLAnchorElement>('a')
+    if (!trigger || !popover) return
+
+    const close = (restoreFocus = false) => {
+      trigger.setAttribute('aria-expanded', 'false')
+      popover.hidden = true
+      if (restoreFocus) trigger.focus()
+    }
+    const open = (focusItem = false) => {
+      trigger.setAttribute('aria-expanded', 'true')
+      popover.hidden = false
+      if (focusItem) firstLink?.focus()
+    }
+
+    trigger.addEventListener('click', () => {
+      trigger.getAttribute('aria-expanded') === 'true' ? close() : open(false)
+    })
+    trigger.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      open(true)
+    })
+    menu.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      close(true)
+    })
+    document.addEventListener('pointerdown', (event) => {
+      if (!menu.contains(event.target as Node)) close()
+    })
+  })
+</script>
+
+<style>
+  .small-features { position: relative; }
+  .feature-trigger { border: 0; background: transparent; cursor: pointer; white-space: nowrap; }
+  .feature-trigger span { margin-left: var(--space-1); transition: rotate var(--duration-fast); }
+  .feature-trigger[aria-expanded='true'] span { rotate: 180deg; }
+  .feature-popover { position: absolute; z-index: 30; top: calc(100% + var(--space-2)); right: 0; min-width: 8rem; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); box-shadow: var(--shadow-soft); }
+  .feature-popover .nav-link { justify-content: flex-start; }
+  @media (max-width: 48rem) {
+    .small-features { min-width: 0; }
+    .feature-trigger { width: 100%; justify-content: center; padding-inline: var(--space-1); font-size: .8rem; }
+    .feature-popover { right: 0; left: auto; }
+  }
+</style>

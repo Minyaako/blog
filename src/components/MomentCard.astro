@@ -1,0 +1,62 @@
+---
+import { render } from 'astro:content'
+import type { MomentView } from '../lib/moments'
+
+interface Props {
+  moment: MomentView
+  detail?: boolean
+}
+
+const { moment, detail = false } = Astro.props
+const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(moment.publishedAt)
+const href = `/moments/${moment.id}/`
+const { Content } = await render(moment.entry)
+---
+
+<article class="moment-card" data-moment-card data-moment-id={moment.id}>
+  <p class="moment-meta"><time datetime={moment.publishedAt.toISOString()}>{date}</time>{moment.pinned && <span>置顶</span>}</p>
+  {moment.title && <h2 class="moment-title">{moment.title}</h2>}
+  {moment.contentWarning && (
+    <div class="moment-warning" data-moment-warning data-warning-message={moment.contentWarning}>
+      <p><strong>内容提示：</strong>{moment.contentWarning}</p>
+      <button type="button" data-warning-accept>显示这条动态</button>
+    </div>
+  )}
+  <div data-moment-protected-content>
+    <div class="moment-body prose" data-pagefind-body><Content /></div>
+  </div>
+  <footer class="moment-footer">
+    <ul aria-label="动态标签">
+      {moment.tags.map((tag) => (
+        <li><a href={`/tags/${tag.id}/`}>{tag.label}</a></li>
+      ))}
+    </ul>
+    <div class="moment-actions">
+      {!detail && <a href={href}>永久链接</a>}
+      <a href={`${href}#comments`}>评论</a>
+    </div>
+  </footer>
+</article>
+
+<style>
+  .moment-card { position: relative; padding: 0 0 var(--space-7) var(--space-6); }
+  .moment-card::before { position: absolute; inset: .38rem auto 0 0; width: 1px; background: var(--border); content: ''; }
+  .moment-card::after { position: absolute; inset: .2rem auto auto -.27rem; width: .58rem; aspect-ratio: 1; border: 2px solid var(--accent); border-radius: 50%; background: var(--canvas); content: ''; }
+  .moment-meta { display: flex; gap: var(--space-3); margin: 0 0 var(--space-3); color: var(--text-muted); font: var(--text-caption)/1.4 var(--font-mono); letter-spacing: .04em; }
+  .moment-meta span { color: var(--accent); }
+  .moment-title { margin: 0 0 var(--space-3); color: var(--accent); font: 700 1.05rem/1.45 var(--font-display); }
+  .moment-body :global(p:first-child) { margin-top: 0; }
+  .moment-warning { margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4); border-left: 2px solid var(--games); background: color-mix(in srgb, var(--games) 8%, transparent); }
+  .moment-warning p { margin: 0 0 var(--space-2); color: var(--text-muted); font-size: .82rem; line-height: 1.6; }
+  .moment-warning button { min-height: 2.25rem; padding-inline: var(--space-3); border: 1px solid var(--border-strong); border-radius: 99rem; background: var(--surface); color: var(--text); cursor: pointer; font-size: .78rem; }
+  .moment-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-top: var(--space-4); }
+  ul { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+  li { color: var(--text-muted); font-size: .76rem; }
+  li::before { content: '#'; color: var(--accent); }
+  li a { text-decoration: none; }
+  li a:hover { color: var(--accent); }
+  .moment-actions { display: flex; gap: var(--space-3); }
+  .moment-actions a { color: var(--text-muted); font-size: .78rem; text-underline-offset: .2em; }
+  .moment-actions a:hover { color: var(--accent); }
+  @media (max-width: 34rem) { .moment-card { padding-left: var(--space-5); } .moment-footer { align-items: flex-start; flex-direction: column; } }
+</style>

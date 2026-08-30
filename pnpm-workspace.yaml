@@ -1,0 +1,5 @@
+packages:
+  - .
+allowBuilds:
+  esbuild: true
+  '@minyaako/media-publisher@https://codeload.github.com/Minyaako/media-publisher/tar.gz/4b376c06b142c2500404dd0faf4c05b09959ecb0': true

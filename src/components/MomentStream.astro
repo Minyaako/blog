@@ -1,0 +1,36 @@
+---
+import type { MomentView } from '../lib/moments'
+import MomentCard from './MomentCard.astro'
+
+interface Props {
+  moments: MomentView[]
+  nextHref?: string
+}
+
+const { moments, nextHref } = Astro.props
+const monthKey = (date: Date) => `${date.getFullYear()}-${date.getMonth() + 1}`
+const monthLabel = (date: Date) => new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(date)
+---
+
+<div class="moment-stream" data-moment-stream>
+  <div data-moment-page-items>
+    {moments.length === 0 ? (
+      <p class="empty">还没有公开的动态。</p>
+    ) : moments.map((moment, index) => (
+      <Fragment>
+        {(index === 0 || monthKey(moment.publishedAt) !== monthKey(moments[index - 1].publishedAt)) && (
+          <h2 class="month-heading" data-month-key={monthKey(moment.publishedAt)}>{monthLabel(moment.publishedAt)}</h2>
+        )}
+        <MomentCard moment={moment} />
+      </Fragment>
+    ))}
+  </div>
+  {nextHref && <a class="next-page" data-next-page href={nextHref}>继续浏览更早的动态</a>}
+</div>
+
+<style>
+  .moment-stream { max-width: 48rem; margin-inline: auto; }
+  .month-heading { margin: 0 0 var(--space-5); color: var(--text-muted); font: 650 .8rem/1.4 var(--font-mono); letter-spacing: .08em; }
+  .empty { margin: 0; color: var(--text-muted); line-height: 1.7; }
+  .next-page { display: inline-flex; min-height: 2.75rem; align-items: center; padding-inline: var(--space-4); border: 1px solid var(--border); border-radius: 99rem; color: var(--text-muted); font-size: .82rem; }
+</style>

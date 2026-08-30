@@ -1,0 +1,7 @@
+deploy/bin/blog-release text eol=lf
+tests/deploy/blog-release.test.sh text eol=lf
+deploy/comments/bin/comments-data text eol=lf
+deploy/comments/Dockerfile text eol=lf
+deploy/comments/server/*.cjs text eol=lf
+media/media.yaml text eol=lf
+media/media.lock.json text eol=lf
