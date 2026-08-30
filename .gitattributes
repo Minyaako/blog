@@ -5,3 +5,4 @@ deploy/comments/Dockerfile text eol=lf
 deploy/comments/server/*.cjs text eol=lf
 media/media.yaml text eol=lf
 media/media.lock.json text eol=lf
+public/robots.txt text eol=lf
