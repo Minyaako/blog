@@ -188,9 +188,9 @@ fi
 
 case "$path" in
   /healthz) printf 'ok\n' ;;
-  /rss.xml|/sitemap-index.xml) printf 'https://gsk.minyako.top\n' ;;
+  /rss.xml|/sitemap.xml) printf 'https://gsk.minyako.top\n' ;;
   /) printf '<html lang="zh-CN">\n' ;;
-  /about|/archives) : ;;
+  /about/|/archives/) : ;;
   *) exit 22 ;;
 esac
 SH
@@ -609,7 +609,7 @@ test_last_failure_nonregular() {
     target=$BLOG_STATE_DIR/last-failure-target
     make_directory_symlink "$BLOG_STATE_DIR/last-failure" "$target" || fail 'could not create last-failure symlink'
   fi
-  export FAIL_ENDPOINT=/about
+  export FAIL_ENDPOINT=/about/
   export FAIL_IMAGE=$two
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail "$kind last-failure path was accepted"; fi
   assert_log 'could not record deployment failure' "$CASE_OUTPUT" "$kind last-failure lacked record error"
@@ -623,7 +623,7 @@ test_last_failure_nonregular() {
 
 test_date_failure() {
   reset_case date_failure
-  export FAIL_ENDPOINT=/about
+  export FAIL_ENDPOINT=/about/
   export FAIL_DATE=true
   if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'date failure was accepted'; fi
   assert_log 'could not record deployment failure' "$CASE_OUTPUT" 'date failure was masked by atomic_write'
@@ -635,7 +635,7 @@ test_date_failure() {
 
 test_first_compose_down_failure() {
   reset_case first_compose_down_failure
-  export FAIL_ENDPOINT=/about
+  export FAIL_ENDPOINT=/about/
   export FAIL_COMPOSE_DOWN=true
   if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'first Compose down failure was accepted'; fi
   assert_log 'rollback failed to stop first release' "$CASE_OUTPUT" 'first down failure lacked clear rollback error'
@@ -649,7 +649,7 @@ test_first_compose_down_failure() {
 test_public_rollback_success() {
   reset_case public_rollback_success
   seed_one
-  export FAIL_ENDPOINT=/about
+  export FAIL_ENDPOINT=/about/
   export FAIL_IMAGE=$two
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'failed target public check was accepted'; fi
   assert_file_eq "$ACTIVE_IMAGE" "$repo:$one" 'public failure did not restore active image'
@@ -662,7 +662,7 @@ test_public_rollback_success() {
 test_rollback_compose_failure() {
   reset_case rollback_compose_failure
   seed_one
-  export FAIL_ENDPOINT=/about
+  export FAIL_ENDPOINT=/about/
   export FAIL_IMAGE=$two
   export FAIL_COMPOSE_BEFORE_IMAGE=$one
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'rollback Compose failure was accepted'; fi
@@ -677,7 +677,7 @@ test_rollback_compose_failure() {
 test_rollback_public_failure() {
   reset_case rollback_public_failure
   seed_one
-  export FAIL_ENDPOINT=/about
+  export FAIL_ENDPOINT=/about/
   unset FAIL_IMAGE
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then fail 'rollback public-health failure was accepted'; fi
   assert_log 'rollback' "$CASE_OUTPUT" 'rollback public-health failure lacked clear error'
@@ -718,7 +718,7 @@ test_previous_snapshot_restore() {
 test_term_rollback() {
   reset_case term_rollback
   seed_one
-  export SIGNAL_ENDPOINT=/about
+  export SIGNAL_ENDPOINT=/about/
   export SIGNAL_IMAGE=$two
   if "$RELEASE" deploy "$two" >"$CASE_OUTPUT" 2>&1; then
     fail 'TERM during public check was accepted'
@@ -767,10 +767,10 @@ run_case invalid-inputs test_invalid_inputs
 run_case success-and-safety test_success_and_safety
 run_case endpoint-health test_endpoint_failure /healthz health
 run_case endpoint-root test_endpoint_failure / root
-run_case endpoint-about test_endpoint_failure /about about
-run_case endpoint-archives test_endpoint_failure /archives archives
+run_case endpoint-about test_endpoint_failure /about/ about
+run_case endpoint-archives test_endpoint_failure /archives/ archives
 run_case endpoint-rss test_endpoint_failure /rss.xml rss
-run_case endpoint-sitemap test_endpoint_failure /sitemap-index.xml sitemap
+run_case endpoint-sitemap test_endpoint_failure /sitemap.xml sitemap
 run_case pull-failure test_pull_failure
 run_case pull-retry-success test_pull_retry_success
 run_case run-failure test_run_failure

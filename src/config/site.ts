@@ -6,10 +6,10 @@ export const SITE = {
   lang: 'zh-CN',
   navigation: [
     { label: '首页', href: '/' },
-    { label: '归档', href: '/archives' },
-    { label: '项目', href: '/projects' },
-    { label: '关于', href: '/about' },
-    { label: '搜索', href: '/search' }
+    { label: '归档', href: '/archives/' },
+    { label: '项目', href: '/projects/' },
+    { label: '关于', href: '/about/' },
+    { label: '搜索', href: '/search/' }
   ],
   socials: [
     { label: 'GitHub', href: 'https://github.com/Minyaako', icon: 'simple-icons:github' },

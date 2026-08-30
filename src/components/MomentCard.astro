@@ -9,7 +9,7 @@ interface Props {
 
 const { moment, detail = false } = Astro.props
 const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(moment.publishedAt)
-const href = `/moments/${moment.id}`
+const href = `/moments/${moment.id}/`
 const { Content } = await render(moment.entry)
 ---
 
@@ -28,7 +28,7 @@ const { Content } = await render(moment.entry)
   <footer class="moment-footer">
     <ul aria-label="动态标签">
       {moment.tags.map((tag) => (
-        <li><a href={`/tags/${tag.id}`}>{tag.label}</a></li>
+        <li><a href={`/tags/${tag.id}/`}>{tag.label}</a></li>
       ))}
     </ul>
     <div class="moment-actions">

@@ -40,7 +40,7 @@ function findPublishedHostedMediaFigure() {
 }
 
 test('technical article renders metadata, toc, code, and math', async ({ page }) => {
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Astro')
   const toc = page.getByRole('navigation', { name: '文章目录' })
   await expect(toc).toBeVisible()
@@ -51,14 +51,14 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
   await expect(page.locator('pre code').first()).toBeVisible()
   await expect(page.locator('.katex').first()).toBeVisible()
   await expect(page.locator('[data-page-key]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
-  await expect(page.getByRole('link', { name: '#Astro' })).toHaveAttribute('href', '/tags/astro')
+  await expect(page.getByRole('link', { name: '#Astro' })).toHaveAttribute('href', '/tags/astro/')
 })
 
 test('existing public articles use their mapped WebP headers', async ({ page }) => {
   const articles = [
-    ['/posts/embodied-ai-reading', 'https://pic.minyako.top/blog/posts/embodied-ai-reading/cover-f03e8a61960275abdd4255138e3e8a5fd471251cefb47024dba6313b04ae5fe2.webp'],
-    ['/posts/astro-content-architecture', 'https://pic.minyako.top/blog/posts/astro-content-architecture/cover-619fe237155b1700a886e06d1da193f81f9c7041c38f101422562cf59547eadc.webp'],
-    ['/posts/july-field-notes', 'https://pic.minyako.top/blog/posts/july-field-notes/cover-ff5fbec3339faa8a135d735b170515fd0f10313428c29eeb81121ac0205b57ae.webp']
+    ['/posts/embodied-ai-reading/', 'https://pic.minyako.top/blog/posts/embodied-ai-reading/cover-f03e8a61960275abdd4255138e3e8a5fd471251cefb47024dba6313b04ae5fe2.webp'],
+    ['/posts/astro-content-architecture/', 'https://pic.minyako.top/blog/posts/astro-content-architecture/cover-619fe237155b1700a886e06d1da193f81f9c7041c38f101422562cf59547eadc.webp'],
+    ['/posts/july-field-notes/', 'https://pic.minyako.top/blog/posts/july-field-notes/cover-ff5fbec3339faa8a135d735b170515fd0f10313428c29eeb81121ac0205b57ae.webp']
   ] as const
 
   for (const [path, cover] of articles) {
@@ -70,7 +70,7 @@ test('existing public articles use their mapped WebP headers', async ({ page }) 
 test('hosted media figures load and resist narrow-screen text overflow', async ({ page }) => {
   const { articleId, media } = findPublishedHostedMediaFigure()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(`/posts/${articleId}`)
+  await page.goto(`/posts/${articleId}/`)
 
   const image = page.locator(`.media-figure img[src="${media.url}"]`)
   const figure = image.locator('xpath=ancestor::figure[1]')
@@ -86,7 +86,7 @@ test('hosted media figures load and resist narrow-screen text overflow', async (
 })
 
 test('comment section keeps the permanent article id and optional guest fields', async ({ page }) => {
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const comments = page.locator('[data-comment-slot]')
 
   await expect(comments).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
@@ -104,7 +104,7 @@ test('comment composer exposes a readable editable surface, emoji, and initial a
   page.on('request', (request) => {
     if (request.url().includes('/comments/emoji/tw-emoji/')) emojiRequests.push(request.url())
   })
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const comments = page.locator('[data-comment-slot]')
   await comments.scrollIntoViewIfNeeded()
   const editor = comments.locator('.wl-editor')
@@ -168,7 +168,7 @@ test('comment composer exposes a readable editable surface, emoji, and initial a
 test('comment outage leaves the article readable and offers retry', async ({ page }) => {
   await page.unroute('https://comments.minyako.top/**')
   await page.route('https://comments.minyako.top/**', (route) => route.abort('failed'))
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   await page.locator('[data-comment-slot]').scrollIntoViewIfNeeded()
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Astro')
@@ -177,7 +177,7 @@ test('comment outage leaves the article readable and offers retry', async ({ pag
 })
 
 test('deep replies keep only one visual indentation level', async ({ page }) => {
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const mount = page.locator('[data-comment-mount]')
   await mount.scrollIntoViewIfNeeded()
   await expect(mount.locator('input[name="nick"]')).toBeVisible()

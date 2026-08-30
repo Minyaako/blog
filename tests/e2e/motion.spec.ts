@@ -178,7 +178,7 @@ test('runtime reduced motion keeps a loaded fallback page instantaneous', async 
     veilAnimation: string
   }>((resolve) => {
     const link = document.createElement('a')
-    link.href = '/archives'
+    link.href = '/archives/'
     link.textContent = 'Runtime reduced-motion navigation'
     document.body.append(link)
 
@@ -222,10 +222,10 @@ test('enabling reduced motion during fallback exit completes navigation immediat
 
   const root = page.locator('html')
   const navigationRequest = page.waitForRequest((request) => (
-    new URL(request.url()).pathname === '/archives'
+    new URL(request.url()).pathname === '/archives/'
   ), { timeout: 5_000 })
   const navigation = page.waitForURL(/\/archives\/?$/)
-  await page.locator('a[href="/archives"]').first().click({ noWaitAfter: true })
+  await page.locator('a[href="/archives/"]').first().click({ noWaitAfter: true })
   await expect(root).toHaveAttribute('data-motion-page-state', 'exiting')
 
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -256,7 +256,7 @@ test('fallback departure keeps the first target during repeated activation', asy
 })
 
 test('native domain arrival uses the current domain color', async ({ page }) => {
-  await page.goto('/domains/academic')
+  await page.goto('/domains/academic/')
   await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'native')
 
   const academicArrival = await page.locator('body').evaluate((body) => {
@@ -270,7 +270,7 @@ test('native domain arrival uses the current domain color', async ({ page }) => 
 })
 
 test('native domain clicks mark colored departure without interception', async ({ page }) => {
-  await page.goto('/domains/academic')
+  await page.goto('/domains/academic/')
   await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'native')
 
   const departure = await page.evaluate(() => new Promise<{
@@ -285,7 +285,7 @@ test('native domain clicks mark colored departure without interception', async (
     viewportWidth: number
   }>((resolve) => {
     const link = document.createElement('a')
-    link.href = '/domains/games'
+    link.href = '/domains/games/'
     link.dataset.domain = 'games'
     link.textContent = 'Games domain'
     document.body.append(link)
@@ -364,14 +364,14 @@ test('homepage reveals the A2 modules once in order', async ({ page }) => {
 })
 
 test('article motion is limited to the header', async ({ page }) => {
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const header = page.locator('.article-header[data-motion-reveal]')
   await expect(header).toHaveAttribute('data-motion-state', 'visible')
   await expect(page.locator('.prose[data-motion-reveal]')).toHaveCount(0)
 })
 
 test('table of contents tracks the current article section', async ({ page }) => {
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const headings = page.locator('.prose h2[id]')
   expect(await headings.count()).toBeGreaterThan(1)
 
@@ -390,7 +390,7 @@ test('table of contents tracks the current article section', async ({ page }) =>
 
 test('toc link activation keeps the native hash target current', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const toc = page.locator('[data-toc]')
   const marker = toc.locator('[data-toc-marker]')
   const target = toc.locator('[data-toc-link]').nth(1)
@@ -421,16 +421,16 @@ test('toc link activation keeps the native hash target current', async ({ page }
 })
 
 test('table of contents honors a direct section link on initialization', async ({ page }) => {
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const targetHref = await page.locator('[data-toc-link]').nth(1).getAttribute('href')
   expect(targetHref).toMatch(/^#.+/)
 
-  await page.goto(`/posts/astro-content-architecture${targetHref}`)
+  await page.goto(`/posts/astro-content-architecture/${targetHref}`)
   await expect(page.locator('[data-toc-link]').nth(1)).toHaveAttribute('aria-current', 'location')
 })
 
 test('archive cards reveal once and expose stable motion order', async ({ page }) => {
-  await page.goto('/archives')
+  await page.goto('/archives/')
   const card = page.locator('[data-post-card]').last()
   await card.scrollIntoViewIfNeeded()
   await expect(card).toHaveAttribute('data-motion-state', 'visible')
@@ -448,7 +448,7 @@ test('reduced motion keeps A2 content visible', async ({ page }) => {
 
 test('reduced motion removes the toc marker transition', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   await expect(page.locator('[data-toc-marker]')).toHaveCSS('transition-property', 'none')
 })
 

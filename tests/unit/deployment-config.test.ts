@@ -114,6 +114,8 @@ const expectedCaddyfile = normalizeCaddyfile(`
   encode zstd gzip
 
   respond /healthz "ok" 200
+  redir /sitemap-index.xml /sitemap.xml 308
+  redir /sitemap-0.xml /sitemap.xml 308
 
   @immutable path /_astro/* /pagefind/*
   header @immutable Cache-Control "public, max-age=31536000, immutable"
@@ -210,6 +212,8 @@ const assertCaddyContract = (caddyfile: string) => {
   expect(normalized).toContain(':8080 {')
   expect(normalized).toContain('root * /srv')
   expect(normalized).toContain('respond /healthz "ok" 200')
+  expect(normalized).toContain('redir /sitemap-index.xml /sitemap.xml 308')
+  expect(normalized).toContain('redir /sitemap-0.xml /sitemap.xml 308')
   expect(normalized).toMatch(/^file_server$/m)
   expect(normalized).toMatch(
     /handle_errors \{\s+rewrite \* \/404\.html\s+file_server\s+\}/,

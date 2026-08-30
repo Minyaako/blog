@@ -17,7 +17,7 @@ const { ranking } = Astro.props
 ---
 
 <BaseLayout title={ranking.title} description={ranking.description}>
-  <nav class="ranking-back" aria-label="榜单路径"><a href="/ranking">← 返回榜单入口</a></nav>
+  <nav class="ranking-back" aria-label="榜单路径"><a href="/ranking/">← 返回榜单入口</a></nav>
   <header class="ranking-header" data-motion-reveal>
     <p class="eyebrow">RANKING / {ranking.id}</p>
     <h1>{ranking.title}</h1>

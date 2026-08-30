@@ -159,8 +159,8 @@ public_health() {
     *) return 1 ;;
   esac
 
-  "$CURL" --fail --silent --show-error "$ORIGIN/about" >/dev/null || return 1
-  "$CURL" --fail --silent --show-error "$ORIGIN/archives" >/dev/null || return 1
+  "$CURL" --fail --silent --show-error "$ORIGIN/about/" >/dev/null || return 1
+  "$CURL" --fail --silent --show-error "$ORIGIN/archives/" >/dev/null || return 1
 
   body=$("$CURL" --fail --silent --show-error "$ORIGIN/rss.xml") || return 1
   case "$body" in
@@ -168,7 +168,7 @@ public_health() {
     *) return 1 ;;
   esac
 
-  body=$("$CURL" --fail --silent --show-error "$ORIGIN/sitemap-index.xml") || return 1
+  body=$("$CURL" --fail --silent --show-error "$ORIGIN/sitemap.xml") || return 1
   case "$body" in
     *"$ORIGIN"*) return 0 ;;
     *) return 1 ;;

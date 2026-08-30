@@ -18,11 +18,11 @@ const { domain, posts } = Astro.props
 const config = DOMAINS[domain]
 ---
 
-<BaseLayout title={config.label} description={config.description}>
+<BaseLayout title={config.label} description={config.description} noindex={!posts.length}>
   <div class="domain-page" data-domain={domain}>
     <header class="domain-heading">
       <p>{config.englishLabel}</p><h1>{config.label}</h1><span>{config.description}</span>
-      <nav aria-label={`${config.label}子类`}><ul>{Object.entries(config.subcategories).map(([slug, item]) => <li><a href={`/domains/${domain}/${slug}`}>{item.label}</a></li>)}</ul></nav>
+      <nav aria-label={`${config.label}子类`}><ul>{Object.entries(config.subcategories).map(([slug, item]) => <li><a href={`/domains/${domain}/${slug}/`}>{item.label}</a></li>)}</ul></nav>
     </header>
     <div class="cards">{posts.map((post) => <PostCard post={post} />)}</div>
   </div>

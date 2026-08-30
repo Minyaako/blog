@@ -28,7 +28,6 @@
     "@astrojs/markdown-remark": "7.2.1",
     "@astrojs/mdx": "7.0.2",
     "@astrojs/rss": "4.0.19",
-    "@astrojs/sitemap": "3.7.3",
     "@fontsource-variable/manrope": "5.2.8",
     "@fontsource-variable/noto-sans-sc": "5.2.10",
     "@iconify-json/lucide": "1.2.116",

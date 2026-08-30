@@ -9,11 +9,11 @@ const domains = Object.entries(DOMAINS) as [DomainKey, (typeof DOMAINS)[DomainKe
 <section class="domain-section" aria-labelledby="domain-heading" data-motion-reveal style="--motion-order: 1">
   <div class="section-heading">
     <div><span class="section-kicker"><AppIcon name="lucide:shapes" /><span>Explore</span></span><h2 id="domain-heading">四个内容领域</h2></div>
-    <a href="/archives">查看全部归档 <span class="motion-arrow" aria-hidden="true">→</span></a>
+    <a href="/archives/">查看全部归档 <span class="motion-arrow" aria-hidden="true">→</span></a>
   </div>
   <div class="domain-grid">
     {domains.map(([key, domain], index) => (
-      <a class="domain-card" data-domain={key} href={`/domains/${key}`} aria-label={`${domain.label}：${domain.description}`}>
+      <a class="domain-card" data-domain={key} href={`/domains/${key}/`} aria-label={`${domain.label}：${domain.description}`}>
         <span class="domain-card-head">
           <span class="index">0{index + 1}</span>
           <DomainIcon domain={key} />

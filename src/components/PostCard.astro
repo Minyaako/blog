@@ -20,7 +20,7 @@ const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(po
   data-motion-reveal={reveal ? true : undefined}
   style={reveal ? `--motion-order: ${motionOrder}` : undefined}
 >
-  <a class="card-link" href={`/posts/${post.slug}`}>
+  <a class="card-link" href={`/posts/${post.slug}/`}>
     <div class="card-copy">
       <p class="meta"><time datetime={post.publishedAt.toISOString()}>{date}</time> · {domain.label}</p>
       <h3>{post.title}</h3>

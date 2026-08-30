@@ -12,7 +12,7 @@ import { rankings } from '../../lib/ranking-fixtures'
   <ol class="ranking-directory" aria-label="榜单目录">
     {rankings.map((ranking, index) => (
       <li data-ranking-entry data-motion-reveal style={`--motion-order: ${index + 1}`}>
-        <a href={`/ranking/${ranking.id}`}>
+        <a href={`/ranking/${ranking.id}/`}>
           <span class="directory-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
           <span class="directory-copy">
             <strong>{ranking.title}</strong>

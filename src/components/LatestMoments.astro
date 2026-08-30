@@ -12,14 +12,14 @@ const formatDate = (date: Date) => new Intl.DateTimeFormat('zh-CN', { month: 'sh
 <section class="latest-moments" aria-labelledby="latest-moments-heading" data-latest-moments data-motion-reveal style="--motion-order: 3">
   <header>
     <div><p class="kicker">Recent moments</p><h2 id="latest-moments-heading">最新动态</h2></div>
-    <a href="/moments">进入时间流 <span class="motion-arrow" aria-hidden="true">→</span></a>
+    <a href="/moments/">进入时间流 <span class="motion-arrow" aria-hidden="true">→</span></a>
   </header>
   <div class="moment-previews">
     {moments.length > 0
       ? moments.slice(0, 2).map((moment) => (
           <article data-moment-preview>
             <p><time datetime={moment.publishedAt.toISOString()}>{formatDate(moment.publishedAt)}</time></p>
-            <h3><a href={`/moments/${moment.id}`}>{moment.title ?? '一则没有标题的动态'}</a></h3>
+            <h3><a href={`/moments/${moment.id}/`}>{moment.title ?? '一则没有标题的动态'}</a></h3>
             <p>{toMomentSummary(moment, 96)}</p>
           </article>
         ))

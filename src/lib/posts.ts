@@ -79,7 +79,7 @@ export function toFeedItem(post: CollectionEntry<'posts'>) {
     title: card.title,
     description: card.description,
     pubDate: card.publishedAt,
-    link: `/posts/${card.slug}`,
+    link: `/posts/${card.slug}/`,
     categories: [
       card.domain,
       card.subcategory,

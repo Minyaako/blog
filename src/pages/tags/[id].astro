@@ -25,7 +25,7 @@ interface Props { tag: Tag; posts: PostCardData[]; moments: MomentView[] }
 const { tag, posts, moments } = Astro.props
 const sections = buildTagDetailSections(tag, posts, moments)
 ---
-<BaseLayout title={`#${tag.label}`} description={tag.description}>
+<BaseLayout title={`#${tag.label}`} description={tag.description} noindex={!sections.hasPosts && !sections.hasMoments}>
   <div class="listing-page">
     <header>
       <p>Tag · {tag.id}</p>

@@ -183,16 +183,16 @@ ssh -o BatchMode=yes blog-deploy@124.223.13.233 status
 $origin = 'https://gsk.minyako.top'
 curl.exe -fsS -o NUL "$origin/"
 if ($LASTEXITCODE -ne 0) { throw '首页检查失败' }
-curl.exe -fsS -o NUL "$origin/about"
+curl.exe -fsS -o NUL "$origin/about/"
 if ($LASTEXITCODE -ne 0) { throw 'About 检查失败' }
-curl.exe -fsS -o NUL "$origin/archives"
+curl.exe -fsS -o NUL "$origin/archives/"
 if ($LASTEXITCODE -ne 0) { throw '归档页检查失败' }
 
 $rss = curl.exe -fsS "$origin/rss.xml"
 if ($LASTEXITCODE -ne 0) { throw 'RSS 获取失败' }
 if (-not ($rss | Select-String -SimpleMatch $origin -Quiet)) { throw 'RSS 缺少 canonical origin' }
 
-$sitemap = curl.exe -fsS "$origin/sitemap-index.xml"
+$sitemap = curl.exe -fsS "$origin/sitemap.xml"
 if ($LASTEXITCODE -ne 0) { throw 'Sitemap 获取失败' }
 if (-not ($sitemap | Select-String -SimpleMatch $origin -Quiet)) { throw 'Sitemap 缺少 canonical origin' }
 
@@ -255,7 +255,7 @@ ssh tencent-server "sudo sh -c 'if test -f /srv/apps/blog/state/last-failure; th
 
 ## 回滚与恢复
 
-`blog-release` 会先启动独立候选容器，确认容器健康后替换 Compose 服务，再从公网验证 `/healthz`、首页、About、归档、RSS 和 Sitemap。任何切换或公网检查失败都会记录 `last-failure`，并自动恢复部署前的 `current` 与 `previous` 状态；若这是首次发布，则停止失败服务。
+`blog-release` 会先启动独立候选容器，确认容器健康后替换 Compose 服务，再从公网验证 `/healthz`、首页、About、归档、RSS 和 `/sitemap.xml`。任何切换或公网检查失败都会记录 `last-failure`，并自动恢复部署前的 `current` 与 `previous` 状态；若这是首次发布，则停止失败服务。
 
 自动回滚后，管理员应检查 `status`、`last-failure`、博客日志与网关日志，再重复全部发布后检查。不要修改状态文件、重打镜像标签或用 `latest` 模拟恢复。
 

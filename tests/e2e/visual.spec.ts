@@ -1,10 +1,10 @@
 import { expect, test } from './fixtures'
 
 const routes = {
-  article: '/posts/astro-content-architecture',
-  search: '/search',
-  about: '/about',
-  notFound: '/404'
+  article: '/posts/astro-content-architecture/',
+  search: '/search/',
+  about: '/about/',
+  notFound: '/404.html'
 }
 
 for (const theme of ['light', 'dark'] as const) {
@@ -23,8 +23,8 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 const stableRegions = {
-  archive: ['/archives', '.page-heading'],
-  game: ['/posts/visual-novel-memory', '.article-header']
+  archive: ['/archives/', '.page-heading'],
+  game: ['/posts/visual-novel-memory/', '.article-header']
 } as const
 
 for (const theme of ['light', 'dark'] as const) {

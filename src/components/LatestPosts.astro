@@ -13,13 +13,13 @@ const formatDate = (date: Date) => new Intl.DateTimeFormat('zh-CN', { dateStyle:
 <section class="latest" aria-labelledby="latest-heading" data-motion-reveal style="--motion-order: 2">
   <div class="section-heading">
     <div><span class="section-kicker"><AppIcon name="lucide:book-open" /><span>Latest long reads</span></span><h2 id="latest-heading">最新长文</h2></div>
-    <a href="/archives">查看全部 <span class="motion-arrow" aria-hidden="true">→</span></a>
+    <a href="/archives/">查看全部 <span class="motion-arrow" aria-hidden="true">→</span></a>
   </div>
   {lead ? (
     <div class="latest-grid">
       <article class="lead-post" data-domain={lead.domain}>
         <p class="meta">{DOMAINS[lead.domain].label} · {formatDate(lead.publishedAt)}</p>
-        <h3><a href={`/posts/${lead.slug}`}>{lead.title}</a></h3>
+        <h3><a href={`/posts/${lead.slug}/`}>{lead.title}</a></h3>
         <p>{lead.description}</p>
         <ul>{lead.tags.map((tag) => <li>{tag.label}</li>)}</ul>
       </article>
@@ -27,7 +27,7 @@ const formatDate = (date: Date) => new Intl.DateTimeFormat('zh-CN', { dateStyle:
         {rest.map((post) => (
           <article>
             <p class="meta">{DOMAINS[post.domain].label} · {formatDate(post.publishedAt)}</p>
-            <h3><a href={`/posts/${post.slug}`}>{post.title}</a></h3>
+            <h3><a href={`/posts/${post.slug}/`}>{post.title}</a></h3>
           </article>
         ))}
       </div>
