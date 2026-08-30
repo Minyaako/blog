@@ -177,6 +177,14 @@ active_matches() {
   esac
 }
 
+if test -n "${TRANSIENT_ENDPOINT:-}" && test "$path" = "$TRANSIENT_ENDPOINT" && active_matches "${TRANSIENT_IMAGE:-}"; then
+  attempts=0
+  if test -f "$TRANSIENT_ENDPOINT_ATTEMPT_FILE"; then attempts=$(cat "$TRANSIENT_ENDPOINT_ATTEMPT_FILE"); fi
+  attempts=$((attempts + 1))
+  printf '%s\n' "$attempts" > "$TRANSIENT_ENDPOINT_ATTEMPT_FILE"
+  if test "$attempts" -le "${TRANSIENT_ENDPOINT_FAILURES:-0}"; then exit 22; fi
+fi
+
 if test -n "${SIGNAL_ENDPOINT:-}" && test "$path" = "$SIGNAL_ENDPOINT" && active_matches "${SIGNAL_IMAGE:-}"; then
   kill -TERM "$PPID"
   exit 22
@@ -292,8 +300,10 @@ reset_case() {
   export LOCK_ASSERTED="$TMP/$case_name/lock-asserted"
   export CASE_OUTPUT="$TMP/$case_name/output.log"
   export PULL_ATTEMPT_FILE="$TMP/$case_name/pull-attempts"
+  export TRANSIENT_ENDPOINT_ATTEMPT_FILE="$TMP/$case_name/transient-endpoint-attempts"
   unset FAIL_PULL FAIL_PULL_ATTEMPTS FAIL_RUN FAIL_INSPECT CANDIDATE_HEALTH FAIL_COMPOSE_BEFORE_IMAGE
   unset FAIL_COMPOSE_AFTER_IMAGE FAIL_COMPOSE_DOWN FAIL_ENDPOINT FAIL_IMAGE
+  unset TRANSIENT_ENDPOINT TRANSIENT_IMAGE TRANSIENT_ENDPOINT_FAILURES
   unset SIGNAL_ENDPOINT SIGNAL_IMAGE FAIL_MV_DEST FAIL_CANDIDATE_RM_ONCE
   unset FAIL_LOCK_RELEASE_ONCE ASSERT_OWNED_LOCK
   unset FAIL_PRIVATE_TOKEN_RM_ONCE ASSERT_LOCK_DURING_ROLLBACK_IMAGE
@@ -395,6 +405,19 @@ test_endpoint_failure() {
   assert_failure_state "$one"
   assert_candidate_cleaned 111111111111
   assert_log "BLOG_IMAGE=$repo:$one compose -f $BLOG_COMPOSE_FILE down" "$DOCKER_LOG" "$endpoint failure did not stop first release"
+  assert_eq 15 "$(grep -c -Fx "$endpoint" "$CURL_LOG")" "$endpoint failure was not bounded to 15 attempts"
+  assert_eq 14 "$(grep -c -Fx '2' "$SLEEP_LOG")" "$endpoint failure did not use 14 bounded retry delays"
+}
+
+test_transient_public_endpoint() {
+  reset_case transient_public_endpoint
+  export TRANSIENT_ENDPOINT=/sitemap.xml
+  export TRANSIENT_ENDPOINT_FAILURES=1
+  "$RELEASE" deploy "$one" >/dev/null || fail 'transient public endpoint failure was not recovered'
+  assert_eq 2 "$(cat "$TRANSIENT_ENDPOINT_ATTEMPT_FILE")" 'public endpoint was not retried after proxy propagation delay'
+  assert_eq 2 "$(grep -c -Fx '/healthz' "$CURL_LOG")" 'public health retry did not restart the complete endpoint set'
+  assert_eq 1 "$(grep -c -Fx '2' "$SLEEP_LOG")" 'public health retry did not wait for the proxy propagation interval'
+  assert_file_eq "$BLOG_STATE_DIR/current" "$one" 'recovered public health check did not deploy the release'
 }
 
 test_pull_failure() {
@@ -771,6 +794,7 @@ run_case endpoint-about test_endpoint_failure /about/ about
 run_case endpoint-archives test_endpoint_failure /archives/ archives
 run_case endpoint-rss test_endpoint_failure /rss.xml rss
 run_case endpoint-sitemap test_endpoint_failure /sitemap.xml sitemap
+run_case transient-public-endpoint test_transient_public_endpoint
 run_case pull-failure test_pull_failure
 run_case pull-retry-success test_pull_retry_success
 run_case run-failure test_run_failure

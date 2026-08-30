@@ -149,11 +149,11 @@ compose_down() {
   BLOG_IMAGE="$IMAGE_REPO:$1" "$DOCKER" compose -f "$COMPOSE_FILE" down
 }
 
-public_health() {
-  body=$("$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/healthz") || return 1
+public_health_once() {
+  body=$("$CURL" --fail --silent --show-error "$ORIGIN/healthz") || return 1
   test "$body" = ok || return 1
 
-  body=$("$CURL" --fail --silent --show-error --retry 15 --retry-delay 2 "$ORIGIN/") || return 1
+  body=$("$CURL" --fail --silent --show-error "$ORIGIN/") || return 1
   case "$body" in
     *'<html'*) : ;;
     *) return 1 ;;
@@ -173,6 +173,15 @@ public_health() {
     *"$ORIGIN"*) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+public_health() {
+  public_attempt=1
+  while ! public_health_once; do
+    if test "$public_attempt" -ge 15; then return 1; fi
+    sleep 2
+    public_attempt=$((public_attempt + 1))
+  done
 }
 
 # Invoked only through cleanup(), which is registered as an EXIT trap.
