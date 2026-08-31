@@ -55,13 +55,13 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
 })
 
 test('prose keeps blockquotes accented and updates Shiki colors without reloading', async ({ page }) => {
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const quote = page.locator('.prose blockquote')
   await expect(quote).toBeVisible()
   await expect(quote).toHaveCSS('border-left-width', '3px')
   await expect(quote).toHaveCSS('border-top-width', '0px')
 
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
   const code = page.locator('.prose pre.astro-code').first()
   const token = code.locator('span').first()
   const [lightBackground, lightTokenColor] = await Promise.all([
@@ -81,7 +81,7 @@ test('prose keeps blockquotes accented and updates Shiki colors without reloadin
 
 test('prose code stays within the document at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 })
-  await page.goto('/posts/astro-content-architecture')
+  await page.goto('/posts/astro-content-architecture/')
 
   const pre = page.locator('.prose pre').first()
   expect(await page.evaluate(() => document.documentElement.scrollWidth === document.documentElement.clientWidth)).toBe(true)
