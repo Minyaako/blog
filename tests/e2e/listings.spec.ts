@@ -1,5 +1,13 @@
 import { expect, test } from './fixtures'
 
+test('small features permanently exposes the moments route', async ({ page }) => {
+  await page.goto('/')
+
+  const menu = page.locator('[data-small-features]')
+  await menu.getByRole('button', { name: '小功能' }).click()
+  await expect(menu.getByRole('link', { name: '动态' })).toHaveAttribute('href', '/moments/')
+})
+
 test('archive cards keep images clipped and show the visual novel cover', async ({ page }) => {
   await page.goto('/archives/')
 

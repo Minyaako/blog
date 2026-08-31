@@ -19,6 +19,16 @@ function latestPublishedTitle() {
   ))[0]?.title
 }
 
+test('latest moments keeps discovery affordances when it is empty', async ({ page }) => {
+  await page.goto('/test/latest-moments-empty/')
+
+  const latestMoments = page.locator('[data-latest-moments]')
+  await expect(latestMoments.getByRole('heading', { name: '最新动态' })).toBeVisible()
+  await expect(latestMoments.getByRole('link', { name: '进入时间流' })).toHaveAttribute('href', '/moments/')
+  await expect(latestMoments.getByText('暂时还没有动态，稍后再来看看。')).toBeVisible()
+  await expect(latestMoments.locator('[data-moment-preview]')).toHaveCount(0)
+})
+
 test('homepage presents identity, four domains, and recent writing', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('img', { name: '首页横幅：伏案小憩的少女' })).toBeVisible()
