@@ -1,0 +1,271 @@
+---
+id: seo-submission
+title: 让你的博客可以被搜到——比把大象放进冰箱更简单！
+description: 有关制作xml以及提交博客
+domain: engineering
+subcategory: devlogs
+tags:
+  - astro
+  - blog-tech
+collections: []
+authors:
+  - Minyako
+publishedAt: 2026-08-31
+draft: false
+featured: false
+lang: zh-CN
+translationKey: seo-submission
+license: CC-BY-4.0
+contentWarning:
+  type: none
+  message: ""
+  scope: none
+cover:
+  media: post-academic-cover
+  alt: post-academic-cover
+  credit: user-provided
+---
+你是否还在苦恼于写了博文，却始终没人来看？
+
+你是否觉得每次更新之后，都要手动到处分享博文链接实在太过麻烦？
+
+你是否也希望自己的文章能够直接通过搜索引擎，被真正需要它的人发现？
+
+想要做到这些其实并不复杂：我们只需要完成一次「搜索引擎提交」（Search Engine Submission），让搜索引擎能够正常发现、抓取并索引你的网站。跟着我操作，三步即可完成基本部署，比把大象塞进冰箱还要简单！
+
+## 第一步：完成前置条件
+
+虽然标题写的是“第一步”，但这一步实际上还要被拆成几个小步骤。你可能觉得我是标题党，不过好消息是，这些操作基本都可以直接交给 AI 完成——当然，其实下一步也可以。
+
+你只需要告诉 AI：
+
+> 我们需要把博客提交给搜索引擎，为我完成提交前的 SEO 与站点配置准备。
+
+剩下的事情基本就可以让它自己处理了。不过为了照顾喜欢手操的读者，我们这里还是把具体的实现方法过一遍。
+
+### 首先，确保网站满足基础条件
+
+在考虑搜索引擎之前，我们首先得保证你的网站本身是一个正常、公开而且能够被爬虫访问的网站。至少需要满足下面这些条件：
+
+ 域名能够公开解析；
+* HTTPS 证书有效；
+* 页面不要求登录；
+* 不依赖 Cookie 才能显示正文；
+* 不会被 WAF、地区策略或请求频率限制误伤；
+* 正常页面返回 `200`；
+* 永久迁移返回 `301` 或 `308`；
+* 不存在的页面返回真实的 `404`；
+* 不形成重定向环或过长的重定向链。
+
+然后，你最好再配置一份 `robots.txt`。例如：
+
+```text
+User-agent: *
+Allow: /
+Sitemap: https://example.com/sitemap-index.xml
+```
+
+这并不是搜索引擎收录网站的硬性条件，但把 Sitemap 地址写进 `robots.txt`，能够方便搜索引擎主动发现它，而这也正是我们后面会用到的东西。
+
+总之，这一步需要做的事情并不复杂：确认网站的状态码与跳转逻辑符合规范，同时不要错误阻止爬虫访问正文所需要的 CSS、图片等资源。确认这些都没有问题之后，我们就可以进入下一项准备工作。
+
+### 其次，保证一份内容只有一个规范 URL
+
+假设你的同一篇文章同时可以通过下面这些地址访问：
+
+```text
+https://example.com/post
+https://example.com/post/
+http://example.com/post/
+https://www.example.com/post/
+https://example.com/post/?utm_source=test
+```
+
+那么对于搜索引擎来说，这几份页面的内容几乎完全一样，它就需要自行判断究竟哪一个才是你真正希望被索引的主版本。
+
+更加妥善的做法，是自己建立一套统一的 URL 规范。
+
+例如我们决定统一采用第二种形式：
+
+```text
+https://example.com/post/
+```
+
+那么其他非规范地址就应该尽可能永久跳转到这个地址，例如：
+
+```text
+/post → 308 → /post/
+```
+
+与此同时，我们还需要设置页面的 canonical，让搜索引擎明确知道“哪个 URL 才是这个页面的规范版本”。因此，最好为每一个允许索引的页面输出一个指向自身规范地址的 canonical：
+
+```html
+<link
+  rel="canonical"
+  href="https://example.com/post/"
+>
+```
+
+完成这些设置之后，还需要确保站内链接尽可能直接指向最终的规范地址，而不是依赖一次重定向才能到达。同理，后面生成的 Sitemap 中也应该只出现规范化之后的 URL，避免给搜索引擎制造不必要的判断成本。
+
+顺便一提，如果你用的是 Astro，那么实现这一套东西会更加简单。
+
+首先，在 `astro.config.mjs` 中配置正式部署的网站地址：
+
+```javascript
+export default defineConfig({
+  site: 'https://example.com',
+});
+```
+
+随后，在负责输出 `<head>` 的 `.astro` 文件中——一般来说是 `Layout.astro`、`BaseHead.astro` 或者类似的公共组件——加入：
+
+```astro
+---
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+---
+
+<head>
+  <link rel="canonical" href={canonicalURL} />
+</head>
+```
+
+这也是 Astro 官方文档给出的 canonical URL 构建方式。
+
+当然，你也可以偷懒直接写：
+
+```astro
+<link rel="canonical" href={Astro.url} />
+```
+
+很多情况下确实也能跑，但 `Astro.url` 表示的是当前请求 URL，会更加依赖当前请求环境（你在本地测试的时候如果你没配`Site`的话甚至会得到Localhost的url）；相比之下，利用 `Astro.site` 构建 canonical 能够明确使用你配置好的正式部署域名，所以这里还是建议动动小手，老老实实写前一种。
+
+### 最后：设置 Sitemap
+
+如果你和博主一样采用 Astro 来构建博客，那么 Sitemap 这一项就更简单了，因为 Astro 官方直接提供了 `@astrojs/sitemap` 集成。
+
+你可以先手动安装：
+
+```bash
+npm install @astrojs/sitemap
+```
+
+随后配置 `astro.config.mjs`：
+
+```javascript
+import { defineConfig } from 'astro/config'
+import sitemap from '@astrojs/sitemap'
+
+export default defineConfig({
+  site: 'https://example.com',
+
+  integrations: [
+    sitemap()
+  ]
+})
+```
+
+或者直接一步到位：
+
+```bash
+npx astro add sitemap
+```
+
+`astro add` 会自动完成安装并修改相应的 Astro 配置，所以如果你本身没有什么特殊需求，用这一条命令其实就够了。
+
+完成配置之后，每次执行 build，Astro 都会自动在构建目录中生成 Sitemap。通常可以看到：
+
+```text
+dist/
+├── sitemap-index.xml
+└── sitemap-0.xml
+```
+
+其中 `sitemap-index.xml` 是 Sitemap 索引，里面会继续指向真正保存页面 URL 的 `sitemap-0.xml`。因此后续向支持 Sitemap Index 的搜索引擎提交时，一般直接使用：
+
+```text
+https://example.com/sitemap-index.xml
+```
+
+即可。
+
+当然，只生成 Sitemap 肯定还不够。
+
+博客里往往会存在一些并不适合被放进 Sitemap 的页面，例如 `/search/` 搜索页、某些纯功能页面或者没有实际内容的界面。这时候就可以使用 `@astrojs/sitemap` 提供的 **filter** 功能：
+
+```javascript
+import { defineConfig } from 'astro/config'
+import sitemap from '@astrojs/sitemap'
+
+export default defineConfig({
+  site: 'https://example.com',
+
+  integrations: [
+    sitemap({
+      filter: (page) =>
+        !page.includes('/search/') &&
+        !page.includes('/xxxx/')
+    })
+  ]
+})
+```
+
+`filter` 会依次检查每一个页面：返回 `true` 就加入 Sitemap，返回 `false` 就把它排除出去。
+
+除此之外，`@astrojs/sitemap` 还提供了 `customPages`、`serialize` 等更多功能，有兴趣的话可以直接去 [Astro Sitemap 官方文档](https://docs.astro.build/en/guides/integrations-guide/sitemap/) 继续探索。
+
+说句题外话，如果你的博客完全依靠自己手动维护，我确实更推荐直接使用官方的 `@astrojs/sitemap`毕竟这样很简单。
+
+但是如果你的项目本来就有 AI 辅助开发，那么我个人反而推荐根据博客结构构建一套自定义 Sitemap。这样可以绕过越来越复杂的 filter 配置，更灵活地排除搜索页、分页页、无正文页面等内容，后续想加入更新时间、分类 Sitemap 或其他逻辑时也会更加方便。
+
+
+可以看出，前面的这些准备并不涉及什么特别复杂的操作。如果你采用 Astro，或者本身就在使用 AI 辅助开发，那整个过程实际上会非常快。
+
+准备完毕之后，我们终于可以进入真正的“第二步”。
+
+## 第二步：正式提交
+
+做好所有准备工作之后，接下来就该正式把你的网站交给搜索引擎了。
+
+虽然这一步理论上也完全可以让装了网页操作 Skill 或插件的 AI 代劳，但为了给自己的网站留下一点最后的仪式感，我还是更推荐亲手完成。
+
+### 提交入口
+
+这里先准备三个比较主流的搜索引擎站长平台：
+
+* [Google Search Console](https://search.google.com/search-console/)
+* [Bing Webmaster Tools](https://www.bing.com/webmasters/)
+* [百度搜索资源平台](https://ziyuan.baidu.com/)
+
+登录之后，就可以正式开始了。
+
+### 具体操作
+
+这里先以 Google Search Console 为例：
+
+1. 点击“添加资源”；
+2. 推荐选择“网域（Domain）”，然后填写自己的域名，例如 `example.com`；
+3. Google 会要求你通过 DNS 验证域名所有权，并提供一条 TXT 记录；
+4. 前往你的域名 DNS 服务商，将这条 TXT 记录添加进去，等待生效后回到 Search Console 点击“验证”；
+5. 验证完成后进入刚刚添加的网站资源，找到“站点地图（Sitemaps）”；
+6. 输入你的 Sitemap 地址或对应路径，例如 `https://example.com/sitemap-index.xml`；
+7. 点击“提交”，等待状态正常即可。
+
+对于 Domain 类型的资源，Google 会把 `http`、`https` 以及不同子域名统一纳入这个资源中，所以如果你能够修改 DNS，我个人也比较推荐这种方式。
+
+提交 Sitemap 之后，还可以使用顶部的“网址检查（URL Inspection）”检查某一篇具体文章，并手动请求建立索引。对于刚刚发布、希望尽快让 Google 发现的少量文章，这种方法会比较方便；如果是整个博客的大量页面，还是老老实实维护 Sitemap 更合适。
+
+
+至于 Bing，整体流程和 Google 基本相通。甚至如果你已经完成了 Google Search Console 的验证，Bing Webmaster Tools 还支持直接从 Google Search Console 导入网站和 Sitemap，可以少做一遍验证。你也可以正常手动添加网站并提交 Sitemap。
+
+百度的逻辑大体也一样：先验证站点，再通过“资源提交”等工具告诉百度你的页面地址。不过百度这里的 Sitemap 权限和配额机制是需要验证网站备案信息的。我自己实际尝试的时候无法验证，折腾了一圈之后本来想去反馈中心申诉，结果连合适的申诉入口都没找到，遂作罢（
+
+因此，如果你打开百度搜索资源平台之后发现自己的界面和网上教程不完全一样，也不一定是你操作错了。实在没有 Sitemap 权限的话，还可以看看后台目前提供的普通收录、API 推送或手动提交等方式。
+
+做到这里，最基本的搜索引擎提交工作就已经完成了。
+
+## 第三步：等待并且更新
+
+完成了搜索引擎提交只能解决**“让搜索引擎知道你的网站和文章存在”**的问题，并不能保证你的文章立刻排到搜索结果前面。真正决定后续搜索表现的，还有文章质量、站内链接、标题结构、页面性能以及搜索需求本身。所以最后一件要做的事就是老老实实更新，这块就涉及到SEO运作机制的问题了，你可以在知乎等平台上搜到更多有关如何进行SEO优化的文章，不过大体来说，你可以通过老老实实更新原创内容的方式提升排名，增加外链也是一个相当有效的方式。这些就不在这里继续展开了（毕竟我也没做）。
+
+无论怎么说，至少从现在开始，你写下来的东西终于不再只能依靠自己到处贴链接传播了（赞）。
