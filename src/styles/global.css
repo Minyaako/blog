@@ -143,6 +143,7 @@
   }
 
   .site-footer {
+    position: relative;
     padding-block: var(--space-6);
     border-top: 1px solid var(--border);
     color: var(--text-muted);
@@ -157,6 +158,13 @@
   }
 
   .footer-copy { max-width: 48rem; margin: 0; line-height: 1.7; }
+
+  .filing-item {
+    position: absolute;
+    bottom: var(--space-2);
+    left: 50%;
+    translate: -50% 0;
+  }
 
   .filing-link { white-space: nowrap; }
 }
