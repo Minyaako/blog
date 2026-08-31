@@ -157,6 +157,8 @@
   }
 
   .footer-copy { max-width: 48rem; margin: 0; line-height: 1.7; }
+
+  .filing-link { white-space: nowrap; }
 }
 
 @layer utilities {

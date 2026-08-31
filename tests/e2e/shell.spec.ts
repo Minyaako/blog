@@ -11,3 +11,11 @@ test('renders accessible navigation and persists theme', async ({ page }) => {
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme', /light|dark/)
 })
+
+test('links the public ICP filing from the site footer', async ({ page }) => {
+  await page.goto('/')
+
+  const filingLink = page.getByRole('link', { name: '浙ICP备2026059660号-1' })
+  await expect(filingLink).toBeVisible()
+  await expect(filingLink).toHaveAttribute('href', 'https://beian.miit.gov.cn/')
+})
