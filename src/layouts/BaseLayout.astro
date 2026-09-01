@@ -5,6 +5,7 @@ import 'katex/dist/katex.min.css'
 import { SITE } from '../config/site'
 import SiteFooter from '../components/SiteFooter.astro'
 import SiteHeader from '../components/SiteHeader.astro'
+import MusicPlayer from '../components/MusicPlayer.astro'
 import '../styles/global.css'
 
 interface Props {
@@ -93,6 +94,7 @@ const previewBuildTime = import.meta.env.PUBLIC_PREVIEW_BUILD_TIME || 'local'
       <slot />
     </main>
     <SiteFooter />
+    <MusicPlayer />
     <script>
       import { initPageMotion } from '../scripts/page-motion'
       import { initRevealMotion } from '../scripts/motion'
