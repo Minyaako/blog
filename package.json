@@ -47,6 +47,7 @@
     "@minyaako/media-publisher": "github:Minyaako/media-publisher#4b376c06b142c2500404dd0faf4c05b09959ecb0",
     "@playwright/test": "1.61.1",
     "@types/node": "24.13.3",
+    "jsdom": "26.1.0",
     "typescript": "6.0.3",
     "vitest": "4.1.10",
     "yaml": "2.9.0"

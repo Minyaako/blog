@@ -5,49 +5,7 @@ import { buildMusicPlayerModel, parseMusicLibrary, shouldRenderMusicPlayer } fro
 const musicLibrary = parseMusicLibrary(library)
 const enabled = shouldRenderMusicPlayer(musicLibrary)
 const model = enabled ? await buildMusicPlayerModel(musicLibrary) : null
-const playerData = model === null ? '' : JSON.stringify(model).replace(/</gu, '\\u003c')
+const MusicPlayerEnabled = enabled ? (await import('./MusicPlayerEnabled.astro')).default : null
 ---
 
-{enabled && model && (
-  <aside class="music-player-card" data-music-player aria-label="音乐播放器">
-    <button class="music-player-toggle" type="button" data-music-collapse aria-expanded="true">
-      <span>正在播放</span>
-      <span data-music-title>准备播放</span>
-      <span aria-hidden="true">⌄</span>
-    </button>
-    <div class="music-player-body" data-music-body>
-      {model.initialTracks.length > 0 ? (
-        <>
-          <p class="music-player-now" data-music-now aria-live="polite">准备播放</p>
-          <label class="music-player-field">
-            <span>分组</span>
-            <select data-music-group aria-label="选择音乐分组">
-              {model.visibleGroups.map((group) => <option value={group.id}>{group.label}</option>)}
-            </select>
-          </label>
-          <label class="music-player-field">
-            <span>搜索</span>
-            <input type="search" data-music-search placeholder="搜索歌名或歌手" autocomplete="off" />
-          </label>
-          <div class="music-player-results" data-music-results aria-live="polite"></div>
-          <div class="music-player-instance" data-music-aplayer></div>
-          <details class="music-player-lyrics" open>
-            <summary>歌词</summary>
-            <pre data-music-lyrics>暂无歌词</pre>
-          </details>
-          <p class="music-player-error" data-music-error role="status" hidden></p>
-        </>
-      ) : (
-        <p class="music-player-empty">音乐库暂无可播放曲目。</p>
-      )}
-    </div>
-    <script is:inline type="application/json" data-music-player-data set:html={playerData}></script>
-  </aside>
-)}
-
-<script>
-  import { initMusicPlayer } from '../scripts/music-player'
-  import 'aplayer/dist/APlayer.min.css'
-
-  initMusicPlayer()
-</script>
+{MusicPlayerEnabled && model && <MusicPlayerEnabled model={model} />}

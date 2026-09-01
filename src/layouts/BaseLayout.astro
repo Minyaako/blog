@@ -3,9 +3,10 @@ import '@fontsource-variable/manrope/index.css'
 import '@fontsource-variable/noto-sans-sc/index.css'
 import 'katex/dist/katex.min.css'
 import { SITE } from '../config/site'
+import musicLibrary from '../content/music/library.json'
 import SiteFooter from '../components/SiteFooter.astro'
 import SiteHeader from '../components/SiteHeader.astro'
-import MusicPlayer from '../components/MusicPlayer.astro'
+import { parseMusicLibrary } from '../lib/music'
 import '../styles/global.css'
 
 interface Props {
@@ -29,6 +30,8 @@ const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
 const previewBranch = import.meta.env.PUBLIC_PREVIEW_BRANCH || 'editor-preview'
 const previewSha = import.meta.env.PUBLIC_PREVIEW_SHA || 'local-build'
 const previewBuildTime = import.meta.env.PUBLIC_PREVIEW_BUILD_TIME || 'local'
+const musicEnabled = parseMusicLibrary(musicLibrary).enabled
+const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astro')).default : null
 ---
 
 <!doctype html>
@@ -94,7 +97,7 @@ const previewBuildTime = import.meta.env.PUBLIC_PREVIEW_BUILD_TIME || 'local'
       <slot />
     </main>
     <SiteFooter />
-    <MusicPlayer />
+    {MusicPlayer && <MusicPlayer />}
     <script>
       import { initPageMotion } from '../scripts/page-motion'
       import { initRevealMotion } from '../scripts/motion'

@@ -1,4 +1,6 @@
 import APlayer from 'aplayer'
+import aplayerStyle from 'aplayer/dist/APlayer.min.css?inline'
+import playerStyle from '../styles/music-player.css?inline'
 
 interface MusicAsset {
   url: string
@@ -35,6 +37,14 @@ interface PlayerPreferences {
 const preferencesKey = 'minyako-music-player'
 
 const fallbackPreferences: PlayerPreferences = { volume: 0.7, collapsed: false, lastVisibleTrackId: null }
+
+function loadPlayerStyle(): void {
+  if (document.querySelector('[data-music-player-style]')) return
+  const style = document.createElement('style')
+  style.dataset.musicPlayerStyle = 'true'
+  style.textContent = `${aplayerStyle}\n${playerStyle}`
+  document.head.append(style)
+}
 
 function readPreferences(): PlayerPreferences {
   try {
@@ -93,6 +103,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
   }
   if (model.initialTracks.length === 0) return
 
+  loadPlayerStyle()
   const preferences = readPreferences()
   const visibleIds = new Set(model.visibleGroups.map((entry) => entry.id))
   const activeTracks = [...model.initialTracks]
@@ -160,14 +171,19 @@ export function initMusicPlayer(root: ParentNode = document): void {
     error.hidden = false
     error.textContent = '播放失败，请检查网络后重试。'
   }, true)
-  player.on('volumechange', (volume) => {
-    if (typeof volume === 'number' && volume >= 0 && volume <= 1) {
-      preferences.volume = volume
+  player.on('volumechange', (event) => {
+    const media = event.currentTarget instanceof HTMLMediaElement
+      ? event.currentTarget
+      : event.target instanceof HTMLMediaElement
+        ? event.target
+        : player.audio instanceof HTMLMediaElement ? player.audio : null
+    if (media && media.volume >= 0 && media.volume <= 1) {
+      preferences.volume = media.volume
       writePreferences(preferences)
     }
   })
-  player.on('listswitch', (index) => {
-    if (typeof index === 'number' && activeTracks[index]) {
+  player.on('listswitch', ({ index }) => {
+    if (activeTracks[index]) {
       currentIndex = index
       updateCurrent()
     }
