@@ -42,6 +42,12 @@ export function isStrictMomentPublishedAt(value: string): boolean {
   return hasValidExplicitZone(match)
 }
 
+export const momentImageSchema = z.object({
+  media: z.string().trim().min(1),
+  alt: z.string().trim().min(1),
+  caption: z.string().trim().min(1).optional(),
+}).strict()
+
 export const momentSchema = z.object({
   id: z.string().regex(MOMENT_ID_PATTERN),
   title: z.preprocess(
@@ -52,6 +58,7 @@ export const momentSchema = z.object({
     EXPLICIT_ZONE_PATTERN.test(value) && isStrictMomentPublishedAt(value)
   ), 'publishedAt must be an ISO 8601 date-time with an explicit time zone'),
   tags: z.array(z.string().regex(TAG_ID_PATTERN)).default([]),
+  images: z.array(momentImageSchema).default([]),
   pinned: z.boolean().default(false),
   contentWarning: z.preprocess(
     (value) => typeof value === 'string' && value.trim() === '' ? undefined : value,

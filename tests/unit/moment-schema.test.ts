@@ -6,6 +6,7 @@ const validMoment = {
   id: '20260823-143501-a7c31e4f',
   publishedAt: '2026-08-23T14:35:01+08:00',
   tags: ['life-notes'],
+  images: [],
   pinned: false,
   contentWarning: ''
 }
@@ -22,6 +23,27 @@ describe('moment schema', () => {
     expect(parsed.id).toBe(validMoment.id)
     expect(parsed.title).toBeUndefined()
     expect(parsed.contentWarning).toBeUndefined()
+    expect(parsed.images).toEqual([])
+  })
+
+  it('accepts strict structured image references', () => {
+    expect(momentSchema.parse({
+      ...validMoment,
+      images: [{ media: 'home-hero-01', alt: '雨夜中的街道', caption: '街角' }]
+    }).images).toEqual([
+      { media: 'home-hero-01', alt: '雨夜中的街道', caption: '街角' }
+    ])
+  })
+
+  it('rejects empty or unknown image reference fields', () => {
+    expect(() => momentSchema.parse({
+      ...validMoment,
+      images: [{ media: 'home-hero-01', alt: '  ' }]
+    })).toThrow()
+    expect(() => momentSchema.parse({
+      ...validMoment,
+      images: [{ media: 'home-hero-01', alt: '示例', rawUrl: 'https://example.com/image.webp' }]
+    })).toThrow()
   })
 
   it('rejects malformed ids', () => {

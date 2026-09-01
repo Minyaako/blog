@@ -96,10 +96,12 @@ const previewBuildTime = import.meta.env.PUBLIC_PREVIEW_BUILD_TIME || 'local'
     <script>
       import { initPageMotion } from '../scripts/page-motion'
       import { initRevealMotion } from '../scripts/motion'
+      import { initMomentGalleries } from '../scripts/moment-gallery'
       import { initMomentStream } from '../scripts/moment-stream'
       import { initMomentWarnings } from '../scripts/moment-warning'
       initPageMotion()
       const initMomentEnhancements = (root: ParentNode = document) => {
+        initMomentGalleries(root)
         initMomentWarnings(root)
         initRevealMotion(root)
       }

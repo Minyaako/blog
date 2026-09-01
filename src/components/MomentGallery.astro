@@ -1,0 +1,63 @@
+---
+import type { ResolvedMomentImage } from '../lib/moments'
+
+interface Props { images: readonly ResolvedMomentImage[] }
+const { images } = Astro.props
+const first = images[0]
+---
+
+{first && (
+  <figure class="moment-gallery" data-moment-gallery>
+    <div class="gallery-toolbar" aria-label="图集视图">
+      <button type="button" data-gallery-view="stage" aria-pressed="true">单张</button>
+      <button type="button" data-gallery-view="grid" aria-pressed="false">网格</button>
+    </div>
+    <button type="button" class="gallery-stage" data-gallery-stage data-gallery-open style={`--gallery-ratio: ${first.width} / ${first.height}`} aria-label="放大当前图片">
+      <img src={first.url} alt={first.alt} width={first.width} height={first.height} loading="lazy" />
+    </button>
+    <div class="gallery-thumbs" aria-label="选择图片">
+      {images.map((image, index) => (
+        <button type="button" data-gallery-thumb data-index={index} aria-label={`查看第 ${index + 1} 张图片`} aria-current={index === 0 ? 'true' : undefined}>
+          <img src={image.url} alt="" width="96" height="64" loading="lazy" />
+        </button>
+      ))}
+    </div>
+    <div class="gallery-grid" data-gallery-grid>
+      {images.map((image) => (
+        <figure>
+          <img src={image.url} alt={image.alt} width={image.width} height={image.height} loading="lazy" />
+          {image.caption && <figcaption>{image.caption}</figcaption>}
+        </figure>
+      ))}
+    </div>
+    <dialog class="gallery-lightbox" data-gallery-lightbox aria-label="图片放大查看">
+      <button type="button" data-gallery-close aria-label="关闭图片">关闭</button>
+      <img src={first.url} alt={first.alt} width={first.width} height={first.height} />
+    </dialog>
+  </figure>
+)}
+
+<style>
+  .moment-gallery { margin: var(--space-5) 0 0; }
+  .gallery-toolbar { display: flex; justify-content: flex-end; gap: var(--space-2); margin-bottom: var(--space-2); }
+  button { border: 1px solid var(--border); border-radius: 99rem; background: var(--surface); color: var(--text-muted); cursor: pointer; }
+  .gallery-toolbar button { min-height: 2rem; padding-inline: var(--space-3); font-size: .75rem; }
+  button[aria-pressed='true'], button[aria-current='true'] { border-color: var(--accent); color: var(--accent); }
+  .gallery-stage { display: block; overflow: hidden; width: 100%; padding: 0; aspect-ratio: var(--gallery-ratio); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+  .gallery-stage img { width: 100%; height: 100%; object-fit: cover; transition: opacity var(--duration) var(--ease-standard), scale var(--duration) var(--ease-emphasized); }
+  .gallery-thumbs { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+  .gallery-thumbs button { overflow: hidden; width: 4.25rem; padding: 2px; border-radius: var(--radius-sm); }
+  .gallery-thumbs img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+  .gallery-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin-top: var(--space-4); }
+  .gallery-grid figure { margin: 0; }
+  .gallery-grid img { width: 100%; aspect-ratio: 3 / 2; border-radius: var(--radius-sm); object-fit: cover; }
+  figcaption { margin-top: var(--space-2); color: var(--text-muted); font-size: .78rem; line-height: 1.5; }
+  .gallery-lightbox { width: min(92vw, 70rem); padding: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--canvas); color: var(--text); }
+  .gallery-lightbox::backdrop { background: rgb(10 9 8 / .82); }
+  .gallery-lightbox > button { display: block; min-height: 2.5rem; margin: 0 0 var(--space-3) auto; padding-inline: var(--space-4); }
+  .gallery-lightbox img { max-height: 78vh; margin: auto; object-fit: contain; }
+  .moment-gallery[data-gallery-enhanced='true'][data-gallery-view='stage'] .gallery-grid { display: none; }
+  .moment-gallery[data-gallery-enhanced='true'][data-gallery-view='grid'] .gallery-stage,
+  .moment-gallery[data-gallery-enhanced='true'][data-gallery-view='grid'] .gallery-thumbs { display: none; }
+  @media (max-width: 40rem) { .gallery-grid { grid-template-columns: 1fr; } }
+</style>

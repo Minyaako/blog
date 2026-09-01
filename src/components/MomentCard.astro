@@ -1,5 +1,7 @@
 ---
 import { render } from 'astro:content'
+import MediaFigure from './MediaFigure.astro'
+import MomentGallery from './MomentGallery.astro'
 import type { MomentView } from '../lib/moments'
 
 interface Props {
@@ -23,7 +25,8 @@ const { Content } = await render(moment.entry)
     </div>
   )}
   <div data-moment-protected-content>
-    <div class="moment-body prose" data-pagefind-body><Content /></div>
+    <div class="moment-body prose" data-pagefind-body><Content components={{ MediaFigure }} /></div>
+    <MomentGallery images={moment.images} />
   </div>
   <footer class="moment-footer">
     <ul aria-label="动态标签">

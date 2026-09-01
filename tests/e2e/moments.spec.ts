@@ -7,6 +7,8 @@ const injectIntoMomentItems = (html: string, fragment: string) => html.replace(
 )
 
 const injectedWarningMomentId = '20260823-143502-bbbbbbbb'
+const galleryMomentId = '20260823-143501-a7c31e4f'
+const legacyMomentId = '20260822-120000-4c8d029a'
 
 test('production moments are collection-backed and rankings stay static', () => {
   expect(existsSync('src/lib/moment-fixtures.ts')).toBe(false)
@@ -16,22 +18,34 @@ test('production moments are collection-backed and rankings stay static', () => 
 
 test('fixture-backed moments survive the real Astro build and render on stream, homepage, and matching tag pages', async ({ page }) => {
   await page.goto('/moments/')
-  await expect(page.locator('[data-moment-card]')).toHaveCount(1)
+  await expect(page.locator('[data-moment-card]')).toHaveCount(2)
   await expect(page.getByText('雨停以后，窗外的颜色变得很慢。')).toBeVisible()
 
-  const momentRadius = await page.locator('[data-moment-card]').first()
+  const momentRadius = await page.locator(`[data-moment-id="${galleryMomentId}"]`)
     .evaluate((node) => getComputedStyle(node).borderRadius)
   expect(Number.parseFloat(momentRadius)).toBeGreaterThan(0)
 
   await page.goto('/')
   await expect(page.locator('[data-latest-moments]')).toHaveCount(1)
-  await expect(page.locator('[data-moment-preview]')).toHaveCount(1)
-  await expect(page.getByRole('link', { name: '一则没有标题的动态' })).toBeVisible()
+  await expect(page.locator('[data-moment-preview]')).toHaveCount(2)
+  await expect(page.getByRole('link', { name: '一则没有标题的动态' }).first()).toBeVisible()
 
   await page.goto('/tags/life-notes/')
   await expect(page.getByRole('region', { name: '相关动态' })).toBeVisible()
-  await expect(page.locator('[data-moment-card]')).toHaveCount(1)
+  await expect(page.locator('[data-moment-card]')).toHaveCount(2)
   await expect(page.getByText('尚无公开动态使用此标签。')).toHaveCount(0)
+})
+
+test('moment gallery renders structured images and preserves legacy moments without images', async ({ page }) => {
+  await page.goto('/moments')
+
+  const moment = page.locator(`[data-moment-id="${galleryMomentId}"]`)
+  await expect(moment.locator('[data-moment-gallery]')).toHaveCount(1)
+  await expect(moment.locator('[data-gallery-grid] img')).toHaveCount(2)
+  await expect(moment.locator('.media-figure')).toHaveCount(1)
+
+  const legacyMoment = page.locator(`[data-moment-id="${legacyMomentId}"]`)
+  await expect(legacyMoment.locator('[data-moment-gallery]')).toHaveCount(0)
 })
 
 test('unknown moment ids are not generated', async ({ page }) => {
@@ -111,6 +125,8 @@ test('moment stream appends an intercepted next page once and records restorable
 
   await page.goto('/moments/')
 
+  const nextPage = page.locator('[data-next-page]')
+  if (await nextPage.count() > 0) await nextPage.scrollIntoViewIfNeeded()
   await expect(page.locator('[data-moment-id="20260731-120000-aaaaaaaa"]')).toHaveCount(1)
   await expect(page.locator('[data-next-page]')).toHaveCount(0)
   expect(await page.evaluate(() => history.state?.momentStream?.pages)).toEqual(['/moments/page/2/'])
