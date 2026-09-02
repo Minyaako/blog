@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "enabled": true,
+  "groups": [
+    {
+      "id": "0",
+      "label": "隐藏",
+      "listed": false,
+      "order": 0
+    },
+    {
+      "id": "1",
+      "label": "分组 1",
+      "listed": true,
+      "order": 1
+    },
+    {
+      "id": "2",
+      "label": "分组 2",
+      "listed": true,
+      "order": 2
+    }
+  ],
+  "tracks": [
+    {
+      "id": "track_imhB5DKgMYvXv4YuwjyvBPL9",
+      "groupId": "0",
+      "title": "春日影",
+      "artists": [
+        "CRYCHIC"
+      ],
+      "album": "春日影",
+      "duration": 257.88081632653063,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/88/88dcac570fe67e94efe9431165db13a64c0feb7a3efe3ac914df8a1002b4fc8b.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "88dcac570fe67e94efe9431165db13a64c0feb7a3efe3ac914df8a1002b4fc8b",
+        "bytes": 10623246
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/12/122b86f71408dc9381cc40d06f9f39e12efdebde293558f39f14d549d9aea2df.lrc",
+        "contentType": "text/plain",
+        "sha256": "122b86f71408dc9381cc40d06f9f39e12efdebde293558f39f14d549d9aea2df",
+        "bytes": 2473
+      }
+    },
+    {
+      "id": "track_R43gKOaW5rJ_kFa6Q162Op6R",
+      "groupId": "0",
+      "title": "恋ひ恋ふ縁",
+      "artists": [
+        "Famishin",
+        "KOTOKO"
+      ],
+      "album": "千恋＊万花 オリジナル・サウンドトラック",
+      "duration": 237.68816326530612,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/32/32a681c3adf66dc241c409e677ca3bf604055770e2dd707e8c1a15a9870fedbf.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "32a681c3adf66dc241c409e677ca3bf604055770e2dd707e8c1a15a9870fedbf",
+        "bytes": 9704892
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/9d/9d144604c6352798210de04290447bed3201d626b3ca8fb0090520724fd34863.lrc",
+        "contentType": "text/plain",
+        "sha256": "9d144604c6352798210de04290447bed3201d626b3ca8fb0090520724fd34863",
+        "bytes": 1780
+      }
+    },
+    {
+      "id": "track_ofv0CoFWP7zgqr0m9jWl0ior",
+      "groupId": "1",
+      "title": "花 feat. 花譜",
+      "artists": [
+        "Guiano, 花譜",
+        "Guiano",
+        "花譜"
+      ],
+      "album": "花鳥風月",
+      "duration": 208.16979591836736,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/ed/ed2c458e72a0e952ed98ca840829cdfbe3fc49a824b8017d1f0c3021682466ac.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "ed2c458e72a0e952ed98ca840829cdfbe3fc49a824b8017d1f0c3021682466ac",
+        "bytes": 8677658
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/37/3726de0ed18fa4632edc9c80f77009089a05685404fce428d86b3f6c27272179.lrc",
+        "contentType": "text/plain",
+        "sha256": "3726de0ed18fa4632edc9c80f77009089a05685404fce428d86b3f6c27272179",
+        "bytes": 1477
+      }
+    },
+    {
+      "id": "track_BpuO298S38oRGninzzyT4K77",
+      "groupId": "1",
+      "title": "Dye the sky.",
+      "artists": [
+        "シャイニーカラーズ"
+      ],
+      "album": "THE IDOLM@STER SHINY COLORS GR@DATE WING 01",
+      "duration": 260.62367346938777,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/ff/ffb5d88d3ad5a80736d63583c1e2961cf688bdf13b7e1d0e01488fe0fe61629c.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "ffb5d88d3ad5a80736d63583c1e2961cf688bdf13b7e1d0e01488fe0fe61629c",
+        "bytes": 11205774
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/4c/4c1de6ba86d6070efcec45a96e58e623466ccaacda0a7cc30eaf9afab498bb6f.lrc",
+        "contentType": "text/plain",
+        "sha256": "4c1de6ba86d6070efcec45a96e58e623466ccaacda0a7cc30eaf9afab498bb6f",
+        "bytes": 2229
+      }
+    },
+    {
+      "id": "track_vxQuIXJyCpeSGvcHI89mFDpt",
+      "groupId": "1",
+      "title": "ライアーメイデン (feat. りぃふ)",
+      "artists": [
+        "ヤバス, りぃふ",
+        "ヤバス",
+        "りぃふ"
+      ],
+      "album": "ライアーメイデン (feat. りぃふ)",
+      "duration": 150.552,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/c2/c21f182f013e2c76900afdc3e1337ccb812a0cce3069b144523d9d7372d7a61f.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "c21f182f013e2c76900afdc3e1337ccb812a0cce3069b144523d9d7372d7a61f",
+        "bytes": 6205677
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/51/5101ad87a92db1125adbc1c5077e0730c2385f39bf22203894e038663fdde59b.lrc",
+        "contentType": "text/plain",
+        "sha256": "5101ad87a92db1125adbc1c5077e0730c2385f39bf22203894e038663fdde59b",
+        "bytes": 2174
+      }
+    },
+    {
+      "id": "track_mVU0nD_hNp6gVMU75sLG7kbk",
+      "groupId": "2",
+      "title": "ブレインロット",
+      "artists": [
+        "東京真中, 重音テト",
+        "東京真中",
+        "重音テト"
+      ],
+      "album": "ブレインロット",
+      "duration": 122.928,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/e5/e580b1f977072f35663fcd5baf8f65a38b1ae7f6bc45cfe1d31264c225fbfd32.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "e580b1f977072f35663fcd5baf8f65a38b1ae7f6bc45cfe1d31264c225fbfd32",
+        "bytes": 5406803
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/4d/4d24574e0d75af92d7cc62eadbc0ec9eb1e4f9f3f5602885b0c3ad6593c18328.lrc",
+        "contentType": "text/plain",
+        "sha256": "4d24574e0d75af92d7cc62eadbc0ec9eb1e4f9f3f5602885b0c3ad6593c18328",
+        "bytes": 1473
+      }
+    },
+    {
+      "id": "track_LbX6CBt71j1asovN6wOgBdrl",
+      "groupId": "2",
+      "title": "失敗作少女 (REBOOT ver.)",
+      "artists": [
+        "かいりきベア"
+      ],
+      "album": "イナイイナイリブート",
+      "duration": 200.25469387755103,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/2d/2d1ef8700ce94d252ec73320b7cdfebc6dab3e6da43fb76198d97fceebce1251.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "2d1ef8700ce94d252ec73320b7cdfebc6dab3e6da43fb76198d97fceebce1251",
+        "bytes": 8661079
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/bc/bc6fcadc000f901fb950fd6c801ee6a610fba2721839aac441cd45de6040101c.lrc",
+        "contentType": "text/plain",
+        "sha256": "bc6fcadc000f901fb950fd6c801ee6a610fba2721839aac441cd45de6040101c",
+        "bytes": 1942
+      }
+    }
+  ]
+}

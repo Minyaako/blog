@@ -1,6 +1,19 @@
 import type { CollectionEntry } from 'astro:content'
+import { resolveMedia } from './media'
 import { getTag, type Tag } from './tags'
 import { isStrictMomentPublishedAt, MOMENT_ID_PATTERN, type MomentData } from '../schemas/moment'
+
+export interface MomentImageReference {
+  media: string
+  alt: string
+  caption?: string
+}
+
+export interface ResolvedMomentImage extends MomentImageReference {
+  url: string
+  width: number
+  height: number
+}
 
 export interface MomentEntryLike {
   id: string
@@ -14,8 +27,23 @@ export interface MomentView {
   title?: string
   publishedAt: Date
   tags: Tag[]
+  images: ResolvedMomentImage[]
   pinned: boolean
   contentWarning?: string
+}
+
+export function resolveMomentImages(
+  images: readonly MomentImageReference[],
+): ResolvedMomentImage[] {
+  return images.map((image) => {
+    const media = resolveMedia(image.media)
+    return {
+      ...image,
+      url: media.url,
+      width: media.width,
+      height: media.height,
+    }
+  })
 }
 
 function assertMomentEntryId(id: string) {
@@ -90,6 +118,7 @@ function toMomentView(entry: CollectionEntry<'moments'>): MomentView {
     title: entry.data.title,
     publishedAt: new Date(entry.data.publishedAt),
     tags: entry.data.tags.map(getTag),
+    images: resolveMomentImages(entry.data.images),
     pinned: entry.data.pinned,
     contentWarning: entry.data.contentWarning
   }

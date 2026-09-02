@@ -8,12 +8,13 @@ vi.mock('astro:content', () => ({
   getCollection: mockGetCollection
 }))
 
-import { getPublishedMoments, sortMoments, validateMomentEntries } from '../../src/lib/moments'
+import { getPublishedMoments, resolveMomentImages, sortMoments, validateMomentEntries } from '../../src/lib/moments'
 
 const baseMoment = {
   id: '20260823-143501-a7c31e4f',
   publishedAt: '2026-08-23T14:35:01+08:00',
   tags: ['life-notes'],
+  images: [],
   pinned: false
 }
 
@@ -28,6 +29,24 @@ const entry = (
 })
 
 describe('moment collection adapter', () => {
+  it('resolves structured image references through the committed media registry', () => {
+    expect(resolveMomentImages([
+      { media: 'home-hero-01', alt: '示例' }
+    ])[0]).toMatchObject({
+      media: 'home-hero-01',
+      alt: '示例',
+      url: expect.stringMatching(/^https:\/\//),
+      width: expect.any(Number),
+      height: expect.any(Number)
+    })
+  })
+
+  it('fails closed when a Moment image references an unknown media id', () => {
+    expect(() => resolveMomentImages([
+      { media: 'not-registered', alt: '示例' }
+    ])).toThrow(/Unknown media id: not-registered/)
+  })
+
   it('sorts pinned moments ahead of newer unpinned ones', () => {
     const moments = sortMoments([
       entry('20260823-143501-a7c31e4f'),

@@ -1,0 +1,11 @@
+---
+import library from '../content/music/library.json'
+import { buildMusicPlayerModel, parseMusicLibrary, shouldRenderMusicPlayer } from '../lib/music'
+
+const musicLibrary = parseMusicLibrary(library)
+const enabled = shouldRenderMusicPlayer(musicLibrary)
+const model = enabled ? await buildMusicPlayerModel(musicLibrary) : null
+const MusicPlayerEnabled = enabled ? (await import('./MusicPlayerEnabled.astro')).default : null
+---
+
+{MusicPlayerEnabled && model && <MusicPlayerEnabled model={model} />}
