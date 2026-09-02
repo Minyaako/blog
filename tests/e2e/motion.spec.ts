@@ -399,19 +399,7 @@ test('toc link activation keeps the native hash target current', async ({ page }
   expect(targetHref).toMatch(/^#.+/)
   const targetMarkerY = await target.evaluate((link) => `${(link as HTMLElement).offsetTop}px`)
 
-  await page.evaluate(() => {
-    const state = window as typeof window & { tocScrollEnded?: Promise<void> }
-    state.tocScrollEnded = new Promise((resolve) => {
-      window.addEventListener('scrollend', () => resolve(), { once: true })
-    })
-  })
-
   await target.click()
-  await page.evaluate(async () => {
-    const state = window as typeof window & { tocScrollEnded?: Promise<void> }
-    await state.tocScrollEnded
-    await new Promise(requestAnimationFrame)
-  })
 
   await expect.poll(() => decodeURIComponent(new URL(page.url()).hash.slice(1))).toBe(decodeURIComponent(targetHref!.slice(1)))
   await expect(target).toHaveAttribute('aria-current', 'location')
