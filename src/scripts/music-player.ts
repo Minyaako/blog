@@ -36,7 +36,27 @@ interface PlayerPreferences {
 
 const preferencesKey = 'minyako-music-player'
 
-const fallbackPreferences: PlayerPreferences = { volume: 0.7, collapsed: false, lastVisibleTrackId: null }
+const fallbackPreferences: PlayerPreferences = { volume: 0.7, collapsed: true, lastVisibleTrackId: null }
+
+const aplayerControlLabels = {
+  '.aplayer-icon-volume-down': '静音或取消静音',
+  '.aplayer-icon-order': '切换播放顺序',
+  '.aplayer-icon-loop': '切换循环模式',
+  '.aplayer-icon-menu': '显示或隐藏播放列表',
+  '.aplayer-icon-lrc': '显示或隐藏歌词',
+  '.aplayer-icon-back': '上一首',
+  '.aplayer-icon-forward': '下一首',
+  '.aplayer-icon-play': '播放或暂停',
+} as const
+
+function labelAPlayerControls(container: HTMLElement): void {
+  for (const [selector, label] of Object.entries(aplayerControlLabels)) {
+    for (const control of container.querySelectorAll<HTMLElement>(selector)) {
+      control.setAttribute('aria-label', label)
+      control.setAttribute('title', label)
+    }
+  }
+}
 
 function loadPlayerStyle(): void {
   if (document.querySelector('[data-music-player-style]')) return
@@ -114,6 +134,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
     lrcType: 1,
     volume: preferences.volume,
   })
+  labelAPlayerControls(container)
   let currentIndex = 0
 
   const updateCurrent = () => {

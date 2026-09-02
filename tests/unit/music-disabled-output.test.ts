@@ -9,6 +9,7 @@ const temporaryRoots: string[] = []
 const skippedRootEntries = new Set([
   '.astro',
   '.git',
+  '.pnpm-store',
   '.superpowers',
   'dist',
   'node_modules',
