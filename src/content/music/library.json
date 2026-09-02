@@ -1,6 +1,25 @@
 {
   "version": 1,
-  "enabled": false,
-  "groups": [],
+  "enabled": true,
+  "groups": [
+    {
+      "id": "0",
+      "label": "隐藏",
+      "listed": false,
+      "order": 0
+    },
+    {
+      "id": "1",
+      "label": "分组 1",
+      "listed": true,
+      "order": 1
+    },
+    {
+      "id": "2",
+      "label": "分组 2",
+      "listed": true,
+      "order": 2
+    }
+  ],
   "tracks": []
 }
