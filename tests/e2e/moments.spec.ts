@@ -37,7 +37,7 @@ test('fixture-backed moments survive the real Astro build and render on stream, 
 })
 
 test('moment gallery renders structured images and preserves legacy moments without images', async ({ page }) => {
-  await page.goto('/moments')
+  await page.goto('/moments/')
 
   const moment = page.locator(`[data-moment-id="${galleryMomentId}"]`)
   await expect(moment.locator('[data-moment-gallery]')).toHaveCount(1)

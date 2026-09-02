@@ -9,8 +9,8 @@ const { model } = Astro.props
 const playerData = JSON.stringify(model).replace(/</gu, '\\u003c')
 ---
 
-<aside class="music-player-card" data-music-player aria-label="音乐播放器">
-  <button class="music-player-toggle" type="button" data-music-collapse aria-expanded="true">
+<aside class="music-player-card" data-music-player data-music-collapsed="true" aria-label="音乐播放器">
+  <button class="music-player-toggle" type="button" data-music-collapse aria-expanded="false">
     <span>正在播放</span><span data-music-title>准备播放</span><span aria-hidden="true">⌄</span>
   </button>
   <div class="music-player-body" data-music-body>
@@ -21,7 +21,7 @@ const playerData = JSON.stringify(model).replace(/</gu, '\\u003c')
         <label class="music-player-field"><span>搜索</span><input type="search" data-music-search placeholder="搜索歌名或歌手" autocomplete="off" /></label>
         <div class="music-player-results" data-music-results aria-live="polite"></div>
         <div class="music-player-instance" data-music-aplayer></div>
-        <details class="music-player-lyrics" open><summary>歌词</summary><pre data-music-lyrics>暂无歌词</pre></details>
+        <details class="music-player-lyrics" open><summary>歌词</summary><pre data-music-lyrics tabindex="0" aria-label="当前歌曲歌词">暂无歌词</pre></details>
         <p class="music-player-error" data-music-error role="status" hidden></p>
       </>
     ) : <p class="music-player-empty">音乐库暂无可播放曲目。</p>}
