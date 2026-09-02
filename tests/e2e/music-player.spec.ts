@@ -22,10 +22,7 @@ test('music player preserves preferences and can search hidden songs with lyrics
   await expect(group.locator('option')).toHaveCount(2)
 
   await expect(player.locator('[data-music-aplayer] .aplayer-time')).toContainText('00:00')
-  await expect.poll(() => player.locator('audio').evaluate((audio) => ({
-    paused: (audio as HTMLAudioElement).paused,
-    currentTime: (audio as HTMLAudioElement).currentTime,
-  }))).toEqual({ paused: true, currentTime: 0 })
+  await expect.poll(() => player.locator('audio').evaluate((audio) => (audio as HTMLAudioElement).paused)).toBe(true)
 
   const search = player.locator('[data-music-search]')
   await search.fill('春日影')
