@@ -17,7 +17,7 @@ const playerData = JSON.stringify(model).replace(/</gu, '\\u003c')
           <p data-music-artist>—</p>
           <p data-music-current-lyric aria-live="polite">暂无歌词</p>
         </div>
-        <button type="button" data-music-play-pause aria-label="播放或暂停">播放</button>
+        <button type="button" data-music-play-pause aria-label="播放" aria-pressed="false">播放</button>
         <button class="music-player-toggle" type="button" data-music-collapse aria-expanded="false" aria-label="展开音乐播放器">⌃</button>
         <label class="music-player-progress"><span class="sr-only">播放进度</span><input data-music-progress type="range" min="0" max="0" value="0" aria-label="播放进度" /></label>
         <label class="music-player-volume"><span class="sr-only">音量</span><input data-music-volume type="range" min="0" max="1" step="0.01" aria-label="音量" /></label>
@@ -25,19 +25,19 @@ const playerData = JSON.stringify(model).replace(/</gu, '\\u003c')
       <div class="music-player-body" data-music-body>
         <div class="music-player-toolbar">
           <div class="music-player-tabs" role="tablist" aria-label="播放器面板">
-            <button type="button" data-music-tab="lyrics" role="tab">歌词</button>
-            <button type="button" data-music-tab="songs" role="tab">歌曲</button>
+            <button id="music-tab-lyrics" type="button" data-music-tab="lyrics" role="tab" aria-controls="music-panel-lyrics" aria-selected="true" tabindex="0">歌词</button>
+            <button id="music-tab-songs" type="button" data-music-tab="songs" role="tab" aria-controls="music-panel-songs" aria-selected="false" tabindex="-1">歌曲</button>
           </div>
           <div class="music-player-transport">
             <button type="button" data-music-previous aria-label="上一首">上一首</button>
             <button type="button" data-music-next aria-label="下一首">下一首</button>
           </div>
         </div>
-        <section class="music-player-panel" data-music-panel="lyrics" aria-label="当前歌词">
+        <section id="music-panel-lyrics" class="music-player-panel" data-music-panel="lyrics" role="tabpanel" aria-labelledby="music-tab-lyrics" aria-label="当前歌词">
           <p class="music-player-now" data-music-now aria-live="polite">准备播放</p>
           <pre data-music-lyrics tabindex="0" aria-label="当前歌词">暂无歌词</pre>
         </section>
-        <section class="music-player-panel" data-music-panel="songs" aria-label="歌曲选择">
+        <section id="music-panel-songs" class="music-player-panel" data-music-panel="songs" role="tabpanel" aria-labelledby="music-tab-songs" aria-label="歌曲选择" hidden>
           <label class="music-player-field"><span>分组</span><select data-music-group aria-label="选择音乐分组">{model.visibleGroups.map((group) => <option value={group.id}>{group.label}</option>)}</select></label>
           <label class="music-player-field"><span>搜索</span><input type="search" data-music-search placeholder="搜索歌名或歌手" autocomplete="off" /></label>
           <div class="music-player-results" data-music-results aria-live="polite"></div>

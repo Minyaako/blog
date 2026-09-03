@@ -64,9 +64,14 @@ const mount = () => {
       <p data-music-now></p><p data-music-current-lyric></p><input data-music-progress type="range" />
       <button data-music-play-pause></button><input data-music-volume type="range" />
       <script type="application/json" data-music-player-data>${JSON.stringify(model)}</script>
-      <div data-music-aplayer></div><pre data-music-lyrics></pre><p data-music-error></p>
-      <select data-music-group><option value="1">公开歌单</option></select><input data-music-search />
-      <div data-music-results></div><button data-music-tab="lyrics"></button><button data-music-tab="songs"></button>
+      <div data-music-aplayer></div><p data-music-error></p><input data-music-search />
+      <div data-music-results></div>
+      <div role="tablist">
+        <button id="music-tab-lyrics" data-music-tab="lyrics" role="tab" aria-controls="music-panel-lyrics">歌词</button>
+        <button id="music-tab-songs" data-music-tab="songs" role="tab" aria-controls="music-panel-songs">歌曲</button>
+      </div>
+      <section id="music-panel-lyrics" data-music-panel="lyrics" role="tabpanel" aria-labelledby="music-tab-lyrics"><pre data-music-lyrics></pre></section>
+      <section id="music-panel-songs" data-music-panel="songs" role="tabpanel" aria-labelledby="music-tab-songs"><select data-music-group><option value="1">公开歌单</option></select></section>
     </aside>`
   initMusicPlayer()
   return aplayer.instances.at(-1)!
@@ -79,6 +84,53 @@ afterEach(() => {
 })
 
 describe('music player requests', () => {
+  it('synchronizes tab panels and supports roving keyboard focus', () => {
+    mount()
+
+    const tabs = [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+    const panels = [...document.querySelectorAll<HTMLElement>('[data-music-panel]')]
+    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false'])
+    expect(tabs.map((tab) => tab.tabIndex)).toEqual([0, -1])
+    expect(panels.map((panel) => panel.hidden)).toEqual([false, true])
+    expect(panels.every((panel) => panel.getAttribute('role') === 'tabpanel')).toBe(true)
+    expect(tabs.every((tab) => tab.getAttribute('aria-controls') === `music-panel-${tab.dataset.musicTab}`)).toBe(true)
+
+    tabs[0].focus()
+    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    expect(document.activeElement).toBe(tabs[1])
+    expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['false', 'true'])
+    expect(panels.map((panel) => panel.hidden)).toEqual([true, false])
+
+    tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    expect(document.activeElement).toBe(tabs[0])
+    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+    expect(document.activeElement).toBe(tabs[1])
+  })
+
+  it('reflects APlayer play state and collapse labels in owned controls', () => {
+    const player = mount()
+    const playPause = document.querySelector<HTMLButtonElement>('[data-music-play-pause]')!
+    const collapse = document.querySelector<HTMLButtonElement>('[data-music-collapse]')!
+
+    expect(playPause.textContent).toBe('播放')
+    expect(playPause.getAttribute('aria-label')).toBe('播放')
+    expect(playPause.getAttribute('aria-pressed')).toBe('false')
+    expect(collapse.getAttribute('aria-label')).toBe('展开音乐播放器')
+
+    player.emit('play', undefined)
+    expect(playPause.textContent).toBe('暂停')
+    expect(playPause.getAttribute('aria-label')).toBe('暂停')
+    expect(playPause.getAttribute('aria-pressed')).toBe('true')
+
+    player.emit('pause', undefined)
+    expect(playPause.textContent).toBe('播放')
+    expect(playPause.getAttribute('aria-pressed')).toBe('false')
+
+    collapse.click()
+    expect(collapse.getAttribute('aria-expanded')).toBe('true')
+    expect(collapse.getAttribute('aria-label')).toBe('收起音乐播放器')
+  })
+
   it('switches the one global player from a Moment request and plays in the click chain', () => {
     const player = mount()
 

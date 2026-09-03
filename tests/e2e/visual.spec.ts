@@ -45,7 +45,10 @@ test('music player desktop', async ({ page }) => {
 test('music player mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
-  await expect(page.locator('[data-music-player]')).toHaveScreenshot('music-player-mobile.png', {
+  const player = page.locator('[data-music-player]')
+  await player.locator('[data-music-collapse]').click()
+  await expect(player.locator('.music-player-cover')).toBeHidden()
+  await expect(player).toHaveScreenshot('music-player-mobile.png', {
     animations: 'disabled',
     maxDiffPixelRatio: 0.005,
   })

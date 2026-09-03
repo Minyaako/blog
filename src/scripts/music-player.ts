@@ -102,7 +102,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
   const progressInput = card.querySelector<HTMLInputElement>('[data-music-progress]')
   const previous = card.querySelector<HTMLButtonElement>('[data-music-previous]')
   const next = card.querySelector<HTMLButtonElement>('[data-music-next]')
-  const tabs = card.querySelectorAll<HTMLButtonElement>('[data-music-tab]')
+  const tabs = card.querySelectorAll<HTMLButtonElement>('[role="tab"][data-music-tab]')
   if (!data?.textContent || !container || !title || !artist || !now || !currentLyric || !lyrics || !error || !group || !search || !results || !collapse || !playPause || !volumeInput || !progressInput) return
 
   let model: MusicPlayerModel
@@ -128,6 +128,11 @@ export function initMusicPlayer(root: ParentNode = document): void {
   let currentIndex = 0
 
   const showError = (message: string) => { error.hidden = false; error.textContent = message }
+  const setPlaying = (playing: boolean) => {
+    playPause.textContent = playing ? '暂停' : '播放'
+    playPause.setAttribute('aria-label', playing ? '暂停' : '播放')
+    playPause.setAttribute('aria-pressed', String(playing))
+  }
   const updateCurrent = () => {
     const track = activeTracks[currentIndex]
     if (!track) return
@@ -150,10 +155,27 @@ export function initMusicPlayer(root: ParentNode = document): void {
     player.list.switch(currentIndex)
     updateCurrent()
   }
+  const setTab = (tabId: string, focus = false) => {
+    const activeTab = [...tabs].find((tab) => tab.dataset.musicTab === tabId)
+    if (!activeTab) return
+    card.dataset.musicTab = tabId
+    for (const tab of tabs) {
+      const active = tab === activeTab
+      tab.setAttribute('aria-selected', String(active))
+      tab.tabIndex = active ? 0 : -1
+    }
+    for (const panel of card.querySelectorAll<HTMLElement>('[data-music-panel]')) {
+      const active = panel.dataset.musicPanel === tabId
+      panel.hidden = !active
+      panel.setAttribute('aria-hidden', String(!active))
+    }
+    if (focus) activeTab.focus()
+  }
   const setCollapsed = (collapsed: boolean) => {
     preferences.collapsed = collapsed
     card.dataset.musicCollapsed = String(collapsed)
     collapse.setAttribute('aria-expanded', String(!collapsed))
+    collapse.setAttribute('aria-label', collapsed ? '展开音乐播放器' : '收起音乐播放器')
     writePreferences(preferences)
   }
   const updateProgress = () => {
@@ -200,10 +222,24 @@ export function initMusicPlayer(root: ParentNode = document): void {
   }, { signal: controller.signal })
   previous?.addEventListener('click', () => selectTrack(activeTracks[(currentIndex - 1 + activeTracks.length) % activeTracks.length]), { signal: controller.signal })
   next?.addEventListener('click', () => selectTrack(activeTracks[(currentIndex + 1) % activeTracks.length]), { signal: controller.signal })
-  for (const tab of tabs) tab.addEventListener('click', () => { card.dataset.musicTab = tab.dataset.musicTab ?? 'lyrics' }, { signal: controller.signal })
+  for (const [index, tab] of [...tabs].entries()) {
+    tab.addEventListener('click', () => setTab(tab.dataset.musicTab ?? 'lyrics'), { signal: controller.signal })
+    tab.addEventListener('keydown', (event) => {
+      let targetIndex: number | undefined
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') targetIndex = (index + 1) % tabs.length
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') targetIndex = (index - 1 + tabs.length) % tabs.length
+      if (event.key === 'Home') targetIndex = 0
+      if (event.key === 'End') targetIndex = tabs.length - 1
+      if (targetIndex === undefined || !tabs[targetIndex]) return
+      event.preventDefault()
+      setTab(tabs[targetIndex].dataset.musicTab ?? 'lyrics', true)
+    }, { signal: controller.signal })
+  }
   container.addEventListener('error', () => showError('播放失败，请检查网络后重试。'), { capture: true, signal: controller.signal })
   player.audio.addEventListener('timeupdate', updateProgress, { signal: controller.signal })
   player.audio.addEventListener('loadedmetadata', updateProgress, { signal: controller.signal })
+  player.on('play', () => setPlaying(true))
+  player.on('pause', () => setPlaying(false))
   player.on('volumechange', () => {
     if (player.audio.volume >= 0 && player.audio.volume <= 1) {
       preferences.volume = player.audio.volume
@@ -229,7 +265,8 @@ export function initMusicPlayer(root: ParentNode = document): void {
   if (restored >= 0 && visibleIds.has(model.initialTracks[restored].groupId)) selectTrack(model.initialTracks[restored])
   group.value = model.initialTracks[currentIndex].groupId
   setCollapsed(preferences.collapsed)
-  card.dataset.musicTab = card.dataset.musicTab ?? 'lyrics'
+  setPlaying(false)
+  setTab(card.dataset.musicTab ?? 'lyrics')
   updateCurrent()
   updateProgress()
   activeCleanup = () => { controller.abort(); observer.disconnect(); player.destroy(); activeCleanup = undefined }
