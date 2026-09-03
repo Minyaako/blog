@@ -48,6 +48,22 @@ test('moment gallery renders structured images and preserves legacy moments with
   await expect(legacyMoment.locator('[data-moment-gallery]')).toHaveCount(0)
 })
 
+test('a resolved Moment track card is placed before its gallery and owns no playback state', async ({ page }) => {
+  await page.goto('/moments/')
+
+  const moment = page.locator(`[data-moment-id="${galleryMomentId}"]`)
+  const card = moment.locator('[data-moment-track-card]')
+  await expect(card).toContainText('春日影')
+  await expect(card.locator('[data-moment-track-play]')).toHaveAccessibleName(/播放 春日影/)
+  await expect(card.locator('audio, [data-music-progress], .aplayer')).toHaveCount(0)
+  expect(await moment.evaluate((node) => {
+    const body = node.querySelector('[data-pagefind-body]')
+    const track = node.querySelector('[data-moment-track-card]')
+    const gallery = node.querySelector('[data-moment-gallery]')
+    return Boolean(body && track && gallery && body.compareDocumentPosition(track) & Node.DOCUMENT_POSITION_FOLLOWING && track.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING)
+  })).toBe(true)
+})
+
 test('unknown moment ids are not generated', async ({ page }) => {
   const response = await page.goto('/moments/not-present/')
   expect(response?.status()).toBe(404)

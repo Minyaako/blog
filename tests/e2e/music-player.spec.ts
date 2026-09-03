@@ -53,3 +53,14 @@ test('expanded music player has no serious accessibility violations', async ({ p
   const results = await new AxeBuilder({ page }).include('[data-music-player]').analyze()
   expect(results.violations.filter((item) => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([])
 })
+
+test('a Moment request switches and plays through the one global player', async ({ page }) => {
+  await page.goto('/moments/')
+  const player = page.locator('[data-music-player]')
+
+  await page.locator('[data-moment-track-play="track_imhB5DKgMYvXv4YuwjyvBPL9"]').click()
+
+  await expect(player.locator('[data-music-title]')).toHaveText('春日影')
+  await expect(player.locator('[data-music-group] option[value="0"]')).toHaveCount(0)
+  await expect(player.locator('.aplayer')).toHaveCount(1)
+})

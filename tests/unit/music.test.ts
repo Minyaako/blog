@@ -39,6 +39,17 @@ const library: MusicLibrary = {
   ],
 }
 
+const coverHash = hash('d')
+const cover = {
+  sourceImageId: 'img_coverSource123',
+  url: `https://pic.minyako.top/blog/music/covers/${coverHash.slice(0, 2)}/${coverHash}.webp`,
+  contentType: 'image/webp' as const,
+  sha256: coverHash,
+  width: 800 as const,
+  height: 800 as const,
+  bytes: 12345,
+}
+
 const renderWith = async (value: MusicLibrary) => shouldRenderMusicPlayer(value)
   ? '<aside data-music-player></aside>'
   : ''
@@ -49,6 +60,33 @@ const lyricFetch: typeof fetch = async () => new Response('[00:00.00]歌词', {
 })
 
 describe('music player model', () => {
+  it('accepts version 1 tracks with an optional immutable cover', () => {
+    const libraryWithCover = {
+      ...library,
+      tracks: [{ ...library.tracks[0], cover }],
+    }
+
+    expect(parseMusicLibrary(libraryWithCover).tracks[0].cover).toEqual(cover)
+  })
+
+  it('keeps existing coverless version 1 tracks valid', () => {
+    expect(parseMusicLibrary(library).tracks[0].cover).toBeUndefined()
+  })
+
+  it.each([
+    ['wrong origin', { ...cover, url: `https://example.com/blog/music/covers/${coverHash.slice(0, 2)}/${coverHash}.webp` }],
+    ['wrong path', { ...cover, url: `https://pic.minyako.top/blog/music/covers/ff/${coverHash}.webp` }],
+    ['wrong MIME', { ...cover, contentType: 'image/png' }],
+    ['wrong digest', { ...cover, sha256: 'not-a-digest' }],
+    ['wrong dimensions', { ...cover, width: 799 }],
+    ['extra cover keys', { ...cover, extra: true }],
+  ])('rejects a cover with %s', (_reason, invalidCover) => {
+    expect(() => parseMusicLibrary({
+      ...library,
+      tracks: [{ ...library.tracks[0], cover: invalidCover }],
+    })).toThrow(/cover/i)
+  })
+
   it('hides a disabled player and keeps hidden tracks searchable but out of startup playback', async () => {
     const model = await buildMusicPlayerModel(library, lyricFetch)
     const hiddenTrack = library.tracks[0]

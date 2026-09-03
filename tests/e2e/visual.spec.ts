@@ -33,3 +33,20 @@ for (const theme of ['light', 'dark'] as const) {
     })
   }
 }
+
+test('music player desktop', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('[data-music-player]')).toHaveScreenshot('music-player-desktop.png', {
+    animations: 'disabled',
+    maxDiffPixelRatio: 0.005,
+  })
+})
+
+test('music player mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await expect(page.locator('[data-music-player]')).toHaveScreenshot('music-player-mobile.png', {
+    animations: 'disabled',
+    maxDiffPixelRatio: 0.005,
+  })
+})

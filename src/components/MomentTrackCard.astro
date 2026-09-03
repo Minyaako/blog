@@ -1,0 +1,30 @@
+---
+import type { MusicTrack } from '../lib/music'
+
+interface Props { track: MusicTrack }
+
+const { track } = Astro.props
+const cover = track.cover?.url ?? '/images/profile/avatar-geometric.svg'
+---
+
+<section class="moment-track-card" data-moment-track-card aria-label={`分享的歌曲：${track.title}`}>
+  <img src={cover} alt="" width="72" height="72" loading="lazy" />
+  <div>
+    <p class="moment-track-card-label">此刻在听</p>
+    <h3>{track.title}</h3>
+    <p>{track.artists.join(' / ')}</p>
+  </div>
+  <button type="button" data-moment-track-play={track.id} aria-label={`播放 ${track.title}`}>播放</button>
+</section>
+
+<style>
+  .moment-track-card { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; margin-top: var(--space-5); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface-raised) 88%, var(--accent) 12%); }
+  img { width: 4.5rem; height: 4.5rem; border-radius: var(--radius-sm); object-fit: cover; }
+  p, h3 { margin: 0; }
+  .moment-track-card-label { color: var(--accent); font: 600 .72rem/1.4 var(--font-mono); letter-spacing: .05em; }
+  h3 { margin-top: .16rem; color: var(--text); font: 700 .96rem/1.4 var(--font-display); }
+  h3 + p { margin-top: .15rem; color: var(--text-muted); font-size: .8rem; }
+  button { min-height: 2.35rem; padding-inline: var(--space-3); border: 1px solid var(--accent); border-radius: 99rem; background: transparent; color: var(--accent); cursor: pointer; font: 600 .8rem/1 var(--font-display); }
+  button:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  @media (max-width: 30rem) { .moment-track-card { grid-template-columns: 3.5rem minmax(0, 1fr); } img { width: 3.5rem; height: 3.5rem; } button { grid-column: 2; justify-self: start; } }
+</style>

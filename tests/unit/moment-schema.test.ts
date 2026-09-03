@@ -26,6 +26,19 @@ describe('moment schema', () => {
     expect(parsed.images).toEqual([])
   })
 
+  it('accepts one non-empty music track id', () => {
+    expect(momentSchema.parse({ ...validMoment, track: 'track_hidden' }).track).toBe('track_hidden')
+  })
+
+  it.each([
+    ['', 'empty track'],
+    ['   ', 'whitespace track'],
+    [['track_hidden'], 'multiple track ids'],
+    [{ id: 'track_hidden' }, 'structured track value'],
+  ])('rejects a %s', (track, _label) => {
+    expect(() => momentSchema.parse({ ...validMoment, track })).toThrow()
+  })
+
   it('accepts strict structured image references', () => {
     expect(momentSchema.parse({
       ...validMoment,

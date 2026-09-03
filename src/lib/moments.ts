@@ -1,5 +1,7 @@
 import type { CollectionEntry } from 'astro:content'
+import musicLibraryJson from '../content/music/library.json'
 import { resolveMedia } from './media'
+import { parseMusicLibrary, requireMusicTrack, type MusicLibrary, type MusicTrack } from './music'
 import { getTag, type Tag } from './tags'
 import { isStrictMomentPublishedAt, MOMENT_ID_PATTERN, type MomentData } from '../schemas/moment'
 
@@ -28,6 +30,7 @@ export interface MomentView {
   publishedAt: Date
   tags: Tag[]
   images: ResolvedMomentImage[]
+  track?: MusicTrack
   pinned: boolean
   contentWarning?: string
 }
@@ -111,7 +114,9 @@ export function sortMoments<T extends MomentEntryLike>(entries: readonly T[]): T
   })
 }
 
-function toMomentView(entry: CollectionEntry<'moments'>): MomentView {
+const sharedMusicLibrary = parseMusicLibrary(musicLibraryJson)
+
+function toMomentView(entry: CollectionEntry<'moments'>, library: MusicLibrary): MomentView {
   return {
     entry,
     id: entry.data.id,
@@ -119,15 +124,21 @@ function toMomentView(entry: CollectionEntry<'moments'>): MomentView {
     publishedAt: new Date(entry.data.publishedAt),
     tags: entry.data.tags.map(getTag),
     images: resolveMomentImages(entry.data.images),
+    ...(entry.data.track === undefined ? {} : { track: requireMusicTrack(library, entry.data.track, `Moment ${entry.data.id}`) }),
     pinned: entry.data.pinned,
     contentWarning: entry.data.contentWarning
   }
 }
 
-export async function getPublishedMoments(): Promise<MomentView[]> {
+export async function getPublishedMoments(
+  providedEntries?: readonly MomentEntryLike[],
+  providedLibrary: MusicLibrary = sharedMusicLibrary,
+): Promise<MomentView[]> {
   const { getCollection } = await import('astro:content')
-  const entries = validateMomentEntries(await getCollection('moments') as CollectionEntry<'moments'>[])
-  return sortMoments(entries).map(toMomentView)
+  const source = providedEntries ?? await getCollection('moments') as CollectionEntry<'moments'>[]
+  const entries = validateMomentEntries(source)
+  const library = providedEntries ? parseMusicLibrary(providedLibrary) : sharedMusicLibrary
+  return sortMoments(entries).map((entry) => toMomentView(entry as CollectionEntry<'moments'>, library))
 }
 
 export async function getMomentById(id: string): Promise<MomentView | undefined> {

@@ -59,6 +59,7 @@ export const momentSchema = z.object({
   ), 'publishedAt must be an ISO 8601 date-time with an explicit time zone'),
   tags: z.array(z.string().regex(TAG_ID_PATTERN)).default([]),
   images: z.array(momentImageSchema).default([]),
+  track: z.string().trim().min(1).optional(),
   pinned: z.boolean().default(false),
   contentWarning: z.preprocess(
     (value) => typeof value === 'string' && value.trim() === '' ? undefined : value,

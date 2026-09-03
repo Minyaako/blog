@@ -5,6 +5,16 @@ export interface MusicAsset {
   bytes: number
 }
 
+export interface MusicCover {
+  sourceImageId: string
+  url: string
+  contentType: 'image/webp'
+  sha256: string
+  width: 800
+  height: 800
+  bytes: number
+}
+
 export interface MusicGroup {
   id: string
   label: string
@@ -21,6 +31,7 @@ export interface MusicTrack {
   duration: number
   audio: MusicAsset
   lyrics: MusicAsset | null
+  cover?: MusicCover
 }
 
 export interface MusicLibrary {
@@ -91,6 +102,33 @@ function parseAsset(input: unknown, expectedType: MusicAsset['contentType'], pat
   return { url: value.url, contentType: expectedType, sha256, bytes: positiveInteger(value.bytes, `${path}.bytes`) }
 }
 
+function parseCover(input: unknown, path: string): MusicCover {
+  const value = asObject(input, path)
+  exactKeys(value, ['sourceImageId', 'url', 'contentType', 'sha256', 'width', 'height', 'bytes'], path)
+  const sha256 = nonEmptyText(value.sha256, `${path}.sha256`)
+  if (!hashPattern.test(sha256)) throw new MusicLibraryError(`${path}.sha256 must be a lowercase SHA-256 digest.`)
+  const expectedUrl = `https://pic.minyako.top/blog/music/covers/${sha256.slice(0, 2)}/${sha256}.webp`
+  if (value.url !== expectedUrl || value.contentType !== 'image/webp' || value.width !== 800 || value.height !== 800) {
+    throw new MusicLibraryError(`${path} is not an immutable 800px music cover.`)
+  }
+  return {
+    sourceImageId: nonEmptyText(value.sourceImageId, `${path}.sourceImageId`),
+    url: value.url,
+    contentType: 'image/webp',
+    sha256,
+    width: 800,
+    height: 800,
+    bytes: positiveInteger(value.bytes, `${path}.bytes`),
+  }
+}
+
+const optionalTrackKeys = [
+  ['id', 'groupId', 'title', 'artists', 'duration', 'audio', 'lyrics'],
+  ['id', 'groupId', 'title', 'artists', 'album', 'duration', 'audio', 'lyrics'],
+  ['id', 'groupId', 'title', 'artists', 'duration', 'audio', 'lyrics', 'cover'],
+  ['id', 'groupId', 'title', 'artists', 'album', 'duration', 'audio', 'lyrics', 'cover'],
+] as const
+
 export function parseMusicLibrary(input: unknown): MusicLibrary {
   const value = asObject(input, 'music library')
   exactKeys(value, ['version', 'enabled', 'groups', 'tracks'], 'music library')
@@ -116,10 +154,10 @@ export function parseMusicLibrary(input: unknown): MusicLibrary {
   const tracks = value.tracks.map((input, index) => {
     const path = `tracks[${index}]`
     const track = asObject(input, path)
-    const expected = typeof track.album === 'undefined'
-      ? ['id', 'groupId', 'title', 'artists', 'duration', 'audio', 'lyrics']
-      : ['id', 'groupId', 'title', 'artists', 'album', 'duration', 'audio', 'lyrics']
-    exactKeys(track, expected, path)
+    const expected = optionalTrackKeys.find((keys) => (
+      keys.length === Object.keys(track).length && keys.every((key) => Object.hasOwn(track, key))
+    ))
+    if (!expected) throw new MusicLibraryError(`${path} contains unknown or missing fields.`)
     const id = nonEmptyText(track.id, `${path}.id`)
     const groupId = nonEmptyText(track.groupId, `${path}.groupId`)
     if (trackIds.has(id)) throw new MusicLibraryError(`${path}.id must be unique.`)
@@ -136,9 +174,16 @@ export function parseMusicLibrary(input: unknown): MusicLibrary {
       duration: positiveNumber(track.duration, `${path}.duration`),
       audio: parseAsset(track.audio, 'audio/mpeg', `${path}.audio`),
       lyrics: track.lyrics === null ? null : parseAsset(track.lyrics, 'text/plain', `${path}.lyrics`),
+      ...(typeof track.cover === 'undefined' ? {} : { cover: parseCover(track.cover, `${path}.cover`) }),
     }
   })
   return { version: 1, enabled: value.enabled, groups, tracks }
+}
+
+export function requireMusicTrack(library: MusicLibrary, trackId: string, context: string): MusicTrack {
+  const track = parseMusicLibrary(library).tracks.find((item) => item.id === trackId)
+  if (!track) throw new MusicLibraryError(`${context} references missing music track ${trackId}.`)
+  return track
 }
 
 async function readBoundedUtf8(response: Response): Promise<string> {

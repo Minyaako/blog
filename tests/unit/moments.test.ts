@@ -9,12 +9,14 @@ vi.mock('astro:content', () => ({
 }))
 
 import { getPublishedMoments, resolveMomentImages, sortMoments, validateMomentEntries } from '../../src/lib/moments'
+import type { MusicLibrary } from '../../src/lib/music'
 
 const baseMoment = {
   id: '20260823-143501-a7c31e4f',
   publishedAt: '2026-08-23T14:35:01+08:00',
   tags: ['life-notes'],
   images: [],
+  track: undefined as string | undefined,
   pinned: false
 }
 
@@ -28,7 +30,31 @@ const entry = (
   data: { ...baseMoment, ...overrides }
 })
 
+const hash = 'a'.repeat(64)
+const library: MusicLibrary = {
+  version: 1,
+  enabled: true,
+  groups: [{ id: '0', label: '隐藏歌单', listed: false, order: 0 }],
+  tracks: [{
+    id: 'track_hidden', groupId: '0', title: '隐藏曲目', artists: ['歌手'], duration: 180,
+    audio: { url: `https://pic.minyako.top/blog/music/audio/${hash.slice(0, 2)}/${hash}.mp3`, contentType: 'audio/mpeg', sha256: hash, bytes: 1 },
+    lyrics: null,
+  }],
+}
+
 describe('moment collection adapter', () => {
+  it('resolves a Moment track into view data', async () => {
+    await expect(getPublishedMoments([
+      entry('20260823-143501-a7c31e4f', { track: 'track_hidden' })
+    ], library)).resolves.toMatchObject([{ track: { id: 'track_hidden', title: '隐藏曲目' } }])
+  })
+
+  it('rejects a Moment that references a missing track with both ids', async () => {
+    await expect(getPublishedMoments([
+      entry('20260823-143501-a7c31e4f', { track: 'track_missing' })
+    ], library)).rejects.toThrow(/20260823-143501-a7c31e4f.*track_missing/i)
+  })
+
   it('resolves structured image references through the committed media registry', () => {
     expect(resolveMomentImages([
       { media: 'home-hero-01', alt: '示例' }

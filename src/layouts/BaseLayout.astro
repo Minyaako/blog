@@ -104,10 +104,12 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
       import { initMomentGalleries } from '../scripts/moment-gallery'
       import { initMomentStream } from '../scripts/moment-stream'
       import { initMomentWarnings } from '../scripts/moment-warning'
+      import { bindMusicPlayRequestButtons } from '../scripts/music-play-request'
       initPageMotion()
       const initMomentEnhancements = (root: ParentNode = document) => {
         initMomentGalleries(root)
         initMomentWarnings(root)
+        bindMusicPlayRequestButtons(root)
         initRevealMotion(root)
       }
       initMomentEnhancements()
