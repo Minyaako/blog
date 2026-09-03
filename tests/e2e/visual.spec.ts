@@ -48,6 +48,7 @@ test('music player mobile', async ({ page }) => {
   const player = page.locator('[data-music-player]')
   await player.locator('[data-music-collapse]').click()
   await expect(player.locator('.music-player-cover')).toBeHidden()
+  await expect(player.locator('.music-player-instance .aplayer-pic')).toBeHidden()
   await expect(player).toHaveScreenshot('music-player-mobile.png', {
     animations: 'disabled',
     maxDiffPixelRatio: 0.005,
