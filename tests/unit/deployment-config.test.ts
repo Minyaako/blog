@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
+import playwrightConfig from '../../playwright.config'
 
 type ComposeService = {
   image?: string
@@ -563,5 +564,17 @@ describe('GitHub Actions release contract', () => {
     ],
   ])('rejects %s', (_name, mutated) => {
     expect(() => assertWorkflowContract(mutated)).toThrow()
+  })
+})
+
+describe('Playwright E2E startup contract', () => {
+  it('allows the preview server enough time to finish a cold build', () => {
+    const webServer = playwrightConfig.webServer
+
+    if (!webServer || Array.isArray(webServer)) {
+      throw new Error('Expected a single Playwright webServer configuration')
+    }
+
+    expect(webServer.timeout).toBe(120_000)
   })
 })
