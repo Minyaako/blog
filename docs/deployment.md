@@ -57,14 +57,14 @@ SHA-256。关闭 `MEDIA_PUBLISH_ENABLED` 只能阻止后续写入，不能让缺
 | --- | --- |
 | Canonical origin | `https://gsk.minyako.top` |
 | 旧域名 | `https://minyakogsk.icu`，最终保留路径和查询参数并返回 308 |
-| 不可变镜像 | `ghcr.io/minyaako/blog:$sha`，其中 `$sha` 必须是已部署提交的 40 位小写完整 SHA |
+| 不可变镜像 | `ccr.ccs.tencentyun.com/minyako-blog/blog:$sha`，其中 `$sha` 必须是已部署提交的 40 位小写完整 SHA |
 | 应用运行目录 | `/srv/apps/blog` |
 | 内部服务 | `blog:8080`，只加入外部 Docker 网络 `server_proxy`，不映射主机端口 |
 | 共享网关 | `server-caddy`，由 `server-infra` 仓库和服务器管理员维护 |
 
 本仓库负责 Docker 镜像、`deploy/compose.yml`、`deploy/bin/blog-release` 和 GitHub Actions。它不拥有共享 Caddy 基础配置、主机账号、SSH forced-command 或 80/443 端口；这些属于 `server-infra`。根域名 `minyako.top` 不在本次博客部署范围内。
 
-生产服务器不安装 Node.js 或 pnpm。服务器只匿名拉取公开的 SHA 镜像，不能保存 GitHub PAT、GHCR 密码或其他注册表凭据。博客容器是只读静态站，`/config` 与 `/data` 均为临时文件系统。
+生产服务器不安装 Node.js 或 pnpm。服务器只保存 TCR 专用拉取凭据，不保存 GitHub PAT；GitHub Actions 使用 `TCR_USERNAME`、`TCR_PASSWORD` 两个 Secret 发布镜像。博客容器是只读静态站，`/config` 与 `/data` 均为临时文件系统。
 
 ## 首次发布
 
@@ -84,21 +84,20 @@ SHA-256。关闭 `MEDIA_PUBLISH_ENABLED` 只能阻止后续写入，不能让缺
    ```powershell
    $mainSha = gh api repos/Minyaako/blog/commits/main --jq .sha
    if ($mainSha -cnotmatch '^[0-9a-f]{40}$') { throw 'main SHA 不是 40 位小写十六进制' }
-   $image = "ghcr.io/minyaako/blog:$mainSha"
+   $image = "ccr.ccs.tencentyun.com/minyako-blog/blog:$mainSha"
    $image
    ```
 
-3. 首次创建的 GHCR Package 默认可能不是公开包。由仓库所有者在 GitHub Package 设置中把 `ghcr.io/minyaako/blog` 手动改为 **Public**。不得用服务器 PAT 绕过这一步。
+3. 确认仓库 Actions Secrets 已配置 `TCR_USERNAME` 与 `TCR_PASSWORD`，且生产服务器已通过 `docker login ccr.ccs.tencentyun.com` 保存同一账户的拉取凭据。密码只能经标准输入传递，不能写入命令参数或仓库文件。
 
-4. 通过已信任的管理员别名证明服务器能够匿名拉取该 SHA 镜像：
+4. 通过已信任的管理员别名证明服务器能够拉取该 SHA 镜像：
 
    ```powershell
-   ssh tencent-server "sudo docker logout ghcr.io >/dev/null 2>&1 || true"
    ssh tencent-server "sudo docker pull $image"
    ssh tencent-server "sudo docker image inspect $image --format '{{index .RepoDigests 0}}'"
    ```
 
-   拉取必须在无 GHCR 凭据的情况下成功，并返回内容摘要。
+   拉取必须从 TCR 成功，并返回内容摘要。
 
 5. 按 `server-infra` 的博客部署计划完成 `/srv/apps/blog`、`blog-deploy` forced-command、`server_proxy` 和临时双域名 Caddy 路由初始化。共享 Caddy 的候选配置须先验证并备份，不能从本仓库直接覆盖。
 

@@ -16,7 +16,7 @@ interface PlayerTrack {
 }
 interface MusicGroup { id: string; label: string; listed: boolean; order: number }
 interface MusicPlayerModel { visibleGroups: MusicGroup[]; initialTracks: PlayerTrack[]; allTracks: PlayerTrack[] }
-interface PlayerPreferences { volume: number; collapsed: boolean; lastVisibleTrackId: string | null }
+interface PlayerPreferences { volume: number; collapsed: boolean; minimized: boolean; lastVisibleTrackId: string | null }
 type APlayerWithAudio = InstanceType<typeof APlayer> & {
   audio: HTMLAudioElement
   volume: (value: number, withoutStorage?: boolean) => number
@@ -24,8 +24,8 @@ type APlayerWithAudio = InstanceType<typeof APlayer> & {
 }
 
 const preferencesKey = 'minyako-music-player'
-const fallbackPreferences: PlayerPreferences = { volume: 0.7, collapsed: true, lastVisibleTrackId: null }
-const themeFallbackCover = '/images/profile/avatar-geometric.svg'
+const fallbackPreferences: PlayerPreferences = { volume: 0.7, collapsed: true, minimized: false, lastVisibleTrackId: null }
+const themeFallbackCover = 'https://pic.minyako.top/blog/33/33186e9fb044ed536211db6dd15c694898e6792f7b0bb8762872a82acb5d51fb.webp'
 let activeCleanup: (() => void) | undefined
 
 const aplayerControlLabels = {
@@ -60,6 +60,7 @@ function readPreferences(): PlayerPreferences {
     return {
       volume: typeof stored.volume === 'number' && stored.volume >= 0 && stored.volume <= 1 ? stored.volume : fallbackPreferences.volume,
       collapsed: typeof stored.collapsed === 'boolean' ? stored.collapsed : fallbackPreferences.collapsed,
+      minimized: typeof stored.minimized === 'boolean' ? stored.minimized : fallbackPreferences.minimized,
       lastVisibleTrackId: typeof stored.lastVisibleTrackId === 'string' ? stored.lastVisibleTrackId : null,
     }
   } catch { return { ...fallbackPreferences } }
@@ -78,6 +79,43 @@ const playerTrack = (track: PlayerTrack): Record<string, unknown> => ({
 })
 
 const searchableText = (track: PlayerTrack): string => `${track.title} ${track.artists.join(' ')}`.toLocaleLowerCase()
+const readableLyrics = (lrc: string | null): string => {
+  if (!lrc) return '暂无歌词'
+  const lines = lrc.split('\n').map((line) => {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('{')) {
+      try {
+        const value = JSON.parse(trimmed) as { c?: Array<{ tx?: unknown }> }
+        return value.c?.map((part) => typeof part.tx === 'string' ? part.tx : '').join('') ?? ''
+      } catch { return '' }
+    }
+    return line.replace(/^(?:\[[^\]]+\])+/u, '')
+  })
+  return lines.join('\n').trim() || '暂无歌词'
+}
+
+interface TimedLyric { time: number; text: string }
+const timedLyrics = (lrc: string | null): TimedLyric[] => {
+  if (!lrc) return [{ time: 0, text: '暂无歌词' }]
+  const parsed: TimedLyric[] = []
+  for (const line of lrc.split('\n')) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('{')) {
+      try {
+        const value = JSON.parse(trimmed) as { t?: unknown; c?: Array<{ tx?: unknown }> }
+        const text = value.c?.map((part) => typeof part.tx === 'string' ? part.tx : '').join('').trim()
+        if (text) parsed.push({ time: typeof value.t === 'number' ? value.t / 1000 : 0, text })
+      } catch { /* Ignore invalid enhanced-LRC metadata lines. */ }
+      continue
+    }
+    const stamps = [...line.matchAll(/\[(\d{1,2}):(\d{2}(?:\.\d+)?)\]/gu)]
+    const text = line.replace(/^(?:\[[^\]]+\])+/u, '').trim()
+    if (!text) continue
+    if (stamps.length === 0) parsed.push({ time: Number.POSITIVE_INFINITY, text })
+    for (const stamp of stamps) parsed.push({ time: Number(stamp[1]) * 60 + Number(stamp[2]), text })
+  }
+  return parsed.length > 0 ? parsed.sort((a, b) => a.time - b.time) : [{ time: 0, text: readableLyrics(lrc) }]
+}
 
 export function initMusicPlayer(root: ParentNode = document): void {
   const card = root.querySelector<HTMLElement>('[data-music-player]')
@@ -89,27 +127,37 @@ export function initMusicPlayer(root: ParentNode = document): void {
   const container = card.querySelector<HTMLElement>('[data-music-aplayer]')
   const title = card.querySelector<HTMLElement>('[data-music-title]')
   const artist = card.querySelector<HTMLElement>('[data-music-artist]')
+  const expandedTitle = card.querySelector<HTMLElement>('[data-music-expanded-title]')
+  const expandedArtist = card.querySelector<HTMLElement>('[data-music-expanded-artist]')
   const now = card.querySelector<HTMLElement>('[data-music-now]')
   const currentLyric = card.querySelector<HTMLElement>('[data-music-current-lyric]')
+  const cover = card.querySelector<HTMLElement>('[data-music-cover]')
+  const record = card.querySelector<HTMLElement>('[data-music-record]')
   const lyrics = card.querySelector<HTMLElement>('[data-music-lyrics]')
   const error = card.querySelector<HTMLElement>('[data-music-error]')
   const group = card.querySelector<HTMLSelectElement>('[data-music-group]')
   const search = card.querySelector<HTMLInputElement>('[data-music-search]')
   const results = card.querySelector<HTMLElement>('[data-music-results]')
   const collapse = card.querySelector<HTMLButtonElement>('[data-music-collapse]')
+  const minimize = card.querySelector<HTMLButtonElement>('[data-music-minimize]')
   const playPause = card.querySelector<HTMLButtonElement>('[data-music-play-pause]')
+  const volumeToggle = card.querySelector<HTMLButtonElement>('[data-music-volume-toggle]')
+  const volumePopover = card.querySelector<HTMLElement>('[data-music-volume-popover]')
   const volumeInput = card.querySelector<HTMLInputElement>('[data-music-volume]')
   const progressInput = card.querySelector<HTMLInputElement>('[data-music-progress]')
+  const timeOutput = card.querySelector<HTMLOutputElement>('[data-music-time]')
   const previous = card.querySelector<HTMLButtonElement>('[data-music-previous]')
   const next = card.querySelector<HTMLButtonElement>('[data-music-next]')
   const tabs = card.querySelectorAll<HTMLButtonElement>('[role="tab"][data-music-tab]')
-  if (!data?.textContent || !container || !title || !artist || !now || !currentLyric || !lyrics || !error || !group || !search || !results || !collapse || !playPause || !volumeInput || !progressInput) return
+  if (!data?.textContent || !container || !title || !artist || !now || !currentLyric || !cover || !record || !lyrics || !error || !group || !search || !results || !collapse || !minimize || !playPause || !volumeToggle || !volumePopover || !volumeInput || !progressInput || !timeOutput) return
 
   let model: MusicPlayerModel
   try { model = JSON.parse(data.textContent) as MusicPlayerModel } catch { return }
   if (model.initialTracks.length === 0) return
 
   loadPlayerStyle()
+  container.setAttribute('aria-hidden', 'true')
+  container.setAttribute('inert', '')
   const preferences = readPreferences()
   const visibleIds = new Set(model.visibleGroups.map((entry) => entry.id))
   const activeTracks = [...model.initialTracks]
@@ -120,24 +168,43 @@ export function initMusicPlayer(root: ParentNode = document): void {
   const syncLyric = () => {
     const lyric = container.querySelector('.aplayer-lrc-current')?.textContent?.trim() || '暂无歌词'
     currentLyric.textContent = lyric
-    lyrics.textContent = lyric
   }
   const observer = new MutationObserver(syncLyric)
   observer.observe(container, { childList: true, characterData: true, subtree: true })
   labelAPlayerControls(container)
   let currentIndex = 0
+  let activeLyricIndex = -1
 
   const showError = (message: string) => { error.hidden = false; error.textContent = message }
   const setPlaying = (playing: boolean) => {
-    playPause.textContent = playing ? '暂停' : '播放'
+    const playIcon = playPause.querySelector<HTMLElement>('[data-music-icon="play"]')
+    const pauseIcon = playPause.querySelector<HTMLElement>('[data-music-icon="pause"]')
+    if (playIcon) playIcon.hidden = playing
+    if (pauseIcon) pauseIcon.hidden = !playing
     playPause.setAttribute('aria-label', playing ? '暂停' : '播放')
     playPause.setAttribute('aria-pressed', String(playing))
+    record.dataset.musicPlaying = String(playing)
   }
   const updateCurrent = () => {
     const track = activeTracks[currentIndex]
     if (!track) return
     title.textContent = track.title
     artist.textContent = track.artists.join(' / ')
+    if (expandedTitle) expandedTitle.textContent = track.title
+    if (expandedArtist) expandedArtist.textContent = track.artists.join(' / ')
+    const artwork = track.cover?.url ?? themeFallbackCover
+    cover.style.backgroundImage = `url("${artwork}")`
+    card.style.setProperty('--music-cover', `url("${artwork}")`)
+    record.style.setProperty('--music-artwork', `url("${artwork}")`)
+    lyrics.replaceChildren()
+    for (const line of timedLyrics(track.lrcText)) {
+      const item = document.createElement('p')
+      item.dataset.musicLyricLine = ''
+      item.dataset.musicLyricTime = String(line.time)
+      item.textContent = line.text
+      lyrics.append(item)
+    }
+    activeLyricIndex = -1
     now.textContent = `${track.title} · ${track.artists.join(' / ')}`
     if (visibleIds.has(track.groupId)) preferences.lastVisibleTrackId = track.id
     writePreferences(preferences)
@@ -154,6 +221,14 @@ export function initMusicPlayer(root: ParentNode = document): void {
     currentIndex = ensureTrackInAPlayer(track)
     player.list.switch(currentIndex)
     updateCurrent()
+  }
+  const navigateGroup = (direction: -1 | 1) => {
+    const current = activeTracks[currentIndex]
+    if (!current) return
+    const groupTracks = model.allTracks.filter((track) => track.groupId === current.groupId)
+    const groupIndex = Math.max(0, groupTracks.findIndex((track) => track.id === current.id))
+    const target = groupTracks[(groupIndex + direction + groupTracks.length) % groupTracks.length]
+    if (target) selectTrack(target)
   }
   const setTab = (tabId: string, focus = false) => {
     const activeTab = [...tabs].find((tab) => tab.dataset.musicTab === tabId)
@@ -176,25 +251,69 @@ export function initMusicPlayer(root: ParentNode = document): void {
     card.dataset.musicCollapsed = String(collapsed)
     collapse.setAttribute('aria-expanded', String(!collapsed))
     collapse.setAttribute('aria-label', collapsed ? '展开音乐播放器' : '收起音乐播放器')
+    const expandIcon = collapse.querySelector<HTMLElement>('[data-music-icon="expand"]')
+    const collapseIcon = collapse.querySelector<HTMLElement>('[data-music-icon="collapse"]')
+    if (expandIcon) expandIcon.hidden = !collapsed
+    if (collapseIcon) collapseIcon.hidden = collapsed
     writePreferences(preferences)
+  }
+  const setMinimized = (minimized: boolean) => {
+    preferences.minimized = minimized
+    card.dataset.musicMinimized = String(minimized)
+    minimize.setAttribute('aria-label', minimized ? '恢复音乐播放器' : '最小化音乐播放器')
+    const minimizeIcon = minimize.querySelector<HTMLElement>('[data-music-icon="minimize"]')
+    const restoreIcon = minimize.querySelector<HTMLElement>('[data-music-icon="restore"]')
+    if (minimizeIcon) minimizeIcon.hidden = minimized
+    if (restoreIcon) restoreIcon.hidden = !minimized
+    writePreferences(preferences)
+  }
+  const syncVolumeTrack = (volume: number) => {
+    volumeInput.style.setProperty('--music-volume-percent', `${Math.round(volume * 100)}%`)
   }
   const updateProgress = () => {
     const duration = player.audio.duration
     const currentTime = player.audio.currentTime
     progressInput.max = Number.isFinite(duration) && duration > 0 ? String(duration) : '0'
     progressInput.value = Number.isFinite(currentTime) ? String(currentTime) : '0'
+    const formatTime = (seconds: number) => {
+      const safe = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0
+      return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`
+    }
+    timeOutput.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`
+    const lyricLines = [...lyrics.querySelectorAll<HTMLElement>('[data-music-lyric-line]')]
+    const nextLyricIndex = lyricLines.reduce((found, line, index) => Number(line.dataset.musicLyricTime) <= currentTime ? index : found, -1)
+    if (nextLyricIndex !== activeLyricIndex && lyricLines[nextLyricIndex]) {
+      lyricLines[activeLyricIndex]?.removeAttribute('aria-current')
+      const active = lyricLines[nextLyricIndex]
+      active.setAttribute('aria-current', 'true')
+      activeLyricIndex = nextLyricIndex
+      const centeredTop = active.offsetTop - lyrics.clientHeight / 2 + active.offsetHeight / 2
+      if (typeof lyrics.scrollTo === 'function') lyrics.scrollTo({ top: Math.max(0, centeredTop), behavior: 'smooth' })
+      else lyrics.scrollTop = Math.max(0, centeredTop)
+    }
     syncLyric()
   }
-  const renderSearch = () => {
+  const renderTracks = () => {
     const query = search.value.trim().toLocaleLowerCase()
     results.replaceChildren()
-    if (query === '') return
-    const matches = model.allTracks.filter((track) => searchableText(track).includes(query)).slice(0, 12)
+    const visibleGroupIds = new Set(model.visibleGroups.map((entry) => entry.id))
+    const matches = model.allTracks.filter((track) => {
+      if (query !== '') return searchableText(track).includes(query)
+      return visibleGroupIds.has(track.groupId) && (group.value === '' || track.groupId === group.value)
+    }).slice(0, 24)
     for (const track of matches) {
       const button = document.createElement('button')
       button.type = 'button'
       button.className = 'music-player-result'
-      button.textContent = `${track.title} · ${track.artists.join(' / ')}`
+      button.dataset.musicTrackId = track.id
+      const artwork = track.cover?.url ?? themeFallbackCover
+      const groupLabel = model.visibleGroups.find((entry) => entry.id === track.groupId)?.label ?? '隐藏分组'
+      button.innerHTML = `<span class="music-player-result-cover" aria-hidden="true"></span><span class="music-player-result-copy"><strong></strong><small></small></span><span class="music-player-result-group"></span>`
+      const coverNode = button.querySelector<HTMLElement>('.music-player-result-cover')!
+      coverNode.style.backgroundImage = `url("${artwork}")`
+      button.querySelector('strong')!.textContent = track.title
+      button.querySelector('small')!.textContent = track.artists.join(' / ')
+      button.querySelector('.music-player-result-group')!.textContent = groupLabel
       button.addEventListener('click', () => selectTrack(track), { signal: controller.signal })
       results.append(button)
     }
@@ -202,26 +321,33 @@ export function initMusicPlayer(root: ParentNode = document): void {
   }
 
   collapse.addEventListener('click', () => setCollapsed(card.dataset.musicCollapsed !== 'true'), { signal: controller.signal })
+  minimize.addEventListener('click', () => setMinimized(card.dataset.musicMinimized !== 'true'), { signal: controller.signal })
   group.addEventListener('change', () => {
-    const track = model.initialTracks.find((item) => item.groupId === group.value)
-    if (track) selectTrack(track)
+    renderTracks()
   }, { signal: controller.signal })
-  search.addEventListener('input', renderSearch, { signal: controller.signal })
+  search.addEventListener('input', renderTracks, { signal: controller.signal })
   volumeInput.value = String(preferences.volume)
+  syncVolumeTrack(preferences.volume)
   volumeInput.addEventListener('input', () => {
     const volume = Number(volumeInput.value)
     if (!Number.isFinite(volume) || volume < 0 || volume > 1) return
     player.volume(volume, true)
+    syncVolumeTrack(volume)
     preferences.volume = volume
     writePreferences(preferences)
+  }, { signal: controller.signal })
+  volumeToggle.addEventListener('click', () => {
+    const open = volumePopover.hidden
+    volumePopover.hidden = !open
+    volumeToggle.setAttribute('aria-expanded', String(open))
   }, { signal: controller.signal })
   progressInput.addEventListener('input', () => { player.audio.currentTime = Number(progressInput.value) || 0 }, { signal: controller.signal })
   playPause.addEventListener('click', () => {
     if (player.audio.paused) void Promise.resolve(player.play()).catch(() => showError('播放失败，请再次点击播放。'))
     else player.pause()
   }, { signal: controller.signal })
-  previous?.addEventListener('click', () => selectTrack(activeTracks[(currentIndex - 1 + activeTracks.length) % activeTracks.length]), { signal: controller.signal })
-  next?.addEventListener('click', () => selectTrack(activeTracks[(currentIndex + 1) % activeTracks.length]), { signal: controller.signal })
+  previous?.addEventListener('click', () => navigateGroup(-1), { signal: controller.signal })
+  next?.addEventListener('click', () => navigateGroup(1), { signal: controller.signal })
   for (const [index, tab] of [...tabs].entries()) {
     tab.addEventListener('click', () => setTab(tab.dataset.musicTab ?? 'lyrics'), { signal: controller.signal })
     tab.addEventListener('keydown', (event) => {
@@ -244,6 +370,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
     if (player.audio.volume >= 0 && player.audio.volume <= 1) {
       preferences.volume = player.audio.volume
       volumeInput.value = String(player.audio.volume)
+      syncVolumeTrack(player.audio.volume)
       writePreferences(preferences)
     }
   })
@@ -265,9 +392,11 @@ export function initMusicPlayer(root: ParentNode = document): void {
   if (restored >= 0 && visibleIds.has(model.initialTracks[restored].groupId)) selectTrack(model.initialTracks[restored])
   group.value = model.initialTracks[currentIndex].groupId
   setCollapsed(preferences.collapsed)
+  setMinimized(preferences.minimized)
   setPlaying(false)
   setTab(card.dataset.musicTab ?? 'lyrics')
   updateCurrent()
+  renderTracks()
   updateProgress()
   activeCleanup = () => { controller.abort(); observer.disconnect(); player.destroy(); activeCleanup = undefined }
 }
