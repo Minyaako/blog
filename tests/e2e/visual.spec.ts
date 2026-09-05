@@ -2,7 +2,8 @@ import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
 
 async function stabilizePageScreenshot(page: Page): Promise<void> {
-  await page.addStyleTag({ content: '[data-music-player] { display: none !important; }' })
+  await page.addStyleTag({ content: 'html { overflow-y: scroll !important; } [data-music-player] { display: none !important; }' })
+  await expect(page.locator('html')).toHaveCSS('overflow-y', 'scroll')
   await expect(page.locator('[data-music-player]')).toBeHidden()
 }
 

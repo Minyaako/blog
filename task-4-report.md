@@ -9,8 +9,8 @@
 
 ## Evidence
 
-- RED: GitHub Actions run `33951588140` alternated between a route screenshot before and after the music player appeared, producing heights `1280x3644` and `1280x3641` and failing screenshot stability.
-- The diff artifact localized the changed pixels to the global music player. Forcing root scrollbar state was rejected because it changed existing baselines without addressing that asynchronous boundary.
+- RED: GitHub Actions runs `33951588140` and `33953144906` alternated between heights `1280x3644` and `1280x3641` while Playwright's `fullPage` capture temporarily resized the viewport.
+- Route screenshots reserve the root vertical scrollbar before `fullPage` capture, removing the resize feedback. The asynchronous global music player is excluded from route baselines and remains covered by dedicated component snapshots.
 - GREEN: `pnpm exec playwright test tests/e2e/visual.spec.ts --project=desktop --grep "article light" --repeat-each=3` passed 3/3 with the player excluded from the route baseline.
 - GitHub Actions run `33951588140` showed the Linux failure alternating between `1280x3644` and `1280x3641`, ending with `Failed to take two consecutive stable screenshots`.
 - The baseline refresh run `33951372145` generated the Linux article-light desktop baseline at `1280x3644` from the same head.
