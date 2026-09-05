@@ -165,6 +165,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
     container, audio: activeTracks.map(playerTrack), autoplay: false, lrcType: 1, volume: preferences.volume,
   }) as APlayerWithAudio
   const controller = new AbortController()
+  document.addEventListener('astro:after-swap', loadPlayerStyle, { signal: controller.signal })
   const syncLyric = () => {
     const lyric = container.querySelector('.aplayer-lrc-current')?.textContent?.trim() || '暂无歌词'
     currentLyric.textContent = lyric
@@ -287,9 +288,12 @@ export function initMusicPlayer(root: ParentNode = document): void {
       const active = lyricLines[nextLyricIndex]
       active.setAttribute('aria-current', 'true')
       activeLyricIndex = nextLyricIndex
-      const centeredTop = active.offsetTop - lyrics.clientHeight / 2 + active.offsetHeight / 2
-      if (typeof lyrics.scrollTo === 'function') lyrics.scrollTo({ top: Math.max(0, centeredTop), behavior: 'smooth' })
-      else lyrics.scrollTop = Math.max(0, centeredTop)
+      const lyricsBox = lyrics.getBoundingClientRect()
+      const activeBox = active.getBoundingClientRect()
+      const centeredTop = lyrics.scrollTop + activeBox.top - lyricsBox.top - lyrics.clientHeight / 2 + activeBox.height / 2
+      const targetTop = Math.min(Math.max(0, lyrics.scrollHeight - lyrics.clientHeight), Math.max(0, centeredTop))
+      if (typeof lyrics.scrollTo === 'function') lyrics.scrollTo({ top: targetTop, behavior: 'smooth' })
+      else lyrics.scrollTop = targetTop
     }
     syncLyric()
   }

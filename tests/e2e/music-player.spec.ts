@@ -33,6 +33,8 @@ test('internal navigation retains the active player instance and playback positi
 
   await expect(page.locator('[data-music-aplayer][data-navigation-probe="same-player"]')).toHaveCount(1)
   await expect.poll(() => page.locator('[data-music-progress]').inputValue()).toBe('12')
+  await expect(page.locator('head [data-music-player-style]')).toHaveCount(1)
+  await expect(player).toHaveCSS('position', 'fixed')
 })
 
 test('collapsed controls use a regular size hierarchy and an upward in-card volume popover', async ({ page }) => {
