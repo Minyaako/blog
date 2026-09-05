@@ -2,6 +2,7 @@
 import '@fontsource-variable/manrope/index.css'
 import '@fontsource-variable/noto-sans-sc/index.css'
 import 'katex/dist/katex.min.css'
+import { ClientRouter } from 'astro:transitions'
 import { SITE } from '../config/site'
 import musicLibrary from '../content/music/library.json'
 import SiteFooter from '../components/SiteFooter.astro'
@@ -56,6 +57,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
     <meta name="twitter:title" content={pageTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="author" content="Minyako" />
+    <ClientRouter />
     <slot name="head" />
     <title>{pageTitle}</title>
     <script is:inline>
@@ -112,8 +114,14 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
         bindMusicPlayRequestButtons(root)
         initRevealMotion(root)
       }
-      initMomentEnhancements()
-      initMomentStream(document, initMomentEnhancements)
+      let disposeMomentStream: () => void = () => undefined
+      const initPageEnhancements = () => {
+        disposeMomentStream()
+        initMomentEnhancements()
+        disposeMomentStream = initMomentStream(document, initMomentEnhancements)
+      }
+      initPageEnhancements()
+      document.addEventListener('astro:page-load', initPageEnhancements)
     </script>
   </body>
 </html>

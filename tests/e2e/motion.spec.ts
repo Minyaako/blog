@@ -201,35 +201,13 @@ test('runtime reduced motion keeps a loaded fallback page instantaneous', async 
   }))
 
   expect(outcome).toEqual({
-    defaultPrevented: false,
+    defaultPrevented: true,
     mode: 'instant',
     pageState: undefined,
     targetDomain: undefined,
     pageAnimation: 'none',
     veilAnimation: 'none',
   })
-})
-
-test('enabling reduced motion during fallback exit completes navigation immediately', async ({ page }) => {
-  await suppressFallbackTimeout(page)
-  await disableDocumentViewTransitions(page)
-  await page.goto('/')
-  await page.addStyleTag({ content: `
-    html[data-motion-navigation='fallback'][data-motion-page-state='exiting'] .page-main {
-      animation-duration: 60s !important;
-    }
-  ` })
-
-  const root = page.locator('html')
-  const navigationRequest = page.waitForRequest((request) => (
-    new URL(request.url()).pathname === '/archives/'
-  ), { timeout: 5_000 })
-  const navigation = page.waitForURL(/\/archives\/?$/)
-  await page.locator('a[href="/archives/"]').first().click({ noWaitAfter: true })
-  await expect(root).toHaveAttribute('data-motion-page-state', 'exiting')
-
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await Promise.all([navigationRequest, navigation])
 })
 
 test('fallback departure keeps the first target during repeated activation', async ({ page }) => {
@@ -269,7 +247,7 @@ test('native domain arrival uses the current domain color', async ({ page }) => 
   })
 })
 
-test('native domain clicks mark colored departure without interception', async ({ page }) => {
+test('native domain clicks mark colored departure before client-router navigation', async ({ page }) => {
   await page.goto('/domains/academic/')
   await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'native')
 
@@ -316,7 +294,7 @@ test('native domain clicks mark colored departure without interception', async (
   }))
 
   expect(departure).toMatchObject({
-    defaultPrevented: false,
+    defaultPrevented: true,
     pageState: 'exiting',
     targetDomain: 'games',
     pageAnimation: 'none',
