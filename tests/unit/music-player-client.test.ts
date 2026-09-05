@@ -83,8 +83,10 @@ const mount = () => {
 
 afterEach(() => {
   document.body.replaceChildren()
+  document.querySelectorAll('[data-music-player-style]').forEach((node) => node.remove())
   localStorage.clear()
   aplayer.instances.length = 0
+  vi.unstubAllGlobals()
 })
 
 describe('music player requests', () => {
@@ -182,7 +184,7 @@ describe('music player requests', () => {
     expect(results.textContent).toContain('二号')
   })
 
-  it('opens a separate volume popover and tracks the active lyric line', () => {
+  it('opens a separate volume popover and centers the active lyric within its scroll container', () => {
     const player = mount()
     const toggle = document.querySelector<HTMLButtonElement>('[data-music-volume-toggle]')!
     const popover = document.querySelector<HTMLElement>('[data-music-volume-popover]')!
@@ -193,9 +195,14 @@ describe('music player requests', () => {
     const scrollTo = vi.fn()
     activeLine.scrollIntoView = scrollIntoView
     lyrics.scrollTo = scrollTo
-    Object.defineProperties(lyrics, { clientHeight: { configurable: true, value: 100 } })
+    Object.defineProperties(lyrics, {
+      clientHeight: { configurable: true, value: 100 },
+      scrollHeight: { configurable: true, value: 800 },
+    })
+    vi.spyOn(lyrics, 'getBoundingClientRect').mockReturnValue({ top: 152, height: 100 } as DOMRect)
+    vi.spyOn(activeLine, 'getBoundingClientRect').mockReturnValue({ top: 352, height: 20 } as DOMRect)
     Object.defineProperties(activeLine, {
-      offsetTop: { configurable: true, value: 180 },
+      offsetTop: { configurable: true, value: 500 },
       offsetHeight: { configurable: true, value: 20 },
     })
 
@@ -208,7 +215,60 @@ describe('music player requests', () => {
     player.audio.dispatchEvent(new Event('timeupdate'))
     expect(document.querySelector('[data-music-lyric-line][aria-current="true"]')?.textContent).toContain('第二句')
     expect(scrollIntoView).not.toHaveBeenCalled()
-    expect(scrollTo).toHaveBeenCalledWith({ top: 140, behavior: 'smooth' })
+    expect(scrollTo).toHaveBeenCalledWith({ top: 160, behavior: 'smooth' })
+  })
+
+  it('defers lyric scrolling while hidden and centers the current line when expanded', () => {
+    const animationFrames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      animationFrames.push(callback)
+      return animationFrames.length
+    })
+    const player = mount()
+    const lyrics = document.querySelector<HTMLElement>('[data-music-lyrics]')!
+    const activeLine = [...document.querySelectorAll<HTMLElement>('[data-music-lyric-line]')]
+      .find((line) => line.textContent === '第二句')!
+    const collapse = document.querySelector<HTMLButtonElement>('[data-music-collapse]')!
+    const scrollTo = vi.fn()
+    let visible = false
+    lyrics.scrollTo = scrollTo
+    Object.defineProperties(lyrics, {
+      clientHeight: { configurable: true, get: () => visible ? 100 : 0 },
+      scrollHeight: { configurable: true, value: 800 },
+    })
+    vi.spyOn(lyrics, 'getBoundingClientRect').mockImplementation(() => (
+      { top: visible ? 152 : 0, height: visible ? 100 : 0 } as DOMRect
+    ))
+    vi.spyOn(activeLine, 'getBoundingClientRect').mockImplementation(() => (
+      { top: visible ? 352 : 0, height: visible ? 20 : 0 } as DOMRect
+    ))
+
+    Object.defineProperty(player.audio, 'currentTime', { configurable: true, value: 1.1 })
+    player.audio.dispatchEvent(new Event('timeupdate'))
+    expect(document.querySelector('[data-music-lyric-line][aria-current="true"]')?.textContent).toContain('第二句')
+    expect(scrollTo).not.toHaveBeenCalled()
+
+    visible = true
+    collapse.click()
+    expect(scrollTo).not.toHaveBeenCalled()
+    expect(animationFrames).toHaveLength(1)
+    animationFrames[0](0)
+    expect(scrollTo).not.toHaveBeenCalled()
+    expect(lyrics.scrollTop).toBe(160)
+  })
+
+  it('restores exactly one player stylesheet after Astro swaps the document head', () => {
+    mount()
+    const selector = '[data-music-player-style]'
+    const initialStyle = document.querySelector<HTMLStyleElement>(selector)
+    expect(initialStyle).not.toBeNull()
+
+    initialStyle?.remove()
+    document.dispatchEvent(new Event('astro:after-swap'))
+    document.dispatchEvent(new Event('astro:after-swap'))
+
+    const restoredStyles = document.querySelectorAll<HTMLStyleElement>(selector)
+    expect(restoredStyles).toHaveLength(1)
   })
 
   it('keeps the volume track fill synchronized with the selected volume', () => {

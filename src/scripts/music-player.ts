@@ -1,6 +1,7 @@
 import APlayer from 'aplayer'
 import aplayerStyle from 'aplayer/dist/APlayer.min.css?inline'
 import playerStyle from '../styles/music-player.css?inline'
+import { MUSIC_UI } from '../config/site'
 import { MUSIC_PLAY_REQUEST_EVENT, type MusicPlayRequestDetail } from './music-play-request'
 
 interface MusicAsset { url: string }
@@ -25,7 +26,6 @@ type APlayerWithAudio = InstanceType<typeof APlayer> & {
 
 const preferencesKey = 'minyako-music-player'
 const fallbackPreferences: PlayerPreferences = { volume: 0.7, collapsed: true, minimized: false, lastVisibleTrackId: null }
-const themeFallbackCover = 'https://pic.minyako.top/blog/33/33186e9fb044ed536211db6dd15c694898e6792f7b0bb8762872a82acb5d51fb.webp'
 let activeCleanup: (() => void) | undefined
 
 const aplayerControlLabels = {
@@ -74,7 +74,7 @@ const playerTrack = (track: PlayerTrack): Record<string, unknown> => ({
   name: track.title,
   artist: track.artists.join(' / '),
   url: track.audio.url,
-  cover: track.cover?.url ?? themeFallbackCover,
+  cover: track.cover?.url ?? MUSIC_UI.fallbackCoverUrl,
   lrc: track.lrcText ?? '',
 })
 
@@ -165,6 +165,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
     container, audio: activeTracks.map(playerTrack), autoplay: false, lrcType: 1, volume: preferences.volume,
   }) as APlayerWithAudio
   const controller = new AbortController()
+  document.addEventListener('astro:after-swap', loadPlayerStyle, { signal: controller.signal })
   const syncLyric = () => {
     const lyric = container.querySelector('.aplayer-lrc-current')?.textContent?.trim() || '暂无歌词'
     currentLyric.textContent = lyric
@@ -176,6 +177,25 @@ export function initMusicPlayer(root: ParentNode = document): void {
   let activeLyricIndex = -1
 
   const showError = (message: string) => { error.hidden = false; error.textContent = message }
+  const centerActiveLyric = (smooth = true) => {
+    const active = lyrics.querySelector<HTMLElement>('[data-music-lyric-line][aria-current="true"]')
+    if (!active || lyrics.clientHeight <= 0) return
+    const lyricsBox = lyrics.getBoundingClientRect()
+    const activeBox = active.getBoundingClientRect()
+    if (activeBox.height <= 0) return
+    const centeredTop = lyrics.scrollTop + activeBox.top - lyricsBox.top - lyrics.clientHeight / 2 + activeBox.height / 2
+    const targetTop = Math.min(Math.max(0, lyrics.scrollHeight - lyrics.clientHeight), Math.max(0, centeredTop))
+    if (smooth && typeof lyrics.scrollTo === 'function') lyrics.scrollTo({ top: targetTop, behavior: 'smooth' })
+    else lyrics.scrollTop = targetTop
+  }
+  const centerActiveLyricAfterLayout = () => requestAnimationFrame(() => {
+    centerActiveLyric(false)
+    const animations = typeof card.getAnimations === 'function' ? card.getAnimations() : []
+    if (animations.length === 0) return
+    void Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
+      requestAnimationFrame(() => centerActiveLyric(false))
+    })
+  })
   const setPlaying = (playing: boolean) => {
     const playIcon = playPause.querySelector<HTMLElement>('[data-music-icon="play"]')
     const pauseIcon = playPause.querySelector<HTMLElement>('[data-music-icon="pause"]')
@@ -192,7 +212,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
     artist.textContent = track.artists.join(' / ')
     if (expandedTitle) expandedTitle.textContent = track.title
     if (expandedArtist) expandedArtist.textContent = track.artists.join(' / ')
-    const artwork = track.cover?.url ?? themeFallbackCover
+    const artwork = track.cover?.url ?? MUSIC_UI.fallbackCoverUrl
     cover.style.backgroundImage = `url("${artwork}")`
     card.style.setProperty('--music-cover', `url("${artwork}")`)
     record.style.setProperty('--music-artwork', `url("${artwork}")`)
@@ -233,6 +253,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
   const setTab = (tabId: string, focus = false) => {
     const activeTab = [...tabs].find((tab) => tab.dataset.musicTab === tabId)
     if (!activeTab) return
+    const wasLyricTab = card.dataset.musicTab === 'lyrics'
     card.dataset.musicTab = tabId
     for (const tab of tabs) {
       const active = tab === activeTab
@@ -244,6 +265,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
       panel.hidden = !active
       panel.setAttribute('aria-hidden', String(!active))
     }
+    if (tabId === 'lyrics' && !wasLyricTab && card.dataset.musicCollapsed !== 'true') centerActiveLyricAfterLayout()
     if (focus) activeTab.focus()
   }
   const setCollapsed = (collapsed: boolean) => {
@@ -256,6 +278,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
     if (expandIcon) expandIcon.hidden = !collapsed
     if (collapseIcon) collapseIcon.hidden = collapsed
     writePreferences(preferences)
+    if (!collapsed) centerActiveLyricAfterLayout()
   }
   const setMinimized = (minimized: boolean) => {
     preferences.minimized = minimized
@@ -266,6 +289,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
     if (minimizeIcon) minimizeIcon.hidden = minimized
     if (restoreIcon) restoreIcon.hidden = !minimized
     writePreferences(preferences)
+    if (!minimized && card.dataset.musicCollapsed !== 'true' && card.dataset.musicTab === 'lyrics') centerActiveLyricAfterLayout()
   }
   const syncVolumeTrack = (volume: number) => {
     volumeInput.style.setProperty('--music-volume-percent', `${Math.round(volume * 100)}%`)
@@ -287,9 +311,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
       const active = lyricLines[nextLyricIndex]
       active.setAttribute('aria-current', 'true')
       activeLyricIndex = nextLyricIndex
-      const centeredTop = active.offsetTop - lyrics.clientHeight / 2 + active.offsetHeight / 2
-      if (typeof lyrics.scrollTo === 'function') lyrics.scrollTo({ top: Math.max(0, centeredTop), behavior: 'smooth' })
-      else lyrics.scrollTop = Math.max(0, centeredTop)
+      centerActiveLyric()
     }
     syncLyric()
   }
@@ -306,7 +328,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
       button.type = 'button'
       button.className = 'music-player-result'
       button.dataset.musicTrackId = track.id
-      const artwork = track.cover?.url ?? themeFallbackCover
+      const artwork = track.cover?.url ?? MUSIC_UI.fallbackCoverUrl
       const groupLabel = model.visibleGroups.find((entry) => entry.id === track.groupId)?.label ?? '隐藏分组'
       button.innerHTML = `<span class="music-player-result-cover" aria-hidden="true"></span><span class="music-player-result-copy"><strong></strong><small></small></span><span class="music-player-result-group"></span>`
       const coverNode = button.querySelector<HTMLElement>('.music-player-result-cover')!

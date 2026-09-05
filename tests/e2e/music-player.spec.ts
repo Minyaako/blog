@@ -33,6 +33,53 @@ test('internal navigation retains the active player instance and playback positi
 
   await expect(page.locator('[data-music-aplayer][data-navigation-probe="same-player"]')).toHaveCount(1)
   await expect.poll(() => page.locator('[data-music-progress]').inputValue()).toBe('12')
+  await expect(page.locator('head [data-music-player-style]')).toHaveCount(1)
+  await expect(player).toHaveCSS('position', 'fixed')
+})
+
+test('current lyric recenters whenever the player becomes visible again', async ({ page }) => {
+  await page.addInitScript(() => {
+    const playbackPositions = new WeakMap<HTMLMediaElement, number>()
+    Object.defineProperty(HTMLMediaElement.prototype, 'duration', { configurable: true, get: () => 260 })
+    Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
+      configurable: true,
+      get() { return playbackPositions.get(this) ?? 0 },
+      set(value: number) {
+        playbackPositions.set(this, value)
+        queueMicrotask(() => this.dispatchEvent(new Event('timeupdate')))
+      },
+    })
+    localStorage.setItem('minyako-music-player', JSON.stringify({ collapsed: true, minimized: false }))
+  })
+  await page.goto('/')
+
+  const player = page.locator('[data-music-player]')
+  const lyrics = player.locator('[data-music-lyrics]')
+  const progress = player.locator('[data-music-progress]')
+  const centerDelta = () => lyrics.evaluate((container) => {
+    const active = container.querySelector('[data-music-lyric-line][aria-current="true"]')
+    if (!active) return Number.POSITIVE_INFINITY
+    const containerBox = container.getBoundingClientRect()
+    const activeBox = active.getBoundingClientRect()
+    return Math.abs(activeBox.top + activeBox.height / 2 - (containerBox.top + containerBox.height / 2))
+  })
+  const seek = (seconds: number) => progress.evaluate((element, value) => {
+    const input = element as HTMLInputElement
+    input.value = String(value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  }, seconds)
+
+  await expect(player.locator('[data-music-body]')).toBeHidden()
+  await seek(24)
+  await expect(player.locator('[data-music-lyric-line][aria-current="true"]')).toHaveCount(1)
+  await player.locator('[data-music-collapse]').click()
+  await expect.poll(centerDelta).toBeLessThanOrEqual(1)
+
+  await player.locator('[data-music-minimize]').click()
+  await expect(player.locator('[data-music-body]')).toBeHidden()
+  await seek(54)
+  await player.locator('[data-music-minimize]').click()
+  await expect.poll(centerDelta).toBeLessThanOrEqual(1)
 })
 
 test('collapsed controls use a regular size hierarchy and an upward in-card volume popover', async ({ page }) => {

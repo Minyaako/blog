@@ -13,7 +13,7 @@ export default defineConfig({
     mdx(),
     icon({
       include: {
-        lucide: ['archive', 'book-open', 'chevron-down', 'chevron-up', 'external-link', 'house', 'moon', 'panel-right-close', 'panel-right-open', 'pause', 'play', 'rss', 'search', 'shapes', 'skip-back', 'skip-forward', 'sun', 'tags', 'volume-2'],
+        lucide: ['archive', 'book-open', 'chevron-down', 'chevron-up', 'external-link', 'house', 'moon', 'music-2', 'panel-right-close', 'panel-right-open', 'pause', 'play', 'rss', 'search', 'shapes', 'skip-back', 'skip-forward', 'sun', 'tags', 'volume-2'],
         'simple-icons': ['github']
       }
     })
