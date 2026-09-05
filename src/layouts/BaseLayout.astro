@@ -2,6 +2,7 @@
 import '@fontsource-variable/manrope/index.css'
 import '@fontsource-variable/noto-sans-sc/index.css'
 import 'katex/dist/katex.min.css'
+import { ClientRouter } from 'astro:transitions'
 import { SITE } from '../config/site'
 import musicLibrary from '../content/music/library.json'
 import SiteFooter from '../components/SiteFooter.astro'
@@ -31,7 +32,6 @@ const previewBranch = import.meta.env.PUBLIC_PREVIEW_BRANCH || 'editor-preview'
 const previewSha = import.meta.env.PUBLIC_PREVIEW_SHA || 'local-build'
 const previewBuildTime = import.meta.env.PUBLIC_PREVIEW_BUILD_TIME || 'local'
 const musicEnabled = parseMusicLibrary(musicLibrary).enabled
-const ClientRouter = musicEnabled ? (await import('astro:transitions')).ClientRouter : null
 const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astro')).default : null
 ---
 
@@ -57,7 +57,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
     <meta name="twitter:title" content={pageTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="author" content="Minyako" />
-    {ClientRouter && <ClientRouter />}
+    <ClientRouter />
     <slot name="head" />
     <title>{pageTitle}</title>
     <script is:inline>
