@@ -64,6 +64,15 @@ test('a resolved Moment track card is placed before its gallery and owns no play
   })).toBe(true)
 })
 
+test('moment track cards use the compact global-player affordance', async ({ page }) => {
+  await page.goto('/moments/')
+
+  const card = page.locator('[data-moment-track-card]').first()
+  await expect(card).toBeVisible()
+  await expect(card.locator('[data-moment-track-record]')).toHaveCount(1)
+  await expect(card.locator('[data-moment-track-play] svg')).toHaveCount(1)
+})
+
 test('unknown moment ids are not generated', async ({ page }) => {
   const response = await page.goto('/moments/not-present/')
   expect(response?.status()).toBe(404)

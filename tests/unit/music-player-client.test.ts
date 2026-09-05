@@ -86,6 +86,7 @@ afterEach(() => {
   document.querySelectorAll('[data-music-player-style]').forEach((node) => node.remove())
   localStorage.clear()
   aplayer.instances.length = 0
+  vi.unstubAllGlobals()
 })
 
 describe('music player requests', () => {
@@ -218,6 +219,11 @@ describe('music player requests', () => {
   })
 
   it('defers lyric scrolling while hidden and centers the current line when expanded', () => {
+    const animationFrames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      animationFrames.push(callback)
+      return animationFrames.length
+    })
     const player = mount()
     const lyrics = document.querySelector<HTMLElement>('[data-music-lyrics]')!
     const activeLine = [...document.querySelectorAll<HTMLElement>('[data-music-lyric-line]')]
@@ -244,8 +250,11 @@ describe('music player requests', () => {
 
     visible = true
     collapse.click()
-    expect(scrollTo).toHaveBeenCalledOnce()
-    expect(scrollTo).toHaveBeenCalledWith({ top: 160, behavior: 'smooth' })
+    expect(scrollTo).not.toHaveBeenCalled()
+    expect(animationFrames).toHaveLength(1)
+    animationFrames[0](0)
+    expect(scrollTo).not.toHaveBeenCalled()
+    expect(lyrics.scrollTop).toBe(160)
   })
 
   it('restores exactly one player stylesheet after Astro swaps the document head', () => {
