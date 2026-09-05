@@ -217,6 +217,37 @@ describe('music player requests', () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 160, behavior: 'smooth' })
   })
 
+  it('defers lyric scrolling while hidden and centers the current line when expanded', () => {
+    const player = mount()
+    const lyrics = document.querySelector<HTMLElement>('[data-music-lyrics]')!
+    const activeLine = [...document.querySelectorAll<HTMLElement>('[data-music-lyric-line]')]
+      .find((line) => line.textContent === '第二句')!
+    const collapse = document.querySelector<HTMLButtonElement>('[data-music-collapse]')!
+    const scrollTo = vi.fn()
+    let visible = false
+    lyrics.scrollTo = scrollTo
+    Object.defineProperties(lyrics, {
+      clientHeight: { configurable: true, get: () => visible ? 100 : 0 },
+      scrollHeight: { configurable: true, value: 800 },
+    })
+    vi.spyOn(lyrics, 'getBoundingClientRect').mockImplementation(() => (
+      { top: visible ? 152 : 0, height: visible ? 100 : 0 } as DOMRect
+    ))
+    vi.spyOn(activeLine, 'getBoundingClientRect').mockImplementation(() => (
+      { top: visible ? 352 : 0, height: visible ? 20 : 0 } as DOMRect
+    ))
+
+    Object.defineProperty(player.audio, 'currentTime', { configurable: true, value: 1.1 })
+    player.audio.dispatchEvent(new Event('timeupdate'))
+    expect(document.querySelector('[data-music-lyric-line][aria-current="true"]')?.textContent).toContain('第二句')
+    expect(scrollTo).not.toHaveBeenCalled()
+
+    visible = true
+    collapse.click()
+    expect(scrollTo).toHaveBeenCalledOnce()
+    expect(scrollTo).toHaveBeenCalledWith({ top: 160, behavior: 'smooth' })
+  })
+
   it('restores exactly one player stylesheet after Astro swaps the document head', () => {
     mount()
     const selector = '[data-music-player-style]'

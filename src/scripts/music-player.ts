@@ -177,6 +177,17 @@ export function initMusicPlayer(root: ParentNode = document): void {
   let activeLyricIndex = -1
 
   const showError = (message: string) => { error.hidden = false; error.textContent = message }
+  const centerActiveLyric = () => {
+    const active = lyrics.querySelector<HTMLElement>('[data-music-lyric-line][aria-current="true"]')
+    if (!active || lyrics.clientHeight <= 0) return
+    const lyricsBox = lyrics.getBoundingClientRect()
+    const activeBox = active.getBoundingClientRect()
+    if (activeBox.height <= 0) return
+    const centeredTop = lyrics.scrollTop + activeBox.top - lyricsBox.top - lyrics.clientHeight / 2 + activeBox.height / 2
+    const targetTop = Math.min(Math.max(0, lyrics.scrollHeight - lyrics.clientHeight), Math.max(0, centeredTop))
+    if (typeof lyrics.scrollTo === 'function') lyrics.scrollTo({ top: targetTop, behavior: 'smooth' })
+    else lyrics.scrollTop = targetTop
+  }
   const setPlaying = (playing: boolean) => {
     const playIcon = playPause.querySelector<HTMLElement>('[data-music-icon="play"]')
     const pauseIcon = playPause.querySelector<HTMLElement>('[data-music-icon="pause"]')
@@ -245,6 +256,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
       panel.hidden = !active
       panel.setAttribute('aria-hidden', String(!active))
     }
+    if (tabId === 'lyrics') centerActiveLyric()
     if (focus) activeTab.focus()
   }
   const setCollapsed = (collapsed: boolean) => {
@@ -257,6 +269,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
     if (expandIcon) expandIcon.hidden = !collapsed
     if (collapseIcon) collapseIcon.hidden = collapsed
     writePreferences(preferences)
+    if (!collapsed) centerActiveLyric()
   }
   const setMinimized = (minimized: boolean) => {
     preferences.minimized = minimized
@@ -288,12 +301,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
       const active = lyricLines[nextLyricIndex]
       active.setAttribute('aria-current', 'true')
       activeLyricIndex = nextLyricIndex
-      const lyricsBox = lyrics.getBoundingClientRect()
-      const activeBox = active.getBoundingClientRect()
-      const centeredTop = lyrics.scrollTop + activeBox.top - lyricsBox.top - lyrics.clientHeight / 2 + activeBox.height / 2
-      const targetTop = Math.min(Math.max(0, lyrics.scrollHeight - lyrics.clientHeight), Math.max(0, centeredTop))
-      if (typeof lyrics.scrollTo === 'function') lyrics.scrollTo({ top: targetTop, behavior: 'smooth' })
-      else lyrics.scrollTop = targetTop
+      centerActiveLyric()
     }
     syncLyric()
   }
