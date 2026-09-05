@@ -80,6 +80,21 @@ test('current lyric recenters whenever the player becomes visible again', async 
   await seek(54)
   await player.locator('[data-music-minimize]').click()
   await expect.poll(centerDelta).toBeLessThanOrEqual(1)
+
+  await player.locator('[data-music-minimize]').click()
+  await expect(player.locator('[data-music-body]')).toBeHidden()
+  const lyricLines = player.locator('[data-music-lyric-line]')
+  const lastTimedLyricIndex = await lyricLines.evaluateAll((lines) => lines.reduce((found, line, index) => (
+    Number.isFinite(Number((line as HTMLElement).dataset.musicLyricTime)) ? index : found
+  ), -1))
+  expect(lastTimedLyricIndex).toBeGreaterThanOrEqual(0)
+  const lastLyric = lyricLines.nth(lastTimedLyricIndex)
+  const lastLyricTime = Number(await lastLyric.getAttribute('data-music-lyric-time'))
+  await seek(lastLyricTime + 0.01)
+  await player.locator('[data-music-minimize]').click()
+  await expect(player.locator('[data-music-lyric-line][aria-current="true"]')).toHaveCount(1)
+  await expect(lastLyric).toHaveAttribute('aria-current', 'true')
+  await expect.poll(centerDelta).toBeLessThanOrEqual(1)
 })
 
 test('collapsed controls use a regular size hierarchy and an upward in-card volume popover', async ({ page }) => {
