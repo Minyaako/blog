@@ -45,12 +45,9 @@ const createDisabledBuildRoot = (): string => {
       return !skippedRootEntries.has(relativePath.split(sep)[0])
     }
   })
-  writeFileSync(join(temporaryRoot, 'src', 'content', 'music', 'library.json'), JSON.stringify({
-    version: 1,
-    enabled: false,
-    groups: [],
-    tracks: []
-  }))
+  const libraryPath = join(temporaryRoot, 'src', 'content', 'music', 'library.json')
+  const library = JSON.parse(readFileSync(libraryPath, 'utf8')) as Record<string, unknown>
+  writeFileSync(libraryPath, JSON.stringify({ ...library, enabled: false }))
   return temporaryRoot
 }
 
