@@ -1,4 +1,10 @@
+import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
+
+async function stabilizePageScreenshot(page: Page): Promise<void> {
+  await page.addStyleTag({ content: '[data-music-player] { display: none !important; }' })
+  await expect(page.locator('[data-music-player]')).toBeHidden()
+}
 
 const routes = {
   home: '/',
@@ -25,8 +31,10 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(page.locator('[data-moment-card]')).toHaveCount(1)
       }
       await page.emulateMedia({ reducedMotion: 'reduce' })
+      await stabilizePageScreenshot(page)
+      const fullPage = name !== 'moments' && name !== 'momentDetail'
       await expect(page).toHaveScreenshot(`${name}-${theme}.png`, {
-        fullPage: name !== 'moments' && name !== 'momentDetail',
+        fullPage,
         animations: 'disabled',
         maxDiffPixelRatio: 0.005
       })
