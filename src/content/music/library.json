@@ -10,13 +10,13 @@
     },
     {
       "id": "1",
-      "label": "分组 1",
+      "label": "日",
       "listed": true,
       "order": 1
     },
     {
       "id": "2",
-      "label": "分组 2",
+      "label": "数",
       "listed": true,
       "order": 2
     }
