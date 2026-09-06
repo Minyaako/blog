@@ -182,6 +182,37 @@
         "sha256": "bc6fcadc000f901fb950fd6c801ee6a610fba2721839aac441cd45de6040101c",
         "bytes": 1942
       }
+    },
+    {
+      "id": "track_q_YmxUM_W1_VLbT9N2pmxbR8",
+      "groupId": "0",
+      "title": "37.5℃のファンタジー",
+      "artists": [
+        "スリーズブーケ"
+      ],
+      "album": "37.5℃のファンタジー / アイマイメーデー / BLAST!! / 十六夜セレーネ",
+      "duration": 192.94040816326532,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/e6/e6b8070f8d8734fbff129c4c63f6032a5b1d81636848cbd095f712d01f394a96.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "e6b8070f8d8734fbff129c4c63f6032a5b1d81636848cbd095f712d01f394a96",
+        "bytes": 8061537
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/f3/f37f9940e79a844df70e120d9e63bb17b8d0ab6caeb8585c5709928b46e839f6.lrc",
+        "contentType": "text/plain",
+        "sha256": "f37f9940e79a844df70e120d9e63bb17b8d0ab6caeb8585c5709928b46e839f6",
+        "bytes": 2826
+      },
+      "cover": {
+        "sourceImageId": "img_5Tz_-RIcGyUiUaJJAA3FCQxx",
+        "contentType": "image/webp",
+        "sha256": "fe83fc7efbbdac24772597c865a594abc21864d9dc446f58266097f34c12202f",
+        "width": 800,
+        "height": 800,
+        "bytes": 45180,
+        "url": "https://pic.minyako.top/blog/music/covers/fe/fe83fc7efbbdac24772597c865a594abc21864d9dc446f58266097f34c12202f.webp"
+      }
     }
   ]
 }
