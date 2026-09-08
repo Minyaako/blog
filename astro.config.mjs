@@ -1,9 +1,16 @@
 import mdx from '@astrojs/mdx'
 import { unified } from '@astrojs/markdown-remark'
+import {
+  transformerMetaHighlight,
+  transformerNotationDiff,
+  transformerNotationHighlight,
+  transformerRemoveLineBreak
+} from '@shikijs/transformers'
 import { defineConfig } from 'astro/config'
 import icon from 'astro-icon'
 import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
+import { transformerCodePanel } from './src/lib/code-panel-transformer.mjs'
 
 export default defineConfig({
   site: 'https://gsk.minyako.top',
@@ -27,7 +34,14 @@ export default defineConfig({
       themes: {
         light: 'github-light-high-contrast',
         dark: 'github-dark-high-contrast'
-      }
+      },
+      transformers: [
+        transformerMetaHighlight(),
+        transformerNotationHighlight({ matchAlgorithm: 'v3' }),
+        transformerNotationDiff({ matchAlgorithm: 'v3' }),
+        transformerRemoveLineBreak(),
+        transformerCodePanel()
+      ]
     }
   }
 })

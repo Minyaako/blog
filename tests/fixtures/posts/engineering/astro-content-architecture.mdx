@@ -26,11 +26,12 @@ contentWarning: { type: none, message: '', scope: none }
 
 slug 适合人阅读，却天然会随着标题与分类变化。如果评论系统直接把 URL 当主键，一次重命名就可能制造两组讨论。首版因此同时保留两种标识：`slug` 负责路由，`id` 负责关联评论、翻译和外部数据。
 
-```ts
+```ts title="src/content.config.ts" showLineNumbers {2}
 interface PostIdentity {
   id: string
   slug: string
-  translationKey: string
+  translationKey?: string // [!code --]
+  translationKey: string // [!code ++]
 }
 ```
 

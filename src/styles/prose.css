@@ -20,19 +20,178 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--surface);
-    position: relative;
     overflow-x: auto;
     padding: var(--space-5);
   }
 
-  .prose pre[data-language]::before {
-    position: absolute;
-    top: var(--space-2);
-    right: var(--space-3);
+  .prose .code-panel {
+    --code-add: #327a4e;
+    --code-remove: #aa4850;
+    max-width: 100%;
+    min-width: 0;
+    margin: 1.75em 0;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--border) 84%, var(--accent));
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: 0 0.8rem 2rem color-mix(in srgb, var(--text) 6%, transparent);
+  }
+
+  .code-panel__toolbar {
+    display: flex;
+    min-height: 2.65rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: 0;
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 7%, var(--surface-raised)),
+      var(--surface-raised) 68%);
     color: var(--text-muted);
-    content: attr(data-language);
-    font: var(--text-caption)/1 var(--font-mono);
-    text-transform: uppercase;
+    font: 600 var(--text-caption)/1.25 var(--font-mono);
+  }
+
+  .code-panel__identity {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .code-panel__actions,
+  .code-panel__copy {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .code-panel__actions { flex: none; gap: var(--space-2); }
+
+  .code-panel__language {
+    padding: 0.18rem 0.42rem;
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--canvas) 58%, transparent);
+    letter-spacing: 0.04em;
+  }
+
+  .code-panel__copy {
+    min-width: 4.8rem;
+    min-height: 2rem;
+    justify-content: center;
+    gap: 0.36rem;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font: 600 var(--text-caption)/1 var(--font-body);
+    cursor: pointer;
+    transition:
+      border-color var(--duration-fast),
+      background var(--duration-fast),
+      color var(--duration-fast);
+  }
+
+  .code-panel__copy:hover {
+    border-color: var(--border);
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    color: var(--text);
+  }
+
+  .code-panel__copy[data-copy-state='success'] { color: var(--code-add); }
+  .code-panel__copy[data-copy-state='error'] { color: var(--code-remove); }
+
+  .code-panel__copy-icon {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+  }
+
+  .prose .code-panel pre {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--surface) !important;
+    box-shadow: none;
+    scrollbar-color: color-mix(in srgb, var(--border-strong) 65%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  .prose .code-panel pre::-webkit-scrollbar { height: 0.55rem; }
+  .prose .code-panel pre::-webkit-scrollbar-thumb {
+    border: 0.15rem solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--border-strong) 65%, transparent);
+    background-clip: padding-box;
+  }
+
+  .code-panel pre code {
+    display: grid;
+    width: max-content;
+    min-width: 100%;
+    padding-block: 0.95rem;
+    font: 500 0.88rem/1.7 var(--font-mono);
+    tab-size: 2;
+  }
+
+  .code-panel .line {
+    position: relative;
+    display: block;
+    min-height: 1.7em;
+    padding-inline: 1.15rem 1.35rem;
+  }
+
+  .code-panel pre[data-line-numbers] code { counter-reset: code-line; }
+  .code-panel pre[data-line-numbers] .line {
+    counter-increment: code-line;
+    padding-left: 4.15rem;
+  }
+
+  .code-panel pre[data-line-numbers] .line::before {
+    position: absolute;
+    left: 0;
+    width: 3rem;
+    color: var(--text-muted) !important;
+    content: counter(code-line);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    user-select: none;
+  }
+
+  .code-panel .line.highlighted:not(.diff) {
+    background: color-mix(in srgb, var(--accent) 11%, transparent);
+    box-shadow: inset 3px 0 color-mix(in srgb, var(--accent) 75%, transparent);
+  }
+
+  .code-panel .line.diff { padding-left: 2.25rem; }
+  .code-panel pre[data-line-numbers] .line.diff { padding-left: 4.75rem; }
+  .code-panel .line.diff.add {
+    background: color-mix(in srgb, var(--code-add) 13%, transparent);
+    box-shadow: inset 3px 0 color-mix(in srgb, var(--code-add) 78%, transparent);
+  }
+  .code-panel .line.diff.remove {
+    background: color-mix(in srgb, var(--code-remove) 13%, transparent);
+    box-shadow: inset 3px 0 color-mix(in srgb, var(--code-remove) 78%, transparent);
+  }
+
+  .code-panel .line.diff::after {
+    position: absolute;
+    left: 0.8rem;
+    font-weight: 750;
+    user-select: none;
+  }
+  .code-panel pre[data-line-numbers] .line.diff::after { left: 3.55rem; }
+  .code-panel .line.diff.add::after { color: var(--code-add) !important; content: '+'; }
+  .code-panel .line.diff.remove::after { color: var(--code-remove) !important; content: '−'; }
+
+  :root[data-theme='dark'] .prose .code-panel {
+    --code-add: #72c995;
+    --code-remove: #ee8b92;
   }
 
   .prose blockquote {
@@ -58,11 +217,29 @@
   }
 
   :root[data-theme='dark'] .prose pre.astro-code {
-    background-color: var(--shiki-dark-bg) !important;
+    background-color: var(--surface) !important;
   }
 
   :root[data-theme='dark'] .prose pre.astro-code span {
     color: var(--shiki-dark) !important;
-    background-color: var(--shiki-dark-bg) !important;
   }
+}
+
+@media (max-width: 30rem) {
+  .code-panel__toolbar { padding-left: var(--space-3); }
+  .code-panel__language { display: none; }
+  .code-panel__copy {
+    min-width: 2.15rem;
+    width: 2.15rem;
+    padding-inline: 0;
+  }
+  .code-panel__copy [data-copy-label] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .code-panel pre code { font-size: 0.82rem; }
 }

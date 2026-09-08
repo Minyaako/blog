@@ -102,12 +102,14 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
     {MusicPlayer && <MusicPlayer />}
     <script>
       import { initPageMotion } from '../scripts/page-motion'
+      import { initCodePanels } from '../scripts/code-panel'
       import { initRevealMotion } from '../scripts/motion'
       import { initMomentGalleries } from '../scripts/moment-gallery'
       import { initMomentStream } from '../scripts/moment-stream'
       import { initMomentWarnings } from '../scripts/moment-warning'
       import { bindMusicPlayRequestButtons } from '../scripts/music-play-request'
       initPageMotion()
+      initCodePanels()
       const initMomentEnhancements = (root: ParentNode = document) => {
         initMomentGalleries(root)
         initMomentWarnings(root)
