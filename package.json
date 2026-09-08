@@ -46,6 +46,7 @@
     "@axe-core/playwright": "4.12.1",
     "@minyaako/media-publisher": "github:Minyaako/media-publisher#4b376c06b142c2500404dd0faf4c05b09959ecb0",
     "@playwright/test": "1.61.1",
+    "@shikijs/transformers": "4.3.1",
     "@types/node": "24.13.3",
     "jsdom": "26.1.0",
     "typescript": "6.0.3",

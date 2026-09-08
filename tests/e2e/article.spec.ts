@@ -48,7 +48,32 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
   await expect(toc.locator('[data-toc-marker]')).toHaveAttribute('aria-hidden', 'true')
   await expect(toc.locator('[data-toc-link][aria-current="location"]')).toHaveCount(1)
   await expect(toc.locator('[data-toc-link]').first()).toHaveAttribute('href', /^#.+/)
-  await expect(page.locator('pre code').first()).toBeVisible()
+  await expect(page.locator('[data-code-panel]')).toHaveCount(2)
+  const panel = page.locator('[data-code-panel]').first()
+  const pre = panel.locator('pre')
+  await expect(panel).toBeVisible()
+  await expect(panel.getByText('src/content.config.ts', { exact: true })).toBeVisible()
+  await expect(panel.getByText('TS', { exact: true })).toHaveCount(1)
+  await expect(pre).toHaveAttribute('data-line-numbers', '')
+  await expect(pre.locator('.line.highlighted')).toHaveCount(1)
+  await expect(pre.locator('.line.diff.add')).toHaveCount(1)
+  await expect(pre.locator('.line.diff.remove')).toHaveCount(1)
+  await expect(pre).toHaveAttribute('data-language', /.+/)
+  expect(await pre.evaluate((node) => node.scrollWidth >= node.clientWidth)).toBe(true)
+  await expect(pre.locator('code')).toBeVisible()
+  const copy = panel.locator('[data-copy-code]')
+  await expect(copy).toHaveAccessibleName('复制代码')
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  await copy.click()
+  await expect(copy).toHaveAttribute('aria-label', '已复制')
+  await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'))).toBe([
+    'interface PostIdentity {',
+    '  id: string',
+    '  slug: string',
+    '  translationKey?: string',
+    '  translationKey: string',
+    '}'
+  ].join('\n'))
   await expect(page.locator('.katex').first()).toBeVisible()
   await expect(page.locator('[data-page-key]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
   await expect(page.getByRole('link', { name: '#Astro' })).toHaveAttribute('href', '/tags/astro/')
