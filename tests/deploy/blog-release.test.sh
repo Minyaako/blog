@@ -279,7 +279,7 @@ export PATH="$TMP/bin:$ORIGINAL_PATH"
 one=1111111111111111111111111111111111111111
 two=2222222222222222222222222222222222222222
 three=3333333333333333333333333333333333333333
-repo=ghcr.io/minyaako/blog
+repo=ccr.ccs.tencentyun.com/minyako-blog/blog
 
 reset_case() {
   case_name=$1

@@ -11,11 +11,32 @@ const hostedMediaUrls = new Set(mediaLock.assets.flatMap((asset) => (
   asset.mode === 'hosted' ? [asset.url] : []
 )))
 const deterministicHostedImage = path.resolve('media/assets/posts/games-cover.webp')
+const silentAudio = (() => {
+  const samples = 800
+  const bytes = Buffer.alloc(44 + samples * 2)
+  bytes.write('RIFF', 0)
+  bytes.writeUInt32LE(bytes.length - 8, 4)
+  bytes.write('WAVEfmt ', 8)
+  bytes.writeUInt32LE(16, 16)
+  bytes.writeUInt16LE(1, 20)
+  bytes.writeUInt16LE(1, 22)
+  bytes.writeUInt32LE(8_000, 24)
+  bytes.writeUInt32LE(16_000, 28)
+  bytes.writeUInt16LE(2, 32)
+  bytes.writeUInt16LE(16, 34)
+  bytes.write('data', 36)
+  bytes.writeUInt32LE(samples * 2, 40)
+  return bytes
+})()
 
 export const test = base.extend<{ stableEnvironment: void }>({
   stableEnvironment: [async ({ page }, use) => {
     await page.clock.install({ time: new Date('2026-07-12T00:00:00+08:00') })
     await page.route('https://pic.minyako.top/blog/**', async (route) => {
+      if (route.request().url().includes('/music/audio/')) {
+        await route.fulfill({ body: silentAudio, contentType: 'audio/wav' })
+        return
+      }
       const file = mediaByUrl.get(route.request().url())
       if (!file) {
         if (hostedMediaUrls.has(route.request().url())) {

@@ -280,7 +280,7 @@ const assertWorkflowContract = (source: string) => {
     "${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}",
   )
   expect(publish.needs).toEqual(['verify', 'publish-media'])
-  expect(publish.permissions).toEqual({ contents: 'read', packages: 'write' })
+  expect(publish.permissions).toEqual({ contents: 'read' })
   expect(findStep(publish, 'actions/checkout@v4')).toBeDefined()
   expect(findStep(publish, 'docker/setup-buildx-action@v3')).toBeDefined()
   const login = findStep(publish, 'docker/login-action@v3')
@@ -288,9 +288,9 @@ const assertWorkflowContract = (source: string) => {
     "${{ github.event_name == 'push' && github.run_attempt == 1 }}",
   )
   expect(login?.with).toEqual({
-    registry: 'ghcr.io',
-    username: '${{ github.actor }}',
-    password: '${{ secrets.GITHUB_TOKEN }}',
+    registry: 'ccr.ccs.tencentyun.com',
+    username: '${{ secrets.TCR_USERNAME }}',
+    password: '${{ secrets.TCR_PASSWORD }}',
   })
   const buildAndPush = findStep(publish, 'docker/build-push-action@v6')
   expect(buildAndPush?.if).toBe(
@@ -299,14 +299,14 @@ const assertWorkflowContract = (source: string) => {
   expect(buildAndPush?.with).toEqual({
     context: '.',
     push: true,
-    tags: 'ghcr.io/minyaako/blog:${{ github.sha }}',
+    tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
   })
   expect(
     publish.steps?.find((step) => step.name === 'Verify immutable image exists'),
   ).toEqual({
     name: 'Verify immutable image exists',
     if: "${{ github.event_name == 'workflow_dispatch' || github.run_attempt != 1 }}",
-    run: 'docker buildx imagetools inspect ghcr.io/minyaako/blog:${{ github.sha }}',
+    run: 'docker buildx imagetools inspect ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
   })
   expect(JSON.stringify(publish)).not.toMatch(/DEPLOY_/)
 
@@ -350,7 +350,8 @@ const assertWorkflowContract = (source: string) => {
   expect(deployImage?.run).toContain('"deploy ${{ github.sha }}"')
 
   expect(source).not.toContain(':latest')
-  expect(source.match(/packages:\s*write/g)).toHaveLength(1)
+  expect(source).not.toMatch(/packages:\s*write/)
+  expect(source.match(/secrets\.TCR_/g)).toHaveLength(2)
   expect(source.match(/vars\.DEPLOY_/g)).toHaveLength(3)
   expect(source.match(/secrets\.DEPLOY_/g)).toHaveLength(2)
 
@@ -537,8 +538,8 @@ describe('GitHub Actions release contract', () => {
     [
       'a mutable latest image tag',
       workflow.replace(
-        'ghcr.io/minyaako/blog:${{ github.sha }}',
-        'ghcr.io/minyaako/blog:latest',
+        'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
+        'ccr.ccs.tencentyun.com/minyako-blog/blog:latest',
       ),
     ],
     [

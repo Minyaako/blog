@@ -16,3 +16,7 @@ export const SITE = {
     { label: 'RSS', href: '/rss.xml', icon: 'lucide:rss' }
   ]
 } as const
+
+export const MUSIC_UI = {
+  fallbackCoverUrl: 'https://pic.minyako.top/blog/33/33186e9fb044ed536211db6dd15c694898e6792f7b0bb8762872a82acb5d51fb.webp'
+} as const

@@ -1,30 +1,49 @@
 ---
 import type { MusicTrack } from '../lib/music'
+import AppIcon from './AppIcon.astro'
+import { MUSIC_UI } from '../config/site'
 
 interface Props { track: MusicTrack }
 
 const { track } = Astro.props
-const cover = track.cover?.url ?? '/images/profile/avatar-geometric.svg'
+const cover = track.cover?.url ?? MUSIC_UI.fallbackCoverUrl
 ---
 
 <section class="moment-track-card" data-moment-track-card aria-label={`分享的歌曲：${track.title}`}>
-  <img src={cover} alt="" width="72" height="72" loading="lazy" />
-  <div>
-    <p class="moment-track-card-label">此刻在听</p>
+  <span class="moment-track-record" data-moment-track-record aria-hidden="true">
+    <span class="moment-track-cover" style={`background-image: url("${cover}")`}></span>
+  </span>
+  <div class="moment-track-copy">
+    <p class="moment-track-card-label"><AppIcon name="lucide:music-2" size={13} /><span>分享音乐</span></p>
     <h3>{track.title}</h3>
     <p>{track.artists.join(' / ')}</p>
   </div>
-  <button type="button" data-moment-track-play={track.id} aria-label={`播放 ${track.title}`}>播放</button>
+  <button type="button" data-moment-track-play={track.id} aria-label={`播放 ${track.title}`}>
+    <AppIcon name="lucide:play" size={18} />
+  </button>
 </section>
 
 <style>
-  .moment-track-card { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; margin-top: var(--space-5); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface-raised) 88%, var(--accent) 12%); }
-  img { width: 4.5rem; height: 4.5rem; border-radius: var(--radius-sm); object-fit: cover; }
+  .moment-track-card { position: relative; isolation: isolate; display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) 2.75rem; gap: var(--space-3); align-items: center; overflow: hidden; margin-top: var(--space-5); padding: .75rem .85rem; border: 1px solid color-mix(in srgb, var(--border-strong) 72%, #b88d68); border-radius: 1.1rem; background: linear-gradient(105deg, color-mix(in srgb, var(--surface-raised) 96%, #fff6e8) 0%, var(--surface) 72%, color-mix(in srgb, var(--accent) 9%, var(--surface)) 100%); box-shadow: inset 0 1px rgb(255 255 255 / 44%), 0 .6rem 1.5rem color-mix(in srgb, #493221 9%, transparent); }
+  .moment-track-card::after { position: absolute; z-index: -1; inset: auto -10% -70% 36%; height: 150%; border-radius: 50%; background: color-mix(in srgb, var(--accent) 8%, transparent); filter: blur(1.25rem); content: ''; pointer-events: none; }
+  .moment-track-record { position: relative; display: grid; width: 4.5rem; aspect-ratio: 1; place-items: center; border: .3rem solid #25211e; border-radius: 50%; background: repeating-radial-gradient(circle, #171513 0 6px, #25211e 7px 8px); box-shadow: 0 .45rem 1rem color-mix(in srgb, #251a12 24%, transparent); }
+  .moment-track-cover { width: 70%; height: 70%; border: 2px solid rgb(0 0 0 / 42%); border-radius: 50%; background-color: #332b26; background-position: center; background-size: cover; }
+  .moment-track-record::after { position: absolute; width: .42rem; aspect-ratio: 1; border-radius: 50%; background: #f2e5d3; box-shadow: 0 0 0 2px rgb(0 0 0 / 42%); content: ''; }
+  .moment-track-copy { min-width: 0; }
   p, h3 { margin: 0; }
-  .moment-track-card-label { color: var(--accent); font: 600 .72rem/1.4 var(--font-mono); letter-spacing: .05em; }
-  h3 { margin-top: .16rem; color: var(--text); font: 700 .96rem/1.4 var(--font-display); }
-  h3 + p { margin-top: .15rem; color: var(--text-muted); font-size: .8rem; }
-  button { min-height: 2.35rem; padding-inline: var(--space-3); border: 1px solid var(--accent); border-radius: 99rem; background: transparent; color: var(--accent); cursor: pointer; font: 600 .8rem/1 var(--font-display); }
-  button:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-  @media (max-width: 30rem) { .moment-track-card { grid-template-columns: 3.5rem minmax(0, 1fr); } img { width: 3.5rem; height: 3.5rem; } button { grid-column: 2; justify-self: start; } }
+  .moment-track-card-label { display: flex; gap: .3rem; align-items: center; color: var(--accent); font: 650 .68rem/1.3 var(--font-mono); letter-spacing: .05em; }
+  .moment-track-card-label :global(svg) { flex: none; }
+  h3, h3 + p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  h3 { margin-top: .18rem; color: var(--text); font: 720 .98rem/1.35 var(--font-display); }
+  h3 + p { margin-top: .12rem; color: var(--text-muted); font-size: .76rem; }
+  button { display: grid; width: 2.75rem; height: 2.75rem; padding: 0; place-items: center; border: 1px solid color-mix(in srgb, var(--accent) 75%, var(--border)); border-radius: 50%; background: var(--accent); box-shadow: 0 .35rem .9rem color-mix(in srgb, var(--accent) 24%, transparent); color: var(--surface-raised); cursor: pointer; transition: transform 160ms ease, box-shadow 160ms ease; }
+  button :global(svg) { display: block; transform: translateX(1px); }
+  button:hover { box-shadow: 0 .5rem 1.15rem color-mix(in srgb, var(--accent) 31%, transparent); transform: translateY(-1px); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  @media (max-width: 30rem) {
+    .moment-track-card { grid-template-columns: 3.6rem minmax(0, 1fr) 2.5rem; gap: .7rem; padding: .68rem .72rem; }
+    .moment-track-record { width: 3.6rem; }
+    button { width: 2.5rem; height: 2.5rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 </style>

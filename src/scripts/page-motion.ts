@@ -38,6 +38,12 @@ export function isEligibleNavigation(
 }
 
 const fallbackTimeout = 420
+const clientRouterMarker = '[name="astro-view-transitions-enabled"]'
+
+interface AstroPreparationEvent extends Event {
+  to: URL
+  sourceElement?: Element
+}
 
 function clearTransientMotionState(html: HTMLElement): void {
   html.removeAttribute('data-motion-page-state')
@@ -69,10 +75,29 @@ export function initPageMotion(root: Document = document): void {
     clearTransientMotionState(html)
     syncNavigationMode()
   }
+  const handlePageLoad = () => {
+    clearTransientMotionState(html)
+    const domain = domainFromPathname(view.location.pathname)
+    if (domain) html.dataset.motionDomain = domain
+    else html.removeAttribute('data-motion-domain')
+    syncNavigationMode()
+  }
+  const handleClientRouterPreparation = (event: Event) => {
+    const transition = event as AstroPreparationEvent
+    const mode = syncNavigationMode()
+    if (mode === 'instant' || html.dataset.motionPageState === 'exiting') return
+    const domain = transition.sourceElement instanceof HTMLElement
+      ? transition.sourceElement.closest<HTMLElement>('[data-domain]')?.dataset.domain ?? domainFromPathname(transition.to.pathname)
+      : domainFromPathname(transition.to.pathname)
+    if (domain) html.dataset.motionTargetDomain = domain
+    html.dataset.motionPageState = 'exiting'
+  }
 
   syncNavigationMode()
   reducedMotion.addEventListener('change', syncNavigationMode)
   view.addEventListener('pageshow', handlePageShow)
+  root.addEventListener('astro:before-preparation', handleClientRouterPreparation)
+  root.addEventListener('astro:page-load', handlePageLoad)
 
   root.addEventListener('click', (event) => {
     const mouseEvent = event as MouseEvent
@@ -80,6 +105,7 @@ export function initPageMotion(root: Document = document): void {
     if (!(target instanceof Element)) return
     const link = target.closest<HTMLAnchorElement>('a[href]')
     if (!link || !isEligibleNavigation(mouseEvent, link, new URL(view.location.href))) return
+    if (root.querySelector(clientRouterMarker)) return
 
     const mode = syncNavigationMode()
     if (mode === 'instant') return
