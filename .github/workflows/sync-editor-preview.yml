@@ -1,0 +1,37 @@
+name: Sync editor preview
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: sync-editor-preview
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out editor-preview
+        uses: actions/checkout@v4
+        with:
+          ref: editor-preview
+          fetch-depth: 0
+
+      - name: Merge main without overwriting preview commits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+          git push origin HEAD:editor-preview
+
+      - name: Refresh the Pages preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages-preview.yml --ref editor-preview
