@@ -70,11 +70,13 @@ const assertDockerIgnoreContract = (source: string) => {
     '.github/workflows/*',
     '!.github/workflows/ci.yml',
     '!.github/workflows/pages-preview.yml',
+    '!.github/workflows/sync-editor-preview.yml',
   ])
   expect(negations).toEqual([
     '!.github/workflows',
     '!.github/workflows/ci.yml',
     '!.github/workflows/pages-preview.yml',
+    '!.github/workflows/sync-editor-preview.yml',
   ])
 }
 
