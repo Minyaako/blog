@@ -203,6 +203,15 @@
         "contentType": "text/plain",
         "sha256": "f37f9940e79a844df70e120d9e63bb17b8d0ab6caeb8585c5709928b46e839f6",
         "bytes": 2826
+      },
+      "cover": {
+        "sourceImageId": "img_5Tz_-RIcGyUiUaJJAA3FCQxx",
+        "contentType": "image/webp",
+        "sha256": "fe83fc7efbbdac24772597c865a594abc21864d9dc446f58266097f34c12202f",
+        "width": 800,
+        "height": 800,
+        "bytes": 45180,
+        "url": "https://pic.minyako.top/blog/music/covers/fe/fe83fc7efbbdac24772597c865a594abc21864d9dc446f58266097f34c12202f.webp"
       }
     }
   ]
