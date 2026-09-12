@@ -57,13 +57,14 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
     <meta name="twitter:title" content={pageTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="author" content="Minyako" />
-    <ClientRouter />
+    <ClientRouter fallback="swap" />
     <slot name="head" />
     <title>{pageTitle}</title>
     <script is:inline>
       (() => {
         document.documentElement.classList.add('js')
-        const stored = localStorage.getItem('minyako-theme')
+        let stored
+        try { stored = localStorage.getItem('minyako-theme') } catch {}
         const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
         document.documentElement.dataset.theme = stored === 'dark' || stored === 'light'
           ? stored

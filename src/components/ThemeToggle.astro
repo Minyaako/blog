@@ -8,8 +8,6 @@ import AppIcon from './AppIcon.astro'
 </button>
 
 <script>
-  const themeButton = document.querySelector<HTMLButtonElement>('[data-theme-toggle]')
-
   function updateIcon(theme: 'light' | 'dark') {
     document.querySelector<HTMLElement>('[data-theme-icon="light"]')
       ?.setAttribute('data-active', String(theme !== 'dark'))
@@ -17,13 +15,17 @@ import AppIcon from './AppIcon.astro'
       ?.setAttribute('data-active', String(theme === 'dark'))
   }
 
-  themeButton?.addEventListener('click', () => {
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element) || !event.target.closest('[data-theme-toggle]')) return
     const current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
     const next = current === 'dark' ? 'light' : 'dark'
-    localStorage.setItem('minyako-theme', next)
+    try { localStorage.setItem('minyako-theme', next) } catch {}
     document.documentElement.dataset.theme = next
     updateIcon(next)
   })
 
   updateIcon(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+  document.addEventListener('astro:page-load', () => {
+    updateIcon(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+  })
 </script>
