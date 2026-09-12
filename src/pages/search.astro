@@ -5,16 +5,31 @@ import BaseLayout from '../layouts/BaseLayout.astro'
   <link slot="head" href="/pagefind/pagefind-ui.css" rel="stylesheet" />
   <script slot="head" is:inline src="/pagefind/pagefind-ui.js"></script>
   <script slot="head" is:inline>
-    window.addEventListener('DOMContentLoaded', () => {
-      const fallback = document.querySelector('#search-fallback')
-      try {
-        new window.PagefindUI({ element: '#search', showSubResults: true, translations: { placeholder: '搜索文章、标签与合集', zero_results: '没有找到 [SEARCH_TERM] 的结果' } })
-        document.querySelector('.pagefind-ui__search-input')?.setAttribute('role', 'searchbox')
-      } catch (error) {
-        if (fallback instanceof HTMLElement) fallback.hidden = false
-        console.warn('Pagefind failed to initialize', error)
+    (() => {
+      const initializeSearch = () => {
+        const search = document.querySelector('#search')
+        if (!(search instanceof HTMLElement) || search.dataset.pagefindInitialized === 'true') return
+
+        const fallback = document.querySelector('#search-fallback')
+        try {
+          if (typeof window.PagefindUI !== 'function') throw new Error('PagefindUI is unavailable')
+          new window.PagefindUI({ element: '#search', showSubResults: true, translations: { placeholder: '搜索文章、标签与合集', zero_results: '没有找到 [SEARCH_TERM] 的结果' } })
+          search.dataset.pagefindInitialized = 'true'
+          if (fallback instanceof HTMLElement) fallback.hidden = true
+          document.querySelector('.pagefind-ui__search-input')?.setAttribute('role', 'searchbox')
+        } catch (error) {
+          if (fallback instanceof HTMLElement) fallback.hidden = false
+          console.warn('Pagefind failed to initialize', error)
+        }
       }
-    })
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeSearch, { once: true })
+      } else {
+        initializeSearch()
+      }
+      document.addEventListener('astro:page-load', initializeSearch)
+    })()
   </script>
   <div class="search-page"><header><p>Search</p><h1>搜索</h1><span>全文索引在构建时生成，不需要远端搜索服务。</span></header><div id="search"></div><p id="search-fallback" hidden>搜索组件暂时无法加载，你仍可前往 <a href="/archives/">文章归档</a> 浏览全部内容。</p></div>
 </BaseLayout>
