@@ -22,26 +22,6 @@ async function disableDocumentViewTransitions(page: import('@playwright/test').P
   })
 }
 
-async function suppressFallbackTimeout(page: import('@playwright/test').Page) {
-  await page.addInitScript(() => {
-    const nativeSetTimeout = window.setTimeout.bind(window)
-    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
-      if (timeout === 420) return 0
-      return nativeSetTimeout(handler, timeout, ...args)
-    }) as typeof window.setTimeout
-  })
-}
-
-async function delayFallbackTimeout(page: import('@playwright/test').Page) {
-  await page.addInitScript(() => {
-    const nativeSetTimeout = window.setTimeout.bind(window)
-    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
-      if (timeout === 420) return nativeSetTimeout(handler, 60_000, ...args)
-      return nativeSetTimeout(handler, timeout, ...args)
-    }) as typeof window.setTimeout
-  })
-}
-
 test('motion foundation exposes computed timing semantics and page scope', async ({ page }) => {
   await page.goto('/')
   const values = await page.locator('html').evaluate((root) => {
@@ -64,281 +44,191 @@ test('motion foundation exposes computed timing semantics and page scope', async
     ease: cubicBezierValues(values.ease),
     scope: values.scope,
   }).toEqual({
-    micro: 220, enter: 420, page: 520, stagger: 90,
+    micro: 220, enter: 0, page: 160, stagger: 0,
     ease: [0.2, 0.8, 0.2, 1], scope: 'page-content',
   })
 })
 
-test('fallback navigation gives domain changes a visible exit and colored arrival', async ({ page }) => {
+test('native page snapshots crossfade without movement or a color veil', async ({ page }) => {
+  await page.goto('/')
+
+  const styles = await page.locator('html').evaluate((root) => {
+    const read = (pseudo: string) => {
+      const computed = getComputedStyle(root, pseudo)
+      return {
+        animationName: computed.animationName,
+        animationDuration: computed.animationDuration,
+        animationTimingFunction: computed.animationTimingFunction,
+        mixBlendMode: computed.mixBlendMode,
+        opacity: computed.opacity,
+        transform: computed.transform,
+      }
+    }
+    return {
+      old: read('::view-transition-old(page-content)'),
+      next: read('::view-transition-new(page-content)'),
+      isolation: getComputedStyle(root, '::view-transition-image-pair(page-content)').isolation,
+    }
+  })
+
+  expect(styles.old).toMatchObject({
+    animationName: 'motion-page-out',
+    animationTimingFunction: 'linear',
+    mixBlendMode: 'plus-lighter',
+    opacity: '1',
+    transform: 'none',
+  })
+  expect(durationInMilliseconds(styles.old.animationDuration)).toBe(160)
+  expect(styles.next).toMatchObject({
+    animationName: 'motion-page-in',
+    animationTimingFunction: 'linear',
+    mixBlendMode: 'plus-lighter',
+    opacity: '1',
+    transform: 'none',
+  })
+  expect(durationInMilliseconds(styles.next.animationDuration)).toBe(160)
+  expect(styles.isolation).toBe('isolate')
+})
+
+test('fallback navigation swaps immediately without a page exit or color veil', async ({ page }) => {
   await disableDocumentViewTransitions(page)
   await page.goto('/')
 
   const root = page.locator('html')
   const main = page.locator('.page-main')
   await expect(root).toHaveAttribute('data-motion-navigation', 'fallback')
-  await expect(main).toHaveCSS('animation-name', 'motion-fallback-page-in')
+  await expect(main).toHaveCSS('animation-name', 'none')
 
   const navigation = page.waitForURL(/\/domains\/academic\/?$/)
   const departure = await page.evaluate(() => new Promise<{
     pageState: string | undefined
     targetDomain: string | undefined
     pageAnimation: string
+    pagePointerEvents: string
   }>((resolve) => {
     document.addEventListener('click', () => {
       const root = document.documentElement
+      const pageStyles = getComputedStyle(document.querySelector('.page-main')!)
       resolve({
         pageState: root.dataset.motionPageState,
         targetDomain: root.dataset.motionTargetDomain,
-        pageAnimation: getComputedStyle(document.querySelector('.page-main')!).animationName,
+        pageAnimation: pageStyles.animationName,
+        pagePointerEvents: pageStyles.pointerEvents,
       })
     }, { once: true })
 
     document.querySelector<HTMLElement>('.domain-card[data-domain="academic"]')!.click()
   }))
   expect(departure).toEqual({
-    pageState: 'exiting',
-    targetDomain: 'academic',
-    pageAnimation: 'motion-fallback-page-out',
+    pageState: undefined,
+    targetDomain: undefined,
+    pageAnimation: 'none',
+    pagePointerEvents: 'auto',
   })
   await navigation
 
   await expect(page.locator('html')).toHaveAttribute('data-motion-domain', 'academic')
-  await expect(page.locator('.page-main')).toHaveCSS('animation-name', 'motion-fallback-page-in')
-  await expect.poll(() => page.locator('body').evaluate((body) => getComputedStyle(body, '::before').animationName))
-    .toBe('motion-domain-arrive')
+  await expect(page.locator('.page-main')).toHaveCSS('animation-name', 'none')
+  await expect.poll(() => page.locator('body').evaluate((body) => ({
+    animation: getComputedStyle(body, '::before').animationName,
+    content: getComputedStyle(body, '::before').content,
+  }))).toEqual({ animation: 'none', content: 'none' })
 })
 
-test('fallback handoff keeps page content visible on both sides of navigation', async ({ page }) => {
-  await delayFallbackTimeout(page)
+test('slow fallback navigation keeps the old page visible and interactive', async ({ page }) => {
   await disableDocumentViewTransitions(page)
   await page.goto('/')
 
+  let releaseRequest!: () => void
+  const requestGate = new Promise<void>((resolve) => { releaseRequest = resolve })
+  await page.route('**/domains/academic/**', async (route) => {
+    await requestGate
+    await route.continue()
+  })
+
   const main = page.locator('.page-main')
-  const entryOpacity = await main.evaluate((element) => {
-    const animation = element.getAnimations().find((candidate) => (
-      candidate instanceof CSSAnimation && candidate.animationName === 'motion-fallback-page-in'
-    ))
-    const firstFrame = (animation?.effect as KeyframeEffect | null)?.getKeyframes()[0]
-    return Number(firstFrame?.opacity)
-  })
+  const request = page.waitForRequest((candidate) => (
+    new URL(candidate.url()).pathname === '/domains/academic/'
+  ))
+  const navigation = page.waitForURL(/\/domains\/academic\/?$/)
+  await page.locator('.domain-card[data-domain="academic"]').click({ noWaitAfter: true })
+  await request
 
-  const exitOpacity = await page.evaluate(() => {
-    document.querySelector<HTMLElement>('.domain-card[data-domain="academic"]')!.click()
-    const main = document.querySelector<HTMLElement>('.page-main')!
-    const animation = main.getAnimations().find((candidate) => (
-      candidate instanceof CSSAnimation && candidate.animationName === 'motion-fallback-page-out'
-    ))
-    animation?.pause()
-    const frames = (animation?.effect as KeyframeEffect | null)?.getKeyframes() ?? []
-    return Number(frames.at(-1)?.opacity)
-  })
-
-  expect(entryOpacity).toBeGreaterThanOrEqual(0.55)
-  expect(exitOpacity).toBeGreaterThanOrEqual(0.55)
-})
-
-test('persisted pageshow clears fallback motion state and restores an interactive page', async ({ page }) => {
-  await disableDocumentViewTransitions(page)
-  await page.goto('/')
-
-  await page.evaluate(() => {
-    const root = document.documentElement
-    root.dataset.motionPageState = 'exiting'
-    root.dataset.motionTargetDomain = 'academic'
-    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
-  })
-
-  const root = page.locator('html')
-  const main = page.locator('.page-main')
-  expect(await root.evaluate((element) => element.getAttribute('data-motion-page-state'))).toBeNull()
-  expect(await root.evaluate((element) => element.getAttribute('data-motion-target-domain'))).toBeNull()
   await expect(main).toBeVisible()
   await expect(main).toHaveCSS('opacity', '1')
-  await expect(main).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
   await expect(main).toHaveCSS('pointer-events', 'auto')
-  await page.locator('.domain-card[data-domain="academic"]').click({ trial: true })
-})
 
-test('runtime reduced motion keeps a loaded fallback page instantaneous', async ({ page }) => {
-  await disableDocumentViewTransitions(page)
-  await page.goto('/')
-  await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'fallback')
+  const themeToggle = page.getByRole('button', { name: '切换主题' })
+  await themeToggle.click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await expect.poll(() => page.evaluate(
-    () => matchMedia('(prefers-reduced-motion: reduce)').matches
-  )).toBe(true)
-
-  const outcome = await page.evaluate(() => new Promise<{
-    defaultPrevented: boolean
-    mode: string | undefined
-    pageState: string | undefined
-    targetDomain: string | undefined
-    pageAnimation: string
-    veilAnimation: string
-  }>((resolve) => {
-    const link = document.createElement('a')
-    link.href = '/archives/'
-    link.textContent = 'Runtime reduced-motion navigation'
-    document.body.append(link)
-
-    document.addEventListener('click', (event) => {
-      const root = document.documentElement
-      const result = {
-        defaultPrevented: event.defaultPrevented,
-        mode: root.dataset.motionNavigation,
-        pageState: root.dataset.motionPageState,
-        targetDomain: root.dataset.motionTargetDomain,
-        pageAnimation: getComputedStyle(document.querySelector('.page-main')!).animationName,
-        veilAnimation: getComputedStyle(document.body, '::before').animationName,
-      }
-      event.preventDefault()
-      link.remove()
-      resolve(result)
-    }, { once: true })
-
-    link.click()
-  }))
-
-  expect(outcome).toEqual({
-    defaultPrevented: true,
-    mode: 'instant',
-    pageState: undefined,
-    targetDomain: undefined,
-    pageAnimation: 'none',
-    veilAnimation: 'none',
-  })
-})
-
-test('fallback departure keeps the first target during repeated activation', async ({ page }) => {
-  await suppressFallbackTimeout(page)
-  await disableDocumentViewTransitions(page)
-  await page.goto('/')
-  await page.addStyleTag({ content: `
-    html[data-motion-navigation='fallback'][data-motion-page-state='exiting'] .page-main {
-      animation-duration: 60s !important;
-    }
-  ` })
-
-  const state = await page.evaluate(() => {
-    document.querySelector<HTMLElement>('.domain-card[data-domain="academic"]')!.click()
-    document.querySelector<HTMLElement>('.domain-card[data-domain="games"]')!.click()
-    const root = document.documentElement
-    return {
-      pageState: root.dataset.motionPageState,
-      targetDomain: root.dataset.motionTargetDomain,
-    }
-  })
-
-  expect(state).toEqual({ pageState: 'exiting', targetDomain: 'academic' })
-})
-
-test('native domain arrival uses the current domain color', async ({ page }) => {
-  await page.goto('/domains/academic/')
-  await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'native')
-
-  const academicArrival = await page.locator('body').evaluate((body) => {
-    const styles = getComputedStyle(body, '::before')
-    return { animation: styles.animationName, background: styles.backgroundColor }
-  })
-  expect(academicArrival).toEqual({
-    animation: 'motion-domain-arrive',
-    background: 'rgb(67, 107, 91)',
-  })
-})
-
-test('native domain clicks mark colored departure before client-router navigation', async ({ page }) => {
-  await page.goto('/domains/academic/')
-  await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'native')
-
-  const departure = await page.evaluate(() => new Promise<{
-    defaultPrevented: boolean
-    pageState: string | undefined
-    targetDomain: string | undefined
-    pageAnimation: string
-    pagePointerEvents: string
-    veilAnimation: string
-    veilBackground: string
-    veilTransformOriginX: number
-    viewportWidth: number
-  }>((resolve) => {
-    const link = document.createElement('a')
-    link.href = '/domains/games/'
-    link.dataset.domain = 'games'
-    link.textContent = 'Games domain'
-    document.body.append(link)
-
-    document.addEventListener('click', (event) => {
-      const root = document.documentElement
-      const pageStyles = getComputedStyle(document.querySelector('.page-main')!)
-      const veilStyles = getComputedStyle(document.body, '::before')
-      const result = {
-        defaultPrevented: event.defaultPrevented,
-        pageState: root.dataset.motionPageState,
-        targetDomain: root.dataset.motionTargetDomain,
-        pageAnimation: pageStyles.animationName,
-        pagePointerEvents: pageStyles.pointerEvents,
-        veilAnimation: veilStyles.animationName,
-        veilBackground: veilStyles.backgroundColor,
-        veilTransformOriginX: Number.parseFloat(veilStyles.transformOrigin),
-        viewportWidth: window.innerWidth,
-      }
-      event.preventDefault()
-      root.removeAttribute('data-motion-page-state')
-      root.removeAttribute('data-motion-target-domain')
-      link.remove()
-      resolve(result)
-    }, { once: true })
-
-    link.click()
-  }))
-
-  expect(departure).toMatchObject({
-    defaultPrevented: true,
-    pageState: 'exiting',
-    targetDomain: 'games',
-    pageAnimation: 'none',
-    pagePointerEvents: 'auto',
-    veilAnimation: 'motion-domain-depart',
-    veilBackground: 'rgb(151, 80, 95)',
-  })
-  expect(departure.veilTransformOriginX).toBe(departure.viewportWidth)
-
-  await page.goto('/')
-  const navigation = page.waitForURL(/\/domains\/games\/?$/)
-  await page.locator('.domain-card[data-domain="games"]').click({ noWaitAfter: true })
+  releaseRequest()
   await navigation
-  await expect(page.locator('html')).toHaveAttribute('data-motion-domain', 'games')
-  await expect.poll(() => page.locator('body').evaluate(
-    (body) => getComputedStyle(body, '::before').animationName
-  )).toBe('motion-domain-arrive')
+  await expect(page.locator('.domain-page')).toBeVisible()
 })
 
-test('reduced motion keeps fallback navigation instantaneous', async ({ page }) => {
+test('fallback back navigation restores a page that remains interactive', async ({ page }) => {
+  await disableDocumentViewTransitions(page)
+  await page.goto('/')
+
+  const forward = page.waitForURL(/\/domains\/academic\/?$/)
+  await page.locator('.domain-card[data-domain="academic"]').click({ noWaitAfter: true })
+  await forward
+  await expect(page.getByRole('heading', { name: '学术' })).toBeVisible()
+
+  await page.goBack()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.locator('.domain-card[data-domain="academic"]')).toBeVisible()
+  await page.getByRole('button', { name: '切换主题' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+})
+
+test('reduced-motion navigation stays instantaneous without fallback state', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await disableDocumentViewTransitions(page)
   await page.goto('/')
+  await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'instant')
+  await expect(page.locator('.page-main')).toHaveCSS('animation-name', 'none')
+  const navigation = page.waitForURL(/\/archives\/?$/)
+  await page.getByRole('link', { name: '归档', exact: true }).click({ noWaitAfter: true })
+  await navigation
 
   await expect(page.locator('html')).toHaveAttribute('data-motion-navigation', 'instant')
   await expect(page.locator('.page-main')).toHaveCSS('animation-name', 'none')
-  await expect.poll(() => page.locator('body').evaluate(
-    (body) => getComputedStyle(body, '::before').animationName
-  )).toBe('none')
+  await expect.poll(() => page.locator('body').evaluate((body) => ({
+    animation: getComputedStyle(body, '::before').animationName,
+    content: getComputedStyle(body, '::before').content,
+  }))).toEqual({ animation: 'none', content: 'none' })
 })
 
-test('homepage reveals the A2 modules once in order', async ({ page }) => {
+test('homepage modules are readable before scrolling and keep stable motion metadata', async ({ page }) => {
   await page.goto('/')
   const modules = page.locator('[data-motion-reveal]')
   const moduleCount = await modules.count()
   expect(moduleCount).toBeGreaterThan(0)
 
-  for (let index = 0; index < moduleCount; index += 1) {
-    const module = modules.nth(index)
-    await module.scrollIntoViewIfNeeded()
-    await expect(module).toHaveAttribute('data-motion-state', 'visible')
-    await expect(module).toHaveAttribute('data-motion-initialized', 'true')
-    await expect(module).toHaveCSS('--motion-order', String(index))
-  }
+  const motionState = await page.evaluate(() => ({
+    viewportHeight: window.innerHeight,
+    states: Array.from(document.querySelectorAll<HTMLElement>('[data-motion-reveal]')).map((element) => {
+      const styles = getComputedStyle(element)
+      const bounds = element.getBoundingClientRect()
+      return {
+        state: element.getAttribute('data-motion-state'),
+        initialized: element.getAttribute('data-motion-initialized'),
+        opacity: styles.opacity,
+        transform: styles.transform,
+        order: styles.getPropertyValue('--motion-order').trim(),
+        top: bounds.top,
+      }
+    }),
+  }))
+  const states = motionState.states
+
+  expect(states.some(({ top }) => top > motionState.viewportHeight)).toBe(true)
+  expect(states.every(({ state, initialized, opacity, transform }) => (
+    state === 'visible' && initialized === 'true' && opacity === '1' && transform === 'none'
+  ))).toBe(true)
+  expect(states.map(({ order }) => order)).toEqual(states.map((_, index) => String(index)))
 })
 
 test('article motion is limited to the header', async ({ page }) => {
@@ -395,16 +285,17 @@ test('table of contents honors a direct section link on initialization', async (
   await expect(page.locator('[data-toc-link]').nth(1)).toHaveAttribute('aria-current', 'location')
 })
 
-test('archive cards reveal once and expose stable motion order', async ({ page }) => {
+test('archive cards are visible before scrolling and expose stable motion order', async ({ page }) => {
   await page.goto('/archives/')
   const card = page.locator('[data-post-card]').last()
-  await card.scrollIntoViewIfNeeded()
   await expect(card).toHaveAttribute('data-motion-state', 'visible')
   await expect(card).toHaveAttribute('data-motion-initialized', 'true')
+  await expect(card).toHaveCSS('opacity', '1')
+  await expect(card).toHaveCSS('transform', 'none')
   await expect(card).toHaveCSS('--motion-order', '0')
 })
 
-test('reduced motion keeps A2 content visible', async ({ page }) => {
+test('reduced motion keeps reveal content visible', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
   const modules = page.locator('[data-motion-reveal]')
@@ -430,4 +321,50 @@ test('theme icon states crossfade without changing button geometry', async ({ pa
   await expect(page.locator('[data-theme-icon="dark"]')).toHaveAttribute('data-active', 'true')
   await expect(page.locator('[data-theme-icon="light"]')).toHaveAttribute('data-active', 'false')
   expect(await button.boundingBox()).toEqual(before)
+})
+
+test('dark theme is inherited at swap time and the new page keeps theme controls interactive', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '切换主题' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+
+  const themeSamples = page.evaluate(() => new Promise<Array<{
+    phase: 'before-swap' | 'page-load'
+    current: string | undefined
+    incoming?: string | undefined
+  }>>((resolve) => {
+    const samples: Array<{
+      phase: 'before-swap' | 'page-load'
+      current: string | undefined
+      incoming?: string | undefined
+    }> = []
+    document.addEventListener('astro:before-swap', (event) => {
+      const incoming = (event as Event & { newDocument?: Document }).newDocument?.documentElement
+      samples.push({
+        phase: 'before-swap',
+        current: document.documentElement.dataset.theme,
+        incoming: incoming?.dataset.theme,
+      })
+    }, { once: true })
+    document.addEventListener('astro:page-load', () => {
+      samples.push({ phase: 'page-load', current: document.documentElement.dataset.theme })
+      resolve(samples)
+    }, { once: true })
+  }))
+
+  const navigation = page.waitForURL(/\/domains\/academic\/?$/)
+  await page.locator('.domain-card[data-domain="academic"]').click({ noWaitAfter: true })
+  await navigation
+  const samples = await themeSamples
+
+  expect(samples).toEqual(expect.arrayContaining([
+    { phase: 'before-swap', current: 'dark', incoming: 'dark' },
+    { phase: 'page-load', current: 'dark' },
+  ]))
+
+  const toggle = page.getByRole('button', { name: '切换主题' })
+  await toggle.click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await expect(page.locator('[data-theme-icon="dark"]')).toHaveAttribute('data-active', 'false')
+  await expect(page.locator('[data-theme-icon="light"]')).toHaveAttribute('data-active', 'true')
 })

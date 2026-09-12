@@ -37,115 +37,34 @@ export function isEligibleNavigation(
   return target.href !== current.href
 }
 
-const fallbackTimeout = 420
-const clientRouterMarker = '[name="astro-view-transitions-enabled"]'
-
-interface AstroPreparationEvent extends Event {
-  to: URL
-  sourceElement?: Element
-}
-
-function clearTransientMotionState(html: HTMLElement): void {
-  html.removeAttribute('data-motion-page-state')
-  html.removeAttribute('data-motion-target-domain')
-}
-
+// Keep navigation under Astro/browser control: never delay a request for an exit.
 export function initPageMotion(root: Document = document): void {
-  const html = root.documentElement
-  if (html.dataset.motionNavigationInitialized === 'true') return
-  html.dataset.motionNavigationInitialized = 'true'
-
   const view = root.defaultView
-  if (!view) return
-
+  if (!view || root.documentElement.dataset.motionNavigationInitialized === 'true') return
+  root.documentElement.dataset.motionNavigationInitialized = 'true'
   const reducedMotion = view.matchMedia('(prefers-reduced-motion: reduce)')
-  let completePendingFallbackNavigation: (() => void) | undefined
+
   const syncNavigationMode = () => {
-    const mode = reducedMotion.matches
+    const html = root.documentElement
+    html.dataset.motionNavigation = reducedMotion.matches
       ? 'instant'
       : typeof root.startViewTransition === 'function' ? 'native' : 'fallback'
-    html.dataset.motionNavigation = mode
-    if (mode === 'instant') {
-      clearTransientMotionState(html)
-      completePendingFallbackNavigation?.()
-    }
-    return mode
-  }
-  const handlePageShow = () => {
-    clearTransientMotionState(html)
-    syncNavigationMode()
-  }
-  const handlePageLoad = () => {
-    clearTransientMotionState(html)
+    html.removeAttribute('data-motion-page-state')
+    html.removeAttribute('data-motion-target-domain')
     const domain = domainFromPathname(view.location.pathname)
     if (domain) html.dataset.motionDomain = domain
     else html.removeAttribute('data-motion-domain')
-    syncNavigationMode()
-  }
-  const handleClientRouterPreparation = (event: Event) => {
-    const transition = event as AstroPreparationEvent
-    const mode = syncNavigationMode()
-    if (mode === 'instant' || html.dataset.motionPageState === 'exiting') return
-    const domain = transition.sourceElement instanceof HTMLElement
-      ? transition.sourceElement.closest<HTMLElement>('[data-domain]')?.dataset.domain ?? domainFromPathname(transition.to.pathname)
-      : domainFromPathname(transition.to.pathname)
-    if (domain) html.dataset.motionTargetDomain = domain
-    html.dataset.motionPageState = 'exiting'
   }
 
-  syncNavigationMode()
-  reducedMotion.addEventListener('change', syncNavigationMode)
-  view.addEventListener('pageshow', handlePageShow)
-  root.addEventListener('astro:before-preparation', handleClientRouterPreparation)
-  root.addEventListener('astro:page-load', handlePageLoad)
-
-  root.addEventListener('click', (event) => {
-    const mouseEvent = event as MouseEvent
-    const target = event.target
-    if (!(target instanceof Element)) return
-    const link = target.closest<HTMLAnchorElement>('a[href]')
-    if (!link || !isEligibleNavigation(mouseEvent, link, new URL(view.location.href))) return
-    if (root.querySelector(clientRouterMarker)) return
-
-    const mode = syncNavigationMode()
-    if (mode === 'instant') return
-    if (mode === 'fallback') {
-      event.preventDefault()
-      if (html.dataset.motionPageState === 'exiting') return
-    }
-
-    const url = new URL(link.href, view.location.href)
-    const domain = link.dataset.domain ?? domainFromPathname(url.pathname)
-    if (domain) html.dataset.motionTargetDomain = domain
-
-    if (mode === 'native') {
-      if (domain) html.dataset.motionPageState = 'exiting'
-      return
-    }
-
-    html.dataset.motionPageState = 'exiting'
-
-    let navigated = false
-    const navigate = () => {
-      if (navigated) return
-      navigated = true
-      if (completePendingFallbackNavigation === navigate) {
-        completePendingFallbackNavigation = undefined
-      }
-      main?.removeEventListener('animationend', handleAnimationEnd)
-      view.location.assign(url.href)
-    }
-
-    const main = root.querySelector<HTMLElement>('.page-main')
-    const handleAnimationEnd = (animationEvent: AnimationEvent) => {
-      if (
-        animationEvent.target === main &&
-        animationEvent.animationName === 'motion-fallback-page-out'
-      ) navigate()
-    }
-
-    completePendingFallbackNavigation = navigate
-    main?.addEventListener('animationend', handleAnimationEnd)
-    view.setTimeout(navigate, fallbackTimeout)
+  // The incoming document starts with the server's light theme. Set it before
+  // Astro captures the new view, rather than repairing it after the first paint.
+  root.addEventListener('astro:before-swap', (event) => {
+    const next = (event as Event & { newDocument: Document }).newDocument.documentElement
+    next.dataset.theme = root.documentElement.dataset.theme ?? 'light'
+    next.classList.add('js')
   })
+  reducedMotion.addEventListener('change', syncNavigationMode)
+  view.addEventListener('pageshow', syncNavigationMode)
+  root.addEventListener('astro:page-load', syncNavigationMode)
+  syncNavigationMode()
 }
