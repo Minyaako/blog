@@ -213,6 +213,37 @@
         "bytes": 45180,
         "url": "https://pic.minyako.top/blog/music/covers/fe/fe83fc7efbbdac24772597c865a594abc21864d9dc446f58266097f34c12202f.webp"
       }
+    },
+    {
+      "id": "track_ejCYw3NKkCQ4SxQBKm3OdN7a",
+      "groupId": "1",
+      "title": "ヒューマノイド",
+      "artists": [
+        "ずっと真夜中でいいのに。"
+      ],
+      "album": "正しい偽りからの起床",
+      "duration": 259.36979591836734,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/a7/a705727ec0cdeeb4daad184a71fa590b42f9a3b767434f3a5e9d8d94153bd69b.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "a705727ec0cdeeb4daad184a71fa590b42f9a3b767434f3a5e9d8d94153bd69b",
+        "bytes": 10377165
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/e3/e3fd5dff54a7149c7fc058cd2efcc0dd24c7239aba00b351252ef98984cadf4e.lrc",
+        "contentType": "text/plain",
+        "sha256": "e3fd5dff54a7149c7fc058cd2efcc0dd24c7239aba00b351252ef98984cadf4e",
+        "bytes": 3700
+      },
+      "cover": {
+        "sourceImageId": "img_5Oceki4N1lyTylQkssNixXhJ",
+        "contentType": "image/webp",
+        "sha256": "e11caffd2967d8c2981257c6fa16fa31688e66083d3b898fa0fa54cc776eb178",
+        "width": 800,
+        "height": 800,
+        "bytes": 54000,
+        "url": "https://pic.minyako.top/blog/music/covers/e1/e11caffd2967d8c2981257c6fa16fa31688e66083d3b898fa0fa54cc776eb178.webp"
+      }
     }
   ]
 }
