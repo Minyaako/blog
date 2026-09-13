@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { constants, cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -28,13 +28,6 @@ const files = (directory: string): string[] => readdirSync(directory, { withFile
   return entry.isDirectory() ? files(path) : [path]
 })
 
-const runPnpm = (cwd: string, args: string[]): void => {
-  const command: [string, string[]] = process.platform === 'win32'
-    ? [process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `pnpm ${args.join(' ')}`]]
-    : ['pnpm', args]
-  execFileSync(command[0], command[1], { cwd, stdio: 'pipe' })
-}
-
 const createDisabledBuildRoot = (): string => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'minyako-blog-music-disabled-'))
   temporaryRoots.push(temporaryRoot)
@@ -49,14 +42,26 @@ const createDisabledBuildRoot = (): string => {
   const libraryPath = join(temporaryRoot, 'src', 'content', 'music', 'library.json')
   const library = JSON.parse(readFileSync(libraryPath, 'utf8')) as Record<string, unknown>
   writeFileSync(libraryPath, JSON.stringify({ ...library, enabled: false }))
+  // This tests disabled output, not package installation. Reuse the exact
+  // dependency tree already installed by CI; sources, .astro and dist stay isolated.
+  if (process.platform === 'win32') {
+    symlinkSync(join(root, 'node_modules'), join(temporaryRoot, 'node_modules'), 'junction')
+  } else {
+    // Astro's Linux compiler requires its .astro components inside the project
+    // tree. Preserve pnpm's relative links and clone files without reinstalling.
+    cpSync(join(root, 'node_modules'), join(temporaryRoot, 'node_modules'), {
+      recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE,
+    })
+  }
   return temporaryRoot
 }
 
 describe('disabled music player build output', () => {
   it('emits neither player markup nor APlayer client assets for the disabled manifest', () => {
     const buildRoot = createDisabledBuildRoot()
-    runPnpm(buildRoot, ['install', '--prefer-offline', '--frozen-lockfile', '--ignore-scripts'])
-    runPnpm(buildRoot, ['exec', 'astro', 'build'])
+    execFileSync(process.execPath, [join(buildRoot, 'node_modules/astro/bin/astro.mjs'), 'build'], {
+      cwd: buildRoot, stdio: 'pipe', timeout: 45_000,
+    })
     const pages = files(resolve(buildRoot, 'dist/client')).filter((file) => file.endsWith('.html'))
       .map((file) => readFileSync(file, 'utf8')).join('\n')
     const referencedAssets = [...pages.matchAll(/(?:src|href)="(\/_astro\/[^"\n]+)"/gu)]

@@ -190,7 +190,11 @@ test('comment composer exposes a readable editable surface, emoji, and initial a
   const emojiPopup = comments.locator('.wl-emoji-popup')
   await expect(emojiPopup.locator('img').first()).toBeVisible()
   await expect.poll(() => emojiRequests.some((url) => url.endsWith('/comments/emoji/tw-emoji/info.json'))).toBe(true)
-  await expect(emojiPopup.locator('img').first()).toHaveAttribute('src', /^http:\/\/127\.0\.0\.1:4321\/comments\/emoji\/tw-emoji\//)
+  const emojiSrc = await emojiPopup.locator('img').first().getAttribute('src')
+  expect(emojiSrc).toBeTruthy()
+  const emojiUrl = new URL(emojiSrc!, page.url())
+  expect(emojiUrl.origin).toBe(new URL(page.url()).origin)
+  expect(emojiUrl.pathname).toMatch(/^\/comments\/emoji\/tw-emoji\//)
   const popupLayout = await emojiPopup.evaluate((popup) => {
     const panel = popup.closest('.wl-panel')
     if (!panel) throw new Error('Emoji popup panel was not found')

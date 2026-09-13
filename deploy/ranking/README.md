@@ -15,7 +15,7 @@ RANKING_WALINE_URL=https://comments.minyako.top
 
 身份复用现有 Waline；`RANKING_WALINE_URL` 默认就是上述评论服务，不需要共享 JWT 密钥或 OAuth secret。配置只允许可信服务（生产 HTTPS，不带用户名、查询串、片段）；不要改为用户提交的地址。榜单会携带 `RANKING_ORIGIN` 请求其 `/api/token`，Waline 的 `SECURE_DOMAINS` 必须允许该站点 Origin。已有评论登录可复用；新增第三方平台仍在 Waline 认证服务单独配置，本次不新增 QQ 等平台。
 
-上线前用真实账号验证登录弹窗、已登录评论复用、私有读取/投稿和退出。用户正常登录后，用下面的 `users` 命令查找站内 UUID，再加入管理员列表；不按昵称/邮箱授予权限，也不自动继承 Waline 管理员角色。身份按 Waline 实例 URL + objectId 固定，改变该 URL 视为不同身份来源，不能直接替换后假定账号自动合并。
+上线前用真实账号验证登录弹窗、已登录评论复用、私有读取/投稿和退出。用户正常登录后，用下面的 `users` 命令查找站内 UUID，再加入管理员列表；也可由维护人员在只读核对用户明确指定的 Waline 稳定 objectId 后，预置对应身份映射（不创建登录会话）。不按昵称/邮箱直接授予权限，也不自动继承 Waline 管理员角色。身份按 Waline 实例 URL + objectId 固定，改变该 URL 视为不同身份来源，不能直接替换后假定账号自动合并。
 
 本站及上游凭据在 HttpOnly、SameSite 的主机 Cookie 内，本地会话最长 7 天；每次私有访问都重新验证 Waline，无效/封禁即拒绝，5 秒超时或异常则暂时不可用且保留草稿。无需修改投稿数据库 schema，数据库不存上游 token。Waline 当前退出接口不撤销全设备 JWT；本次只同步当前浏览器评论/榜单退出，并撤销本站会话，不声称全设备登出。代理/应用日志禁止记录 Cookie、Authorization 或登录请求正文。
 
@@ -55,7 +55,7 @@ systemctl enable --now blog-ranking-backup.timer
 现有异机备份任务应追加整个 `/srv/backups/blog-ranking/`，保留权限和每份归档的三个文件，并复制归档记录的不可变镜像或确保异机可拉取它。异机/本地隔离演练均在另一个 root 拥有的 `0700` 目录内复制一份完整归档至 `daily/原归档名`，设置 `RANKING_BACKUP_ROOT` 后运行 `verify`。该命令校验摘要，再在临时目录复制数据库并独立检查 schema、完整性和外键；不会挂载真实库，也不会恢复服务。通过并不替代公开榜单、审核状态和下架记录的人工恢复验收。
 
 1. 将 `RANKING_WRITE_ENABLED=false` 并重建当前服务，确认写入口停用。重大迁移前停止应用容器，避免正在进行的写事务。
-2. 使用当前镜像执行 `ranking-db.ts backup /var/lib/blog-ranking/backup-唯一时间.sqlite`；采用 SQLite 一致性备份并检查完整性，拒绝覆盖文件。保留每日备份 14 份、每周备份 8 份；复制到异机受限位置，上线前完成异机隔离恢复演练。
+2. 执行 `/usr/local/sbin/ranking-backup backup`；使用当前镜像生成并验证自包含一致性归档，拒绝覆盖文件。保留每日备份 14 份、每周备份 8 份；复制完整归档到异机受限位置，上线前完成异机隔离恢复演练。
 3. 使用新镜像显式执行一次 `ranking-db.ts migrate`，然后执行 `check`。迁移命令要求停写配置，但操作人员仍须确认运行实例确实已停写。
 4. 执行既有 `blog-release deploy SHA`。发布只检查生产 schema 兼容性；候选运行在独立临时库中，不挂生产数据、不加载生产凭据。候选与切换后的数据库就绪检查都通过才记录发布成功。
 5. 确认读写验收后开启写入。程序自动回滚仅切换镜像，不回滚或删除数据库。迁移前必须验证旧镜像兼容新 schema；不兼容的迁移应保持维护状态，由管理员恢复经过验证的备份后再切换旧镜像。

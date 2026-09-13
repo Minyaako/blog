@@ -28,6 +28,10 @@ const request = (body: unknown, csrf?: string, origin = 'https://gsk.minyako.top
   method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) }, body: JSON.stringify(body),
 })
 beforeEach(() => {
+  // Keep HTTPS/security assertions independent of the preview server's runtime env.
+  vi.stubEnv('RANKING_ORIGIN', 'https://gsk.minyako.top')
+  vi.stubEnv('RANKING_WALINE_URL', 'https://comments.minyako.top')
+  vi.stubEnv('RANKING_WRITE_ENABLED', 'true')
   db = new DatabaseSync(':memory:'); migrateRankingDatabase(db); state.store = new RankingStore(db)
   vi.stubGlobal('fetch', fetchMock)
   fetchMock.mockImplementation(async () => response(profile()))

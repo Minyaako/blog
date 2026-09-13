@@ -24,7 +24,7 @@ test('advertises the direct sitemap in robots.txt', async ({ request }) => {
   expect(response.status()).toBe(200)
   expect(response.headers()['content-type']).toContain('text/plain')
   expect(await response.text()).toBe(
-    `User-agent: *\nAllow: /\nSitemap: ${productionOrigin}/sitemap.xml\n`,
+    `User-agent: *\nAllow: /\nSitemap: ${productionOrigin}/sitemap.xml\nSitemap: ${productionOrigin}/ranking/sitemap.xml\n`,
   )
 })
 
