@@ -13,6 +13,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
 import { transformerCodePanel } from './src/lib/code-panel-transformer.mjs'
 import { musicModelPlugin } from './scripts/music-model-plugin.mjs'
+import rehypeLinkCards from './src/lib/rehype-link-cards.mjs'
 
 export default defineConfig({
   site: 'https://gsk.minyako.top',
@@ -26,7 +27,7 @@ export default defineConfig({
     mdx(),
     icon({
       include: {
-        lucide: ['archive', 'book-open', 'chevron-down', 'chevron-up', 'external-link', 'house', 'moon', 'music-2', 'panel-right-close', 'panel-right-open', 'pause', 'play', 'rss', 'search', 'shapes', 'skip-back', 'skip-forward', 'sun', 'tags', 'volume-2'],
+        lucide: ['archive', 'book-open', 'book-open-check', 'cpu', 'coffee', 'gamepad-2', 'chevron-down', 'chevron-up', 'external-link', 'house', 'moon', 'music-2', 'panel-right-close', 'panel-right-open', 'pause', 'play', 'rss', 'search', 'shapes', 'skip-back', 'skip-forward', 'sun', 'tags', 'volume-2'],
         'simple-icons': ['github']
       }
     })
@@ -34,7 +35,7 @@ export default defineConfig({
   markdown: {
     processor: unified({
       remarkPlugins: [remarkMath],
-      rehypePlugins: [rehypeKatex]
+      rehypePlugins: [rehypeKatex, rehypeLinkCards]
     }),
     shikiConfig: {
       themes: {

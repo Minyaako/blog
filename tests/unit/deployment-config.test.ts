@@ -12,7 +12,9 @@ describe('production Node runtime contract', () => {
       'FROM node:24.18.0-alpine AS build', 'FROM node:24.18.0-alpine',
     ])
     expect(dockerfile).toContain('corepack prepare pnpm@11.7.0 --activate')
-    expect(dockerfile).toContain('RUN pnpm build')
+    expect(dockerfile).toMatch(/RUN --mount=type=secret,id=youtube_data_api_key[\s\S]*?fi; pnpm build/)
+    expect(dockerfile).toContain('export YOUTUBE_DATA_API_KEY="$(cat /run/secrets/youtube_data_api_key)"')
+    expect(dockerfile).not.toMatch(/^(?:ARG|ENV)\s+YOUTUBE_DATA_API_KEY/m)
     expect(dockerfile).toContain('RUN pnpm prune --prod')
     expect(dockerfile).toMatch(/^USER node$/m)
     expect(dockerfile).toMatch(/^EXPOSE 8080$/m)
@@ -95,7 +97,8 @@ describe('release trust boundaries', () => {
     })
     expect(findAction('docker/build-push-action@v6')).toEqual({
       uses: 'docker/build-push-action@v6', if: firstPush,
-      with: { context: '.', push: true, tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}' },
+      with: { context: '.', push: true, tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
+        secrets: 'youtube_data_api_key=${{ secrets.YOUTUBE_DATA_API_KEY }}\n' },
     })
     expect(image.steps.find((step: { name?: string }) => step.name === 'Verify immutable image exists')).toEqual({
       name: 'Verify immutable image exists',
