@@ -34,3 +34,11 @@ Search is a static Pagefind index generated during `pnpm build`, not an independ
 ## Release and rollback
 
 Use the existing GitHub PR/CI and production immutable-image pipeline. Do not deploy fixture builds. The pre-change production image is `ghcr.io/minyaako/blog:008cd39f0aaf505eecdd40aab3168f1efe98258a`; rollback is the existing `/usr/local/sbin/blog-release deploy <sha>` interface. No schema, persistent data, gateway or music library changes are needed.
+
+## Production acceptance and requested animation follow-up
+
+PR #42 was merged with explicit user confirmation. CI/deployment run `34705991145` succeeded for merge commit `2fbd7760fd38aa6b9331b481fd12ab834f771ea4`; server release status matched that commit. Live healthz returned `ok`, Pagefind JS returned HTTP 200, and query `启程` returned the published journey-begin article after client navigation. Search reinitialized after back navigation; dark theme persisted and the replacement theme toggle remained interactive. All four homepage modules were fully opaque with zero reveal delay and both snapshot animations lasted 160 ms.
+
+The user then requested restoring the original upward slide distance while keeping the performance fixes. The follow-up restores incoming content from 24 px below and outgoing content to 12 px above, keeping the synchronized 160 ms fades. Scale, colored veil, delayed navigation and hidden scroll content remain removed. Reduced-motion users and browsers without native transitions keep instantaneous swaps.
+
+Follow-up Astro/Pagefind build succeeded. Fifteen targeted browser checks passed across desktop/mobile/tablet, including actual View Transition keyframes (24px incoming, -12px outgoing), reduced motion, immediate offscreen visibility, dark-theme handoff and repeat search. Independent review found no actionable defects. The prior production commit `2fbd7760fd38aa6b9331b481fd12ab834f771ea4` is the rollback target for this follow-up.
