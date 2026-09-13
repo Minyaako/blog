@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
 Sitemap: https://gsk.minyako.top/sitemap.xml
+Sitemap: https://gsk.minyako.top/ranking/sitemap.xml

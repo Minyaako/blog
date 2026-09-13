@@ -9,6 +9,9 @@ CURL=${CURL_BIN:-curl}
 TIMEOUT=${TIMEOUT_BIN:-timeout}
 IMAGE_REPO=ccr.ccs.tencentyun.com/minyako-blog/blog
 ORIGIN=https://gsk.minyako.top
+RANKING_ENV_FILE=${RANKING_ENV_FILE:-$APP_DIR/ranking.env}
+RANKING_DATA_DIR=${RANKING_DATA_DIR:-/var/lib/blog-ranking}
+export RANKING_ENV_FILE RANKING_DATA_DIR
 LOCK_FILE=$STATE_DIR/deploy.lock
 
 CANDIDATE=
@@ -152,6 +155,8 @@ compose_down() {
 public_health_once() {
   body=$("$CURL" --fail --silent --show-error "$ORIGIN/healthz") || return 1
   test "$body" = ok || return 1
+
+  "$CURL" --fail --silent --show-error "$ORIGIN/api/ranking/ready/" >/dev/null || return 1
 
   body=$("$CURL" --fail --silent --show-error "$ORIGIN/") || return 1
   case "$body" in
@@ -326,16 +331,24 @@ fi
 
 image=$IMAGE_REPO:$sha
 pull_image "$image" || die "could not pull $image"
+# Administrators prepare/migrate the persistent database before release. This
+# read-only command checks compatibility; it cannot create or migrate the file.
+BLOG_IMAGE="$image" "$DOCKER" compose -f "$COMPOSE_FILE" run --rm --no-deps \
+  --entrypoint node blog --experimental-transform-types scripts/ranking-db.ts check \
+  >/dev/null || die 'production ranking database is not ready for this image'
 CANDIDATE=blog-candidate-$short
 "$DOCKER" rm -f "$CANDIDATE" >/dev/null 2>&1 || true
 "$DOCKER" run -d --name "$CANDIDATE" \
   --read-only \
-  --tmpfs /data:uid=1000,gid=1000,mode=0750 \
-  --tmpfs /config:uid=1000,gid=1000,mode=0750 \
+  --tmpfs /var/lib/blog-ranking:uid=1000,gid=1000,mode=0700,size=16m \
+  --tmpfs /tmp:uid=1000,gid=1000,mode=0700,size=16m \
   --cap-drop ALL \
   --security-opt no-new-privileges \
   --network server_proxy \
-  "$image" >/dev/null || die 'could not start candidate'
+  --env RANKING_WRITE_ENABLED=false \
+  --entrypoint sh \
+  "$image" -c 'node --experimental-transform-types scripts/ranking-db.ts init && exec node scripts/blog-server.mjs' \
+  >/dev/null || die 'could not start candidate'
 
 healthy=false
 attempt=0
@@ -360,6 +373,8 @@ while test "$attempt" -lt 30; do
   if test "$attempt" -lt 30; then sleep 2; fi
 done
 test "$healthy" = true || die 'candidate did not become healthy'
+"$DOCKER" exec "$CANDIDATE" wget -q --spider http://127.0.0.1:8080/api/ranking/ready/ \
+  || die 'candidate ranking database readiness failed'
 
 ROLLBACK_REQUIRED=true
 compose_up "$sha" || die 'target compose replacement failed'

@@ -1,0 +1,11 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import Frame from '../../components/ranking/Frame.astro'
+import Editor from '../../components/ranking/Editor.astro'
+export const prerender = false
+Astro.response.headers.set('Cache-Control', 'private, no-store')
+---
+<BaseLayout title="创建榜单" description="写下你的排序和理由。" noindex><Frame>
+  <header class="ranking-header"><p class="ranking-eyebrow">YOUR RANKING</p><h1>从你的喜好开始。</h1><p>添加条目，排好顺序，再说说理由。登录后即可提交审核。</p></header>
+  <Editor start payload={{ schemaVersion: 1, title: '', description: '', categoryId: 'other', items: [] }} />
+</Frame></BaseLayout>

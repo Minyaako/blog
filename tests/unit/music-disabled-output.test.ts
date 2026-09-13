@@ -11,6 +11,7 @@ const skippedRootEntries = new Set([
   '.git',
   '.pnpm-store',
   '.superpowers',
+  '.ranking-data',
   'dist',
   'node_modules',
   'playwright-report',
@@ -56,10 +57,10 @@ describe('disabled music player build output', () => {
     const buildRoot = createDisabledBuildRoot()
     runPnpm(buildRoot, ['install', '--prefer-offline', '--frozen-lockfile', '--ignore-scripts'])
     runPnpm(buildRoot, ['exec', 'astro', 'build'])
-    const pages = files(resolve(buildRoot, 'dist')).filter((file) => file.endsWith('.html'))
+    const pages = files(resolve(buildRoot, 'dist/client')).filter((file) => file.endsWith('.html'))
       .map((file) => readFileSync(file, 'utf8')).join('\n')
     const referencedAssets = [...pages.matchAll(/(?:src|href)="(\/_astro\/[^"\n]+)"/gu)]
-      .map((match) => resolve(buildRoot, 'dist', `.${match[1]}`))
+      .map((match) => resolve(buildRoot, 'dist/client', `.${match[1]}`))
     const clientOutput = referencedAssets.map((file) => readFileSync(file, 'utf8')).join('\n')
 
     expect(pages).not.toContain('data-music-player')

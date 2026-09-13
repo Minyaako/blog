@@ -1,7 +1,8 @@
 import type { WalineInitOptions } from '@waline/client'
 import type { CommentProvider } from './contracts'
 
-const COMMENT_SERVER_URL = 'https://comments.minyako.top'
+import { COMMENT_SERVER_URL } from '../waline-config'
+import { restoreWalineTabLogin } from '../../scripts/ranking-waline'
 const COMMENT_EMOJI_PATH = '/comments/emoji/tw-emoji'
 type EmojiPresetList = Exclude<WalineInitOptions['emoji'], boolean | undefined>
 type EmojiPreset = EmojiPresetList[number]
@@ -78,6 +79,7 @@ export function createWalineProvider(
         })
         if (!mounted) throw new Error('Comment client failed to initialize')
         instance = mounted
+        if (typeof window !== 'undefined') restoreWalineTabLogin()
       })().finally(() => {
         mounting = undefined
       })

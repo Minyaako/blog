@@ -1,34 +1,21 @@
-import { expect, test } from './fixtures'
+import { expect, test } from '@playwright/test'
+test.use({ baseURL: process.env.RANKING_E2E_ORIGIN || 'http://127.0.0.1:4321' })
 
-test('ranking index exposes both static experiment entries', async ({ page }) => {
+test('community directory replaces static experiments', async ({ page }) => {
   await page.goto('/ranking/')
-
-  await expect(page.getByRole('heading', { level: 1, name: '榜单' })).toBeVisible()
-  await expect(page.getByText('以下内容均为虚构示例，不代表真实评价。', { exact: true })).toBeVisible()
-  await expect(page.locator('[data-ranking-entry]')).toHaveCount(2)
-  await expect(page.locator('[data-ranking-entry] a')).toHaveCount(2)
+  await expect(page.getByRole('heading', { level: 1, name: '你的顺序，你的理由。' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '创建我的榜单' })).toHaveAttribute('href', '/ranking/new/')
+  await expect(page.getByRole('navigation', { name: '按分类筛选' })).toBeVisible()
 })
 
-test('ranking detail renders only the list selected by its static id', async ({ page }) => {
-  await page.goto('/ranking/visual-novels/')
-
-  await expect(page.locator('[data-ranking-list]')).toHaveCount(1)
-  await expect(page.locator('[data-ranking-item]')).toHaveCount(3)
-  await expect(page.locator('[data-ranking-item]').first()).toHaveAttribute('data-rank', '1')
-  await expect(page.getByRole('link', { name: '← 返回榜单入口' })).toHaveAttribute('href', '/ranking/')
+test('old experiment links explicitly return gone', async ({ page }) => {
+  for (const slug of ['visual-novels', 'restaurants']) {
+    const response = await page.goto(`/ranking/${slug}/`)
+    expect(response?.status()).toBe(410)
+    await expect(page.getByRole('heading', { level: 1, name: '示例已结束' })).toBeVisible()
+  }
 })
 
-test('ranking notes use native disclosure semantics', async ({ page }) => {
-  await page.goto('/ranking/restaurants/')
-
-  const disclosure = page.locator('[data-ranking-item]').first().locator('details')
-  await expect(disclosure).not.toHaveAttribute('open', '')
-  await disclosure.locator('summary').click()
-  await expect(disclosure).toHaveAttribute('open', '')
-  await expect(disclosure.locator('.ranking-note')).toBeVisible()
-})
-
-test('unknown ranking ids are not generated', async ({ page }) => {
-  const response = await page.goto('/ranking/not-a-ranking/')
-  expect(response?.status()).toBe(404)
+test('unknown ranking is not public', async ({ page }) => {
+  expect((await page.goto('/ranking/not-a-ranking/'))?.status()).toBe(404)
 })

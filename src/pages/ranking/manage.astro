@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import Frame from '../../components/ranking/Frame.astro'
+import SubmissionList from '../../components/ranking/SubmissionList.astro'
+import Pagination from '../../components/ranking/Pagination.astro'
+import { readRankingIdentity } from '../../server/ranking/http'
+import { getRankingStore } from '../../server/ranking/runtime'
+import { RankingError, type RankingSubmission, type PublicRanking } from '../../lib/ranking'
+export const prerender = false
+Astro.response.headers.set('Cache-Control', 'private, no-store')
+const page = Math.max(1, Math.min(10000, Number.parseInt(Astro.url.searchParams.get('page') || '1') || 1))
+const managedPage = Math.max(1, Math.min(10000, Number.parseInt(Astro.url.searchParams.get('managedPage') || '1') || 1))
+let entries: RankingSubmission[] = [], rankings: PublicRanking[] = [], error = '', renderedUser = ''
+try {
+  const { user, isAdmin } = await readRankingIdentity(Astro.cookies)
+  renderedUser = user?.id || ''
+  if (!user || !isAdmin) throw new RankingError(404, '页面不存在')
+  const store = getRankingStore()
+  entries = store.listSubmissions(user.id, { manage: true, status: 'pending', page })
+  rankings = store.listManagedRankings(user.id, { page: managedPage })
+} catch (e) { entries = []; rankings = []; Astro.response.status = e instanceof RankingError ? e.status : 503; error = Astro.response.status === 404 ? '页面不存在' : '管理页面暂时不可用，请稍后重试。' }
+---
+<BaseLayout title="榜单审核" noindex><Frame renderedUser={renderedUser}>
+{error ? <div class="ranking-empty"><h1>{error}</h1></div> : <>
+  <header class="ranking-header"><p class="ranking-eyebrow">REVIEW</p><h1>榜单审核</h1><p>检查内容和差异，通过后立即公开。</p></header>
+  <h2>待审核</h2><SubmissionList entries={entries} /><Pagination page={page} count={entries.length} />
+  <section class="ranking-review"><h2>已发布榜单</h2><p class="ranking-muted">下架会同时隐藏当前版本与全部历史，恢复操作同样需要填写原因。</p>
+    {rankings.length ? <ul class="ranking-directory">{rankings.map(entry => <li><div class="ranking-managed-entry"><a href={`/ranking/${entry.ranking.id}/`} data-astro-reload>{entry.version.payload.title}</a><span>{entry.ranking.hidden ? '已下架' : '公开中'}</span><button type="button" data-ranking-action={entry.ranking.hidden ? 'restore' : 'hide'} data-id={entry.ranking.id}>{entry.ranking.hidden ? '恢复' : '下架'}</button></div></li>)}</ul> : <p>暂无已发布榜单。</p>}
+    <Pagination page={managedPage} count={rankings.length} param="managedPage" />
+  </section><p class="ranking-status" role="status" data-action-status></p>
+</>}
+</Frame></BaseLayout>

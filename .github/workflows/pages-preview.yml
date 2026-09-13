@@ -42,20 +42,21 @@ jobs:
       - name: Build public preview
         run: |
           pnpm exec astro build --site "https://preview.gsk.minyako.top"
+          node scripts/ranking-preview.mjs
           pnpm build:search
       - name: Verify preview safety markers
         run: |
-          test -f dist/index.html
-          grep -F 'name="robots" content="noindex, noarchive"' dist/index.html
-          grep -F 'data-preview-banner' dist/index.html
-          grep -F 'editor-preview' dist/index.html
-          if grep -R -F 'data-comment-slot' dist/posts; then
+          test -f dist/client/index.html
+          grep -F 'name="robots" content="noindex, noarchive"' dist/client/index.html
+          grep -F 'data-preview-banner' dist/client/index.html
+          grep -F 'editor-preview' dist/client/index.html
+          if grep -R -F 'data-comment-slot' dist/client/posts; then
             echo 'Preview build unexpectedly contains a live comment mount' >&2
             exit 1
           fi
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: dist/client
 
   deploy:
     needs: build

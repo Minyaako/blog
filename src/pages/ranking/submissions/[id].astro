@@ -1,0 +1,39 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro'
+import Frame from '../../../components/ranking/Frame.astro'
+import Editor from '../../../components/ranking/Editor.astro'
+import { readRankingIdentity } from '../../../server/ranking/http'
+import { getRankingStore } from '../../../server/ranking/runtime'
+import { RankingError, rankingDiff, type RankingSubmission, type RankingRecord, type RankingPayload } from '../../../lib/ranking'
+export const prerender = false
+Astro.response.headers.set('Cache-Control', 'private, no-store')
+let entry: RankingSubmission | null = null, ranking: RankingRecord | null = null, error = '', own = false, admin = false, before: RankingPayload | null = null
+let renderedUser = ''
+try {
+  const { user, isAdmin } = await readRankingIdentity(Astro.cookies)
+  renderedUser = user?.id || ''
+  if (!user) throw new RankingError(404, '找不到这条投稿')
+  const store = getRankingStore()
+  entry = store.getSubmission(user.id, Astro.params.id!)
+  ranking = store.getRanking(entry.rankingId)
+  own = entry.authorId === user.id; admin = isAdmin
+  if (admin && entry.baseVersionId) before = store.getVersionForReview(user.id, entry.baseVersionId).payload
+  else if (admin && ranking?.derivedFrom) before = store.getVersionForReview(user.id, ranking.derivedFrom.versionId).payload
+} catch (e) { entry = null; Astro.response.status = e instanceof RankingError ? e.status : 503; error = Astro.response.status === 404 ? '找不到这条投稿' : '投稿暂时无法读取，请稍后重试。' }
+const status = { pending: '待审核', published: '已发布', rejected: '已退回', withdrawn: '已撤回' }
+---
+<BaseLayout title={entry ? '投稿详情' : error} description="查看自己的投稿与审核结果。" noindex><Frame renderedUser={renderedUser}>
+{entry ? <>
+  <header class="ranking-header"><p class="ranking-eyebrow">{status[entry.status]}</p><h1>{entry.payload.title}</h1><p class="ranking-prose">{entry.payload.description}</p><p class="ranking-muted">提交于 <time datetime={entry.submittedAt}>{new Date(entry.submittedAt).toLocaleString('zh-CN')}</time></p>{entry.reason && <p class="ranking-notice">处理原因：{entry.reason}</p>}</header>
+  <div class="ranking-toolbar">
+    {entry.publishedVersionId && <a href={`/ranking/${entry.rankingId}/?version=${entry.publishedVersionId}`} data-astro-reload>查看已发布版本 →</a>}
+    {own && entry.status === 'pending' && <button type="button" data-ranking-action="withdraw" data-id={entry.id}>撤回并继续修改</button>}
+    {entry.baseVersionId && <a href={`/ranking/${entry.rankingId}/?version=${entry.baseVersionId}`} data-astro-reload>查看更新基线</a>}
+    {ranking?.derivedFrom && <a href={`/ranking/${ranking.derivedFrom.rankingId}/?version=${ranking.derivedFrom.versionId}`} data-astro-reload>查看派生来源</a>}
+  </div>
+  {own && (entry.status === 'rejected' || entry.status === 'withdrawn') ? <Editor payload={entry.payload} resume={{ rankingId: entry.rankingId, ...(entry.baseVersionId ? { baseVersionId: entry.baseVersionId } : {}), ...(!entry.baseVersionId && ranking?.derivedFrom ? { derivedFrom: ranking.derivedFrom } : {}) }} /> : <ol class="ranking-items">{entry.payload.items.map((item, i) => <li class="ranking-row"><span class="ranking-number">{String(i + 1).padStart(2, '0')}</span><div class="ranking-item-copy"><strong>{item.name}</strong>{item.note && <p>{item.note}</p>}</div></li>)}</ol>}
+  {entry.payload.changeNote && <p class="ranking-notice">修改说明：{entry.payload.changeNote}</p>}
+  {admin && <section class="ranking-review"><h2>内容差异</h2><ul>{rankingDiff(before, entry.payload).map(line => <li>{line}</li>)}</ul>{entry.status === 'pending' && <><label>退回原因<textarea rows="3" maxlength="1000" data-review-reason /></label><div class="ranking-toolbar"><button type="button" class="ranking-primary" data-ranking-action="approve" data-id={entry.id}>通过并发布</button><button type="button" data-ranking-action="reject" data-id={entry.id}>退回修改</button></div></>}</section>}
+  <p class="ranking-status" role="status" data-action-status></p>
+</> : <div class="ranking-empty"><h1>{error}</h1><a href="/ranking/mine/" data-astro-reload>返回我的投稿</a></div>}
+</Frame></BaseLayout>

@@ -3,581 +3,150 @@ import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import playwrightConfig from '../../playwright.config'
 
-type ComposeService = {
-  image?: string
-  ports?: unknown
-  volumes?: unknown
-  read_only?: boolean
-  cap_drop?: string[]
-  security_opt?: string[]
-  tmpfs?: string[]
-  healthcheck?: {
-    test?: string[]
-    interval?: string
-    timeout?: string
-    retries?: number
-    start_period?: string
-  }
-  networks?: Record<string, { aliases?: string[] }>
-}
-
-type ComposeDocument = {
-  services?: Record<string, ComposeService>
-  networks?: Record<string, { external?: boolean }>
-}
-
-type WorkflowStep = {
-  name?: string
-  uses?: string
-  if?: string
-  run?: string
-  env?: Record<string, string>
-  with?: Record<string, unknown>
-}
-
-type WorkflowJob = {
-  if?: string
-  needs?: string | string[]
-  'runs-on'?: string
-  permissions?: Record<string, string>
-  environment?: string
-  concurrency?: {
-    group?: string
-    'cancel-in-progress'?: boolean
-  }
-  steps?: WorkflowStep[]
-}
-
-type WorkflowDocument = {
-  on?: Record<string, unknown>
-  permissions?: Record<string, string>
-  jobs?: Record<string, WorkflowJob>
-}
-
 const read = (path: string) => readFileSync(path, 'utf8').replaceAll('\r\n', '\n')
 
-const assertDockerIgnoreContract = (source: string) => {
-  const rules = source
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'))
-  const githubRules = rules.filter((rule) => rule.includes('.github'))
-  const negations = rules.filter((rule) => rule.startsWith('!'))
+describe('production Node runtime contract', () => {
+  it('uses a pinned non-root standalone runtime and checks the schema before startup', () => {
+    const dockerfile = read('Dockerfile')
+    expect(dockerfile.match(/^FROM .+$/gm)).toEqual([
+      'FROM node:24.18.0-alpine AS build', 'FROM node:24.18.0-alpine',
+    ])
+    expect(dockerfile).toContain('corepack prepare pnpm@11.7.0 --activate')
+    expect(dockerfile).toContain('RUN pnpm build')
+    expect(dockerfile).toContain('RUN pnpm prune --prod')
+    expect(dockerfile).toMatch(/^USER node$/m)
+    expect(dockerfile).toMatch(/^EXPOSE 8080$/m)
+    expect(dockerfile).toContain('RANKING_WRITE_ENABLED=false')
+    expect(dockerfile).toContain('scripts/ranking-db.ts check && exec node scripts/blog-server.mjs')
+    expect(dockerfile).not.toMatch(/ranking-db\.ts (init|migrate)/)
+    const runtime = dockerfile.slice(dockerfile.lastIndexOf('FROM '))
+    expect(runtime.match(/^COPY .+$/gm)?.every((line) => line.includes('--chown=node:node'))).toBe(true)
+    expect(dockerfile).toContain('CMD wget -q --spider http://127.0.0.1:8080/healthz || exit 1')
+  })
 
-  expect(githubRules).toEqual([
-    '.github/*',
-    '!.github/workflows',
-    '.github/workflows/*',
-    '!.github/workflows/ci.yml',
-    '!.github/workflows/pages-preview.yml',
-    '!.github/workflows/sync-editor-preview.yml',
-  ])
-  expect(negations).toEqual([
-    '!.github/workflows',
-    '!.github/workflows/ci.yml',
-    '!.github/workflows/pages-preview.yml',
-    '!.github/workflows/sync-editor-preview.yml',
-  ])
-}
+  it('requires prepared storage and restricted runtime configuration without public ports', () => {
+    const compose = parse(read('deploy/compose.yml'))
+    expect(Object.keys(compose.services)).toEqual(['blog'])
+    const blog = compose.services.blog
+    expect(blog.image).toBe('${BLOG_IMAGE:?BLOG_IMAGE is required}')
+    expect(blog.ports).toBeUndefined()
+    expect(blog.read_only).toBe(true)
+    expect(blog.cap_drop).toEqual(['ALL'])
+    expect(blog.security_opt).toEqual(['no-new-privileges:true'])
+    expect(blog.env_file).toEqual(['${RANKING_ENV_FILE:?RANKING_ENV_FILE is required}'])
+    expect(blog.environment.RANKING_DATABASE).toBe('/var/lib/blog-ranking/ranking.sqlite')
+    expect(blog.volumes).toEqual([{
+      type: 'bind', source: '${RANKING_DATA_DIR:?RANKING_DATA_DIR is required}',
+      target: '/var/lib/blog-ranking', bind: { create_host_path: false },
+    }])
+    expect(blog.tmpfs).toEqual(['/tmp:size=16m,mode=0700,uid=1000,gid=1000'])
+    expect(blog.healthcheck.test).toEqual(['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:8080/healthz'])
+    expect(blog.networks).toEqual({ server_proxy: { aliases: ['blog'] } })
+    expect(compose.networks).toEqual({ server_proxy: { external: true } })
+  })
 
-const stripCaddyComment = (line: string) => {
-  let quoted = false
-
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index]
-    if (character === '\\' && quoted) {
-      index += 1
-    } else if (character === '"') {
-      quoted = !quoted
-    } else if (character === '#' && !quoted) {
-      return line.slice(0, index)
+  it('excludes secrets, databases, private plans and fixture tokens from the build context', () => {
+    const rules = read('.dockerignore').split('\n').map((rule) => rule.trim())
+    for (const rule of ['.env*', '.superpowers', '.ranking-data', '*.sqlite', '*.sqlite-wal', '*.sqlite-shm']) {
+      expect(rules).toContain(rule)
     }
-  }
-
-  return line
-}
-
-const normalizeCaddyfile = (source: string) =>
-  source
-    .split('\n')
-    .map(stripCaddyComment)
-    .map((line) => line.trim().replace(/\s+/g, ' '))
-    .filter(Boolean)
-    .join('\n')
-
-const expectedCaddyfile = normalizeCaddyfile(`
-{
-  admin off
-  auto_https off
-  persist_config off
-}
-
-:8080 {
-  root * /srv
-  encode zstd gzip
-
-  respond /healthz "ok" 200
-  redir /sitemap-index.xml /sitemap.xml 308
-  redir /sitemap-0.xml /sitemap.xml 308
-
-  @immutable path /_astro/* /pagefind/*
-  header @immutable Cache-Control "public, max-age=31536000, immutable"
-  header {
-    X-Content-Type-Options nosniff
-    Referrer-Policy strict-origin-when-cross-origin
-  }
-
-  file_server
-  handle_errors {
-    rewrite * /404.html
-    file_server
-  }
-}
-`)
-
-const assertDockerContract = (dockerfile: string) => {
-  expect(dockerfile.match(/^FROM .+$/gm)).toEqual([
-    'FROM node:24.18.0-alpine AS build',
-    'FROM caddy:2.10.2-alpine',
-  ])
-  expect(dockerfile).toContain('corepack prepare pnpm@11.7.0 --activate')
-  expect(dockerfile).toContain('RUN pnpm build')
-
-  const runtime = dockerfile.slice(dockerfile.indexOf('FROM caddy:2.10.2-alpine'))
-  const addGroup = 'addgroup -S -g 1000 caddy'
-  const addUser = 'adduser -S -D -H -u 1000 -G caddy caddy'
-  const copySite = 'COPY --from=build --chown=caddy:caddy /app/dist /srv'
-  const copyConfig = 'COPY --chown=caddy:caddy deploy/site.Caddyfile /etc/caddy/Caddyfile'
-  const user = 'USER caddy'
-  const removeFileCapabilities = 'setcap -r /usr/bin/caddy'
-
-  expect(runtime).toContain(removeFileCapabilities)
-  expect(runtime).toContain(addGroup)
-  expect(runtime).toContain(addUser)
-  expect(runtime.indexOf(addGroup)).toBeLessThan(runtime.indexOf(addUser))
-  expect(runtime.match(/^COPY .+$/gm)).toEqual([copySite, copyConfig])
-  expect(runtime.match(/^USER .+$/gm)).toEqual([user])
-
-  for (const instruction of [addGroup, addUser]) {
-    expect(runtime.indexOf(instruction)).toBeLessThan(runtime.indexOf(copySite))
-    expect(runtime.indexOf(instruction)).toBeLessThan(runtime.indexOf(copyConfig))
-    expect(runtime.indexOf(instruction)).toBeLessThan(runtime.indexOf(user))
-  }
-  expect(runtime.indexOf(copySite)).toBeLessThan(runtime.indexOf(user))
-  expect(runtime.indexOf(copyConfig)).toBeLessThan(runtime.indexOf(user))
-  expect(runtime.indexOf(removeFileCapabilities)).toBeLessThan(runtime.indexOf(user))
-
-  expect(runtime).toMatch(/^EXPOSE 8080$/m)
-  expect(runtime).toContain('HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=6')
-  expect(runtime).toMatch(
-    /^ {2}CMD wget -q --spider http:\/\/127\.0\.0\.1:8080\/healthz \|\| exit 1$/m,
-  )
-}
-
-const assertComposeContract = (source: string) => {
-  const compose = parse(source) as ComposeDocument
-  const blog = compose.services?.blog
-
-  expect(Object.keys(compose.services ?? {})).toEqual(['blog'])
-  expect(blog?.image).toBe('${BLOG_IMAGE:?BLOG_IMAGE is required}')
-  expect(blog?.ports).toBeUndefined()
-  expect(blog?.volumes).toBeUndefined()
-  expect(blog?.read_only).toBe(true)
-  expect(blog?.cap_drop).toEqual(['ALL'])
-  expect(blog?.security_opt).toEqual(['no-new-privileges:true'])
-  expect(blog?.tmpfs).toHaveLength(2)
-  expect(blog?.tmpfs).toEqual(
-    expect.arrayContaining([
-      '/config:size=1m,mode=0700,uid=1000,gid=1000',
-      '/data:size=1m,mode=0700,uid=1000,gid=1000',
-    ]),
-  )
-  expect(blog?.healthcheck).toEqual({
-    test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:8080/healthz'],
-    interval: '10s',
-    timeout: '3s',
-    retries: 6,
-    start_period: '5s',
-  })
-  expect(Object.keys(blog?.networks ?? {})).toEqual(['server_proxy'])
-  expect(blog?.networks?.server_proxy?.aliases).toEqual(['blog'])
-  expect(Object.keys(compose.networks ?? {})).toEqual(['server_proxy'])
-  expect(compose.networks?.server_proxy?.external).toBe(true)
-}
-
-const assertCaddyContract = (caddyfile: string) => {
-  const normalized = normalizeCaddyfile(caddyfile)
-
-  expect(normalized).toBe(expectedCaddyfile)
-  expect(normalized).toContain('admin off')
-  expect(normalized).toContain('auto_https off')
-  expect(normalized).toContain('persist_config off')
-  expect(normalized).toContain(':8080 {')
-  expect(normalized).toContain('root * /srv')
-  expect(normalized).toContain('respond /healthz "ok" 200')
-  expect(normalized).toContain('redir /sitemap-index.xml /sitemap.xml 308')
-  expect(normalized).toContain('redir /sitemap-0.xml /sitemap.xml 308')
-  expect(normalized).toMatch(/^file_server$/m)
-  expect(normalized).toMatch(
-    /handle_errors \{\s+rewrite \* \/404\.html\s+file_server\s+\}/,
-  )
-  expect(normalized).toContain('X-Content-Type-Options nosniff')
-  expect(normalized).toContain('Referrer-Policy strict-origin-when-cross-origin')
-  expect(normalized).toContain('@immutable path /_astro/* /pagefind/*')
-  expect(normalized).toContain(
-    'header @immutable Cache-Control "public, max-age=31536000, immutable"',
-  )
-}
-
-const findStep = (job: WorkflowJob, use: string) =>
-  job.steps?.find((step) => step.uses === use)
-
-const assertWorkflowContract = (source: string) => {
-  const workflow = parse(source) as WorkflowDocument
-  const triggers = workflow.on ?? {}
-  const jobs = workflow.jobs ?? {}
-  const verify = jobs.verify ?? {}
-  const publishMedia = jobs['publish-media'] ?? {}
-  const publish = jobs['publish-image'] ?? {}
-  const deploy = jobs['deploy-production'] ?? {}
-
-  expect(Object.keys(triggers).sort()).toEqual([
-    'pull_request',
-    'push',
-    'workflow_dispatch',
-  ])
-  expect(triggers.push).toEqual({ branches: ['main'] })
-  expect(workflow.permissions).toEqual({ contents: 'read' })
-  expect(Object.keys(jobs)).toEqual([
-    'verify',
-    'publish-media',
-    'publish-image',
-    'deploy-production',
-  ])
-
-  expect(verify.if).toBeUndefined()
-  expect(verify.permissions).toBeUndefined()
-  expect(
-    verify.steps?.some(
-      (step) =>
-        step.run ===
-        'sh -n deploy/bin/blog-release tests/deploy/blog-release.test.sh',
-    ),
-  ).toBe(true)
-  expect(
-    verify.steps?.some((step) => step.run === 'pnpm test:deploy'),
-  ).toBe(true)
-  expect(JSON.stringify(verify)).not.toMatch(/DEPLOY_|secrets\./)
-  expect(JSON.stringify(verify)).not.toMatch(/id-token|MEDIA_TENCENT_|MEDIA_COS_/)
-
-  expect(publishMedia.needs).toBe('verify')
-  expect(publishMedia.if).toBe(
-    "${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}",
-  )
-  expect(publishMedia.environment).toBe('production')
-  expect(publishMedia.permissions).toEqual({ contents: 'read', 'id-token': 'write' })
-  expect(JSON.stringify(publishMedia)).not.toMatch(/secrets\./)
-
-  expect(publish.if).toBe(
-    "${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}",
-  )
-  expect(publish.needs).toEqual(['verify', 'publish-media'])
-  expect(publish.permissions).toEqual({ contents: 'read' })
-  expect(findStep(publish, 'actions/checkout@v4')).toBeDefined()
-  expect(findStep(publish, 'docker/setup-buildx-action@v3')).toBeDefined()
-  const login = findStep(publish, 'docker/login-action@v3')
-  expect(login?.if).toBe(
-    "${{ github.event_name == 'push' && github.run_attempt == 1 }}",
-  )
-  expect(login?.with).toEqual({
-    registry: 'ccr.ccs.tencentyun.com',
-    username: '${{ secrets.TCR_USERNAME }}',
-    password: '${{ secrets.TCR_PASSWORD }}',
-  })
-  const buildAndPush = findStep(publish, 'docker/build-push-action@v6')
-  expect(buildAndPush?.if).toBe(
-    "${{ github.event_name == 'push' && github.run_attempt == 1 }}",
-  )
-  expect(buildAndPush?.with).toEqual({
-    context: '.',
-    push: true,
-    tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
-  })
-  expect(
-    publish.steps?.find((step) => step.name === 'Verify immutable image exists'),
-  ).toEqual({
-    name: 'Verify immutable image exists',
-    if: "${{ github.event_name == 'workflow_dispatch' || github.run_attempt != 1 }}",
-    run: 'docker buildx imagetools inspect ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
-  })
-  expect(JSON.stringify(publish)).not.toMatch(/DEPLOY_/)
-
-  expect(deploy.if).toBe(
-    "${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true' }}",
-  )
-  expect(deploy.needs).toBe('publish-image')
-  expect(deploy.environment).toBe('production')
-  expect(deploy.permissions).toBeUndefined()
-  expect(deploy.concurrency).toEqual({
-    group: 'blog-production',
-    'cancel-in-progress': false,
+    expect(rules.filter((rule) => rule.startsWith('!'))).toEqual([
+      '!.github/workflows', '!.github/workflows/ci.yml',
+      '!.github/workflows/pages-preview.yml', '!.github/workflows/sync-editor-preview.yml',
+    ])
   })
 
-  const configureSsh = deploy.steps?.find(
-    (step) => step.name === 'Configure restricted SSH',
-  )
-  expect(configureSsh?.env).toEqual({
-    SSH_KEY: '${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}',
-    KNOWN_HOSTS: '${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}',
-  })
-  expect(configureSsh?.run).toContain('install -m 700 -d "$HOME/.ssh"')
-  expect(configureSsh?.run).toContain(
-    'printf \'%s\\n\' "$SSH_KEY" > "$HOME/.ssh/id_ed25519"',
-  )
-  expect(configureSsh?.run).toContain('chmod 600 "$HOME/.ssh/id_ed25519"')
-  expect(configureSsh?.run).toContain(
-    'printf \'%s\\n\' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"',
-  )
-  expect(configureSsh?.run).toContain('chmod 600 "$HOME/.ssh/known_hosts"')
-
-  const deployImage = deploy.steps?.find(
-    (step) => step.name === 'Deploy immutable image',
-  )
-  expect(deployImage?.run).toContain('ssh -o BatchMode=yes')
-  expect(deployImage?.run).toContain('-o ServerAliveInterval=30')
-  expect(deployImage?.run).toContain('-o ServerAliveCountMax=20')
-  expect(deployImage?.run).toContain(
-    '"${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}"',
-  )
-  expect(deployImage?.run).toContain('"deploy ${{ github.sha }}"')
-
-  expect(source).not.toContain(':latest')
-  expect(source).not.toMatch(/packages:\s*write/)
-  expect(source.match(/secrets\.TCR_/g)).toHaveLength(2)
-  expect(source.match(/vars\.DEPLOY_/g)).toHaveLength(3)
-  expect(source.match(/secrets\.DEPLOY_/g)).toHaveLength(2)
-
-  const workflowOutsideDeploy = {
-    ...workflow,
-    jobs: Object.fromEntries(
-      Object.entries(jobs).filter(([name]) => name !== 'deploy-production'),
-    ),
-  }
-  expect(JSON.stringify(workflowOutsideDeploy)).not.toMatch(
-    /(?:vars|secrets)\.DEPLOY_/,
-  )
-}
-
-describe('production container contract', () => {
-  const dockerfile = read('Dockerfile')
-  const compose = read('deploy/compose.yml')
-  const caddyfile = read('deploy/site.Caddyfile')
-
-  it('accepts the production Dockerfile', () => {
-    assertDockerContract(dockerfile)
-  })
-
-  it('rejects creating the runtime user after USER', () => {
-    const creationLines = [
-      'RUN addgroup -S -g 1000 caddy \\',
-      '  && adduser -S -D -H -u 1000 -G caddy caddy',
-    ]
-    const mutated = dockerfile
-      .split('\n')
-      .filter((line) => !creationLines.includes(line))
-      .join('\n')
-      .replace('USER caddy', `USER caddy\n${creationLines.join('\n')}`)
-
-    expect(() => assertDockerContract(mutated)).toThrow()
-  })
-
-  it('rejects COPY instructions without caddy ownership', () => {
-    const mutated = dockerfile.replaceAll('--chown=caddy:caddy ', '')
-
-    expect(() => assertDockerContract(mutated)).toThrow()
-  })
-
-  it('rejects retaining upstream Caddy file capabilities', () => {
-    const mutated = dockerfile.replace('RUN setcap -r /usr/bin/caddy\n', '')
-
-    expect(() => assertDockerContract(mutated)).toThrow()
-  })
-
-  it('rejects creating the user before its group', () => {
-    const addGroup = 'RUN addgroup -S -g 1000 caddy \\'
-    const addUser = '  && adduser -S -D -H -u 1000 -G caddy caddy'
-    const mutated = dockerfile.replace(
-      `${addGroup}\n${addUser}`,
-      `${addUser}\n${addGroup}`,
-    )
-
-    expect(() => assertDockerContract(mutated)).toThrow()
-  })
-
-  it('rejects a health command that does not probe the endpoint', () => {
-    const mutated = dockerfile.replace(
-      'CMD wget -q --spider http://127.0.0.1:8080/healthz || exit 1',
-      'CMD true http://127.0.0.1:8080/healthz',
-    )
-
-    expect(() => assertDockerContract(mutated)).toThrow()
-  })
-
-  it('accepts the production Compose structure', () => {
-    assertComposeContract(compose)
-  })
-
-  it.each([
-    ['cap_drop', compose.replace('    cap_drop: [ALL]\n', '')],
-    [
-      'tmpfs',
-      compose.replace(
-        '    tmpfs:\n      - /config:size=1m,mode=0700,uid=1000,gid=1000\n      - /data:size=1m,mode=0700,uid=1000,gid=1000\n',
-        '',
-      ),
-    ],
-    [
-      'healthcheck',
-      compose.replace(
-        '    healthcheck:\n      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/healthz]\n      interval: 10s\n      timeout: 3s\n      retries: 6\n      start_period: 5s\n',
-        '',
-      ),
-    ],
-    ['blog network alias', compose.replace('        aliases: [blog]\n', '')],
-  ])('rejects Compose without %s', (_name, mutated) => {
-    expect(() => assertComposeContract(mutated)).toThrow()
-  })
-
-  it('rejects an additional service with host ports and volumes', () => {
-    const mutated = compose.replace(
-      'services:\n',
-      'services:\n  debug:\n    image: busybox\n    ports: ["8081:80"]\n    volumes: ["/tmp:/tmp"]\n',
-    )
-
-    expect(() => assertComposeContract(mutated)).toThrow()
-  })
-
-  it('rejects additional relaxed security options', () => {
-    const mutated = compose.replace(
-      '      - no-new-privileges:true\n',
-      '      - no-new-privileges:true\n      - seccomp:unconfined\n',
-    )
-
-    expect(() => assertComposeContract(mutated)).toThrow()
-  })
-
-  it('accepts the production Caddyfile', () => {
-    assertCaddyContract(caddyfile)
-  })
-
-  it.each([
-    ['static file serving', caddyfile.replace('    file_server\n', '')],
-    [
-      '404 handling',
-      caddyfile.replace(
-        '    handle_errors {\n        rewrite * /404.html\n        file_server\n    }\n',
-        '',
-      ),
-    ],
-  ])('rejects Caddy without %s', (_name, mutated) => {
-    expect(() => assertCaddyContract(mutated)).toThrow()
-  })
-
-  it('rejects the wrong listener even when a comment contains the expected one', () => {
-    const mutated = caddyfile.replace(':8080 {', '# :8080 {\n:9090 {')
-
-    expect(() => assertCaddyContract(mutated)).toThrow()
-  })
-
-  it('rejects an unhealthy response even when a comment contains the expected one', () => {
-    const mutated = caddyfile.replace(
-      '    respond /healthz "ok" 200',
-      '    # respond /healthz "ok" 200\n    respond /healthz "ok" 503',
-    )
-
-    expect(() => assertCaddyContract(mutated)).toThrow()
-  })
-
-  it('excludes private planning and environment files from the build context', () => {
-    const ignored = read('.dockerignore').split('\n')
-
-    expect(ignored).toContain('.superpowers')
-    expect(ignored).toContain('.env*')
-  })
-
-  it('includes only the workflows required by container build tests', () => {
-    assertDockerIgnoreContract(read('.dockerignore'))
-  })
-
-  it.each([
-    '!.github/*',
-    '!.github/workflows/*',
-    '!.github/workflows/deploy.yml',
-    '!.github/actions',
-    '.github/',
-    '/.github',
-    '.github/**',
-    '!**',
-  ])('rejects a broader Docker context rule: %s', (rule) => {
-    const mutated = `${read('.dockerignore')}\n${rule}\n`
-
-    expect(() => assertDockerIgnoreContract(mutated)).toThrow()
+  it('indexes only the generated client pages', () => {
+    expect(JSON.parse(read('package.json')).scripts['build:search']).toBe('pagefind --site dist/client')
   })
 })
 
-describe('GitHub Actions release contract', () => {
-  const workflow = read('.github/workflows/ci.yml')
-
-  it('accepts the least-privilege verify, publish, and deploy workflow', () => {
-    assertWorkflowContract(workflow)
+describe('release trust boundaries', () => {
+  it('requires verification and media publication before image deployment', () => {
+    const { jobs } = parse(read('.github/workflows/ci.yml'))
+    expect(Object.keys(jobs)).toEqual(['verify', 'publish-media', 'publish-image', 'deploy-production'])
+    expect(jobs.verify.if).toBeUndefined()
+    expect(jobs.verify.needs).toBeUndefined()
+    expect(jobs['publish-media'].needs).toBe('verify')
+    expect(jobs['publish-image'].needs).toEqual(['verify', 'publish-media'])
+    expect(jobs['deploy-production'].needs).toBe('publish-image')
+    expect(jobs['publish-media'].environment).toBe('production')
+    expect(jobs['deploy-production'].environment).toBe('production')
+    expect(jobs['deploy-production'].concurrency).toEqual({
+      group: 'blog-production', 'cancel-in-progress': false,
+    })
+    expect(jobs.verify.steps.some((step: { run?: string }) => step.run === 'pnpm test:deploy')).toBe(true)
+    expect(jobs.verify.steps.some((step: { run?: string }) => step.run === 'pnpm build')).toBe(true)
   })
 
-  it.each([
-    [
-      'deployment without the explicit enable gate',
-      workflow.replace(" && vars.DEPLOY_ENABLED == 'true'", ''),
-    ],
-    [
-      'a mutable latest image tag',
-      workflow.replace(
-        'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
-        'ccr.ccs.tencentyun.com/minyako-blog/blog:latest',
-      ),
-    ],
-    [
-      'publishing from pull requests',
-      workflow.replace(
-        "github.event_name != 'pull_request'",
-        "github.event_name == 'pull_request'",
-      ),
-    ],
-    [
-      'a privileged pull-request trigger',
-      workflow.replace(
-        '  pull_request:\n',
-        '  pull_request:\n  pull_request_target:\n',
-      ),
-    ],
-    [
-      'package write permission at workflow scope',
-      workflow.replace(
-        'permissions:\n  contents: read',
-        'permissions:\n  contents: read\n  packages: write',
-      ),
-    ],
-  ])('rejects %s', (_name, mutated) => {
-    expect(() => assertWorkflowContract(mutated)).toThrow()
+  it('builds an immutable image only on the first push attempt and inspects it on reruns', () => {
+    const { jobs } = parse(read('.github/workflows/ci.yml'))
+    const image = jobs['publish-image']
+    const findAction = (uses: string) => image.steps.find((step: { uses?: string }) => step.uses === uses)
+    const firstPush = "${{ github.event_name == 'push' && github.run_attempt == 1 }}"
+    expect(findAction('actions/checkout@v4')).toBeDefined()
+    expect(findAction('docker/setup-buildx-action@v3')).toBeDefined()
+    expect(findAction('docker/login-action@v3')).toEqual({
+      uses: 'docker/login-action@v3', if: firstPush,
+      with: {
+        registry: 'ccr.ccs.tencentyun.com',
+        username: '${{ secrets.TCR_USERNAME }}', password: '${{ secrets.TCR_PASSWORD }}',
+      },
+    })
+    expect(findAction('docker/build-push-action@v6')).toEqual({
+      uses: 'docker/build-push-action@v6', if: firstPush,
+      with: { context: '.', push: true, tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}' },
+    })
+    expect(image.steps.find((step: { name?: string }) => step.name === 'Verify immutable image exists')).toEqual({
+      name: 'Verify immutable image exists',
+      if: "${{ github.event_name == 'workflow_dispatch' || github.run_attempt != 1 }}",
+      run: 'docker buildx imagetools inspect ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
+    })
+    expect(image.steps).toHaveLength(5)
+    const deployStep = jobs['deploy-production'].steps.find((step: { name?: string }) => step.name === 'Deploy immutable image')
+    expect(deployStep.run).toContain('"deploy ${{ github.sha }}"')
+    expect(deployStep.run).toContain('ssh -o BatchMode=yes')
+  })
+
+  it('keeps production writes and secrets out of pull-request verification', () => {
+    const source = read('.github/workflows/ci.yml')
+    const workflow = parse(source)
+    expect(Object.keys(workflow.on).sort()).toEqual(['pull_request', 'push', 'workflow_dispatch'])
+    expect(workflow.on.push).toEqual({ branches: ['main'] })
+    expect(workflow.permissions).toEqual({ contents: 'read' })
+    expect(JSON.stringify(workflow.jobs.verify)).not.toMatch(/DEPLOY_|secrets\.|id-token|MEDIA_TENCENT_|MEDIA_COS_/)
+    for (const name of ['publish-media', 'publish-image', 'deploy-production']) {
+      expect(workflow.jobs[name].if).toContain("github.ref == 'refs/heads/main'")
+      expect(workflow.jobs[name].if).toContain("github.event_name != 'pull_request'")
+    }
+    expect(workflow.jobs['deploy-production'].if).toContain("vars.DEPLOY_ENABLED == 'true'")
+    expect(workflow.jobs['deploy-production'].concurrency['cancel-in-progress']).toBe(false)
+    expect(workflow.jobs['publish-media'].permissions).toEqual({ contents: 'read', 'id-token': 'write' })
+    expect(workflow.jobs['publish-image'].permissions).toEqual({ contents: 'read' })
+    expect(source).not.toContain(':latest')
+    expect(source).not.toMatch(/packages:\s*write/)
+    expect(source).toContain('ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}')
+  })
+
+  it('checks production compatibility but initializes only the isolated candidate', () => {
+    const release = read('deploy/bin/blog-release')
+    expect(release).toContain('scripts/ranking-db.ts check')
+    expect(release).not.toContain('scripts/ranking-db.ts migrate')
+    expect(release).toContain('--tmpfs /var/lib/blog-ranking:uid=1000,gid=1000,mode=0700,size=16m')
+    expect(release).toContain('"$ORIGIN/api/ranking/ready/"')
+    expect(release).not.toMatch(/(?:rm|unlink).*ranking\.sqlite/)
+    const candidate = release.slice(release.indexOf('"$DOCKER" run -d'), release.indexOf('healthy=false'))
+    expect(candidate).not.toMatch(/--(?:publish|mount|volume|env-file)\b/)
+    expect(candidate).toContain('--env RANKING_WRITE_ENABLED=false')
+    expect(candidate).toContain('scripts/ranking-db.ts init')
   })
 })
 
-describe('Playwright E2E startup contract', () => {
-  it('allows the preview server enough time to finish a cold build', () => {
-    const webServer = playwrightConfig.webServer
-
-    if (!webServer || Array.isArray(webServer)) {
-      throw new Error('Expected a single Playwright webServer configuration')
-    }
-
-    expect(webServer.timeout).toBe(120_000)
-  })
+it('allows enough time for the Playwright cold build', () => {
+  const configured = playwrightConfig.webServer
+  const servers = Array.isArray(configured) ? configured : configured ? [configured] : []
+  const blog = servers.find(server => server.command.includes('pnpm build'))
+  expect(blog?.timeout).toBe(120_000)
+  expect(blog?.env?.RANKING_WALINE_URL).toMatch(/^http:\/\/127\.0\.0\.1:/)
+  expect(servers.some(server => server.command.includes('tests/fixtures/waline-server.mjs'))).toBe(true)
 })

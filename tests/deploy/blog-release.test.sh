@@ -130,8 +130,14 @@ case ${1:-} in
     if test "${FAIL_INSPECT:-false}" = true; then exit 1; fi
     printf '%s\n' "${CANDIDATE_HEALTH:-healthy}"
     ;;
+  exec)
+    if test "${FAIL_CANDIDATE_READY:-false}" = true; then exit 1; fi
+    ;;
   compose)
     case " $* " in
+      *' run '*'scripts/ranking-db.ts check'*)
+        if test "${FAIL_DATABASE_CHECK:-false}" = true; then exit 1; fi
+        ;;
       *' up '*)
         if image_matches "${ASSERT_LOCK_DURING_ROLLBACK_IMAGE:-}" && test -e "$TOKEN_RELEASE_FAIL_MARKER"; then
           test -f "$BLOG_STATE_DIR/deploy.lock" || exit 1
@@ -198,7 +204,7 @@ case "$path" in
   /healthz) printf 'ok\n' ;;
   /rss.xml|/sitemap.xml) printf 'https://gsk.minyako.top\n' ;;
   /) printf '<html lang="zh-CN">\n' ;;
-  /about/|/archives/) : ;;
+  /about/|/archives/|/api/ranking/ready/) : ;;
   *) exit 22 ;;
 esac
 SH
@@ -308,6 +314,7 @@ reset_case() {
   unset FAIL_LOCK_RELEASE_ONCE ASSERT_OWNED_LOCK
   unset FAIL_PRIVATE_TOKEN_RM_ONCE ASSERT_LOCK_DURING_ROLLBACK_IMAGE
   unset FAIL_DATE
+  unset FAIL_DATABASE_CHECK FAIL_CANDIDATE_READY
   unset SIGNAL_LOCK_PHASE
   mkdir -p "$BLOG_STATE_DIR"
   : > "$BLOG_COMPOSE_FILE"
@@ -374,8 +381,13 @@ test_success_and_safety() {
   assert_log "pull $repo:$one" "$DOCKER_LOG" 'release did not pull immutable image'
   assert_not_log ':latest' "$DOCKER_LOG" 'release used latest tag'
   assert_log '--read-only' "$DOCKER_LOG" 'candidate was not read-only'
-  assert_log '--tmpfs /data:uid=1000,gid=1000,mode=0750' "$DOCKER_LOG" 'candidate data tmpfs was unsafe'
-  assert_log '--tmpfs /config:uid=1000,gid=1000,mode=0750' "$DOCKER_LOG" 'candidate config tmpfs was unsafe'
+  assert_log '--tmpfs /var/lib/blog-ranking:uid=1000,gid=1000,mode=0700,size=16m' "$DOCKER_LOG" 'candidate database was not isolated'
+  assert_log '--tmpfs /tmp:uid=1000,gid=1000,mode=0700,size=16m' "$DOCKER_LOG" 'candidate tmpfs was unsafe'
+  assert_log 'scripts/ranking-db.ts check' "$DOCKER_LOG" 'release skipped production schema compatibility'
+  assert_log 'scripts/ranking-db.ts init' "$DOCKER_LOG" 'candidate did not explicitly initialize isolated database'
+  assert_not_log 'scripts/ranking-db.ts migrate' "$DOCKER_LOG" 'release implicitly migrated the database'
+  assert_not_log ' --mount ' "$DOCKER_LOG" 'candidate mounted production storage'
+  assert_not_log ' --env-file ' "$DOCKER_LOG" 'candidate received production secrets'
   assert_log '--cap-drop ALL' "$DOCKER_LOG" 'candidate retained capabilities'
   assert_log '--security-opt no-new-privileges' "$DOCKER_LOG" 'candidate allowed privilege escalation'
   assert_log '--network server_proxy' "$DOCKER_LOG" 'candidate did not join server_proxy'
@@ -459,9 +471,27 @@ test_unhealthy_candidate() {
   reset_case unhealthy_candidate
   export CANDIDATE_HEALTH=unhealthy
   if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'unhealthy candidate was accepted'; fi
-  assert_not_log ' compose ' "$DOCKER_LOG" 'unhealthy candidate replaced Compose service'
+  assert_not_log ' up ' "$DOCKER_LOG" 'unhealthy candidate replaced Compose service'
   assert_failure_state "$one"
   assert_candidate_cleaned 111111111111
+}
+
+test_database_not_ready() {
+  reset_case database_not_ready
+  export FAIL_DATABASE_CHECK=true
+  if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'unprepared database was accepted'; fi
+  assert_not_log ' up ' "$DOCKER_LOG" 'unprepared database replaced service'
+  assert_not_log 'run -d --name' "$DOCKER_LOG" 'unprepared database started candidate'
+  assert_failure_state "$one"
+}
+
+test_candidate_database_not_ready() {
+  reset_case candidate_database_not_ready
+  export FAIL_CANDIDATE_READY=true
+  if "$RELEASE" deploy "$one" >"$CASE_OUTPUT" 2>&1; then fail 'unready candidate database was accepted'; fi
+  assert_not_log ' up ' "$DOCKER_LOG" 'unready candidate database replaced service'
+  assert_failure_state "$one"
+  assert_candidate_cleaned
 }
 
 test_starting_timeout() {
@@ -789,6 +819,9 @@ run_case() {
 run_case invalid-inputs test_invalid_inputs
 run_case success-and-safety test_success_and_safety
 run_case endpoint-health test_endpoint_failure /healthz health
+run_case endpoint-ranking-ready test_endpoint_failure /api/ranking/ready/ ranking-ready
+run_case production-database-not-ready test_database_not_ready
+run_case candidate-database-not-ready test_candidate_database_not_ready
 run_case endpoint-root test_endpoint_failure / root
 run_case endpoint-about test_endpoint_failure /about/ about
 run_case endpoint-archives test_endpoint_failure /archives/ archives
