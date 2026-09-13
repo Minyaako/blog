@@ -81,7 +81,7 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
 
 test('prose keeps blockquotes accented and updates Shiki colors without reloading', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture/')
-  const quote = page.locator('.prose blockquote')
+  const quote = page.locator('.prose blockquote').filter({ hasText: '设计原则：' })
   await expect(quote).toBeVisible()
   await expect(quote).toHaveCSS('border-left-width', '3px')
   await expect(quote).toHaveCSS('border-top-width', '0px')

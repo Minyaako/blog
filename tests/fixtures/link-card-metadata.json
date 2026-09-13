@@ -1,0 +1,40 @@
+{
+  "https://github.com/astro-build/astro": {
+    "title": "Astro：内容驱动网站构建工具",
+    "description": "一个面向内容驱动网站的现代静态站点框架。",
+    "author": "Astro Team",
+    "stats": [
+      { "label": "Stars", "value": 48000 },
+      { "label": "Forks", "value": 3900 }
+    ],
+    "fetchedAt": "2026-09-01T00:00:00.000Z"
+  },
+  "https://www.youtube.com/watch?v=dQw4w9WgXcQ": {
+    "title": "示例视频：Web 性能优化入门",
+    "image": "/images/posts/engineering-cover.svg",
+    "description": "用一个清晰的例子介绍页面性能优化的基础方法。",
+    "author": "性能实验室",
+    "stats": [
+      { "label": "播放", "value": 1200000 },
+      { "label": "点赞", "value": 42000 }
+    ],
+    "fetchedAt": "2026-09-02T00:00:00.000Z"
+  },
+  "https://www.bilibili.com/video/BV1xx411c7mD/": {
+    "title": "示例视频：从零认识 Astro",
+    "image": "/images/posts/games-cover.svg",
+    "description": "用中文梳理 Astro 的页面与内容组织方式。",
+    "author": "前端实验室",
+    "stats": [
+      { "label": "播放", "value": 860000 },
+      { "label": "点赞", "value": 31000 }
+    ],
+    "fetchedAt": "2026-09-03T00:00:00.000Z"
+  },
+  "https://zhuanlan.zhihu.com/p/123456": {
+    "title": "把复杂系统拆成稳定边界",
+    "description": "一篇讨论长期维护与清晰边界的示例文章。",
+    "author": "工程笔记",
+    "fetchedAt": "2026-09-04T00:00:00.000Z"
+  }
+}

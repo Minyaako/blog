@@ -141,7 +141,9 @@ const assertDockerContract = (dockerfile: string) => {
     'FROM caddy:2.10.2-alpine',
   ])
   expect(dockerfile).toContain('corepack prepare pnpm@11.7.0 --activate')
-  expect(dockerfile).toContain('RUN pnpm build')
+  expect(dockerfile).toMatch(/RUN --mount=type=secret,id=youtube_data_api_key[\s\S]*?fi; pnpm build/)
+  expect(dockerfile).toContain('export YOUTUBE_DATA_API_KEY="$(cat /run/secrets/youtube_data_api_key)"')
+  expect(dockerfile).not.toMatch(/^(?:ARG|ENV)\s+YOUTUBE_DATA_API_KEY/m)
 
   const runtime = dockerfile.slice(dockerfile.indexOf('FROM caddy:2.10.2-alpine'))
   const addGroup = 'addgroup -S -g 1000 caddy'
@@ -302,6 +304,7 @@ const assertWorkflowContract = (source: string) => {
     context: '.',
     push: true,
     tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
+    secrets: 'youtube_data_api_key=${{ secrets.YOUTUBE_DATA_API_KEY }}\n',
   })
   expect(
     publish.steps?.find((step) => step.name === 'Verify immutable image exists'),
@@ -375,6 +378,10 @@ describe('production container contract', () => {
 
   it('accepts the production Dockerfile', () => {
     assertDockerContract(dockerfile)
+  })
+
+  it('rejects persisting the optional API key in an image environment', () => {
+    expect(() => assertDockerContract(dockerfile.replace('COPY . .', 'COPY . .\nENV YOUTUBE_DATA_API_KEY=example'))).toThrow()
   })
 
   it('rejects creating the runtime user after USER', () => {
