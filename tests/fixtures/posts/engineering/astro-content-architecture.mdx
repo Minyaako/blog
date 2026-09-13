@@ -68,3 +68,25 @@ $$
 > 设计原则：先保证内容拥有稳定、可迁移的静态表达，再叠加便利性。
 
 首版完成后，图形化发布工具只需输出同一份 frontmatter 与 MDX，而不必改写整个站点。Git + Markdown 因而不是临时废案，而是未来编辑器可以依赖的底层协议。
+
+## 外部链接卡片
+
+https://github.com/astro-build/astro
+
+[https://www.youtube.com/watch?v=dQw4w9WgXcQ](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+
+https://www.bilibili.com/video/BV1xx411c7mD/
+
+https://zhuanlan.zhihu.com/p/123456 [title="手动补充的知乎文章" description="即使平台限制抓取，也可以在正文里补充卡片资料。" image="/images/posts/life-cover.svg" author="自定义作者"]
+
+这是一段带有 https://github.com/astro-build/astro 的行内文字，应该继续保持普通文本。
+
+[Astro 源码仓库](https://github.com/astro-build/astro) 是一个命名链接。
+
+`https://www.youtube.com/watch?v=dQw4w9WgXcQ` 位于代码行内。
+
+- https://www.bilibili.com/video/BV1xx411c7mD/
+
+> https://zhuanlan.zhihu.com/p/123456
+
+https://example.com/not-a-supported-card

@@ -51,18 +51,15 @@ const domains = Object.entries(DOMAINS) as [DomainKey, (typeof DOMAINS)[DomainKe
   [data-domain='games'] { --domain-color: var(--games); }
   .domain-card-head { display: flex; align-items: flex-start; justify-content: space-between; }
   .domain-card :global(.domain-icon) {
-    width: clamp(2.75rem, 5vw, 3.25rem);
-    height: auto;
+    width: 3rem;
+    height: 3rem;
+    flex: none;
     color: var(--domain-color);
+    stroke-width: 2;
     transition: transform var(--duration-micro, var(--duration)) var(--ease-standard, var(--ease-out));
   }
   .domain-card:hover :global(.domain-icon),
   .domain-card:focus-visible :global(.domain-icon) { transform: translateY(-2px); }
-  .domain-card :global(.domain-icon__accent) {
-    transition: transform var(--duration-micro, var(--duration)) var(--ease-standard, var(--ease-out));
-  }
-  .domain-card:hover :global(.domain-icon__accent),
-  .domain-card:focus-visible :global(.domain-icon__accent) { transform: translate(1px, -1px); }
   .index, .english { color: var(--text-muted); font: var(--text-caption)/1.2 var(--font-mono); }
   h3 { margin: var(--space-4) 0 var(--space-2); font: 700 1.3rem/1.2 var(--font-display); }
   p { min-height: 3.4em; color: var(--text-muted); font-size: 0.88rem; line-height: 1.7; }
@@ -70,8 +67,6 @@ const domains = Object.entries(DOMAINS) as [DomainKey, (typeof DOMAINS)[DomainKe
   @media (max-width: 32rem) { .domain-grid { grid-template-columns: 1fr; } .domain-card { min-height: 0; border-right: 0; border-bottom: 1px solid var(--border); } }
   @media (prefers-reduced-motion: reduce) {
     .domain-card:hover :global(.domain-icon),
-    .domain-card:focus-visible :global(.domain-icon),
-    .domain-card:hover :global(.domain-icon__accent),
-    .domain-card:focus-visible :global(.domain-icon__accent) { transform: none; }
+    .domain-card:focus-visible :global(.domain-icon) { transform: none; }
   }
 </style>
