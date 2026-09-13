@@ -176,6 +176,10 @@ test('pointer threshold, cancellation, settle cleanup and reduced motion', async
   await page.locator('[data-handle]').first().scrollIntoViewIfNeeded()
   const nextFrom = await page.locator('[data-handle]').first().boundingBox()
   if (!nextFrom) throw new Error('Missing handle')
+  expect(await page.locator('[data-handle]').first().evaluate(el => {
+    const rect = el.getBoundingClientRect()
+    return el.contains(document.elementFromPoint(rect.x + 12, rect.y + 12))
+  }), 'The drag start must hit the handle rather than a floating overlay').toBe(true)
   await page.mouse.move(nextFrom.x + 12, nextFrom.y + 12); await page.mouse.down(); await page.mouse.move(nextFrom.x + 12, nextFrom.y + 24)
   await expect(page.locator('.ranking-drag-ghost')).toHaveCSS('scale', '1')
   await page.mouse.up()
@@ -201,7 +205,7 @@ test('small-screen editor keeps controls within viewport in both themes', async 
 test('touch body scrolls naturally while a 44px handle starts and cancels sorting', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile', 'Touch device path')
   await page.goto(`/ranking/${seed().rankingId}/`)
-  await expect(page.locator('[data-ranking-account]')).toContainText('登录暂不可用')
+  await expect(page.locator('[data-ranking-account]')).toContainText('使用 Waline 登录')
   await items(page).first().scrollIntoViewIfNeeded()
   const body = await items(page).first().locator('.ranking-item-copy').boundingBox()
   if (!body) throw new Error('Missing row body')
