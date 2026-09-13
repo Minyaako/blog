@@ -2,7 +2,7 @@
 
 设计依据：[已确认设计](../specs/2026-09-13-community-ranking-design.zh-CN.md)。
 
-实现位置：`D:\seRver\.worktrees\community-ranking`，分支 `codex/community-ranking`，起点 `42fb374`（本次 fetch 得到的 origin/main）。原工作区及其独立提交、未跟踪文件保留。未提交、推送或部署。
+实现位置：`D:\seRver\.worktrees\community-ranking`，分支 `codex/community-ranking`，起点 `42fb374`。用户已授权生产发布；现已提交实现 `3ea16a8`，并以 `c21b370` 整合最新生产 `6c3c4aa` 的链接卡片与分类图标。原工作区及其独立提交、未跟踪文件保留。
 
 ## 三个交付阶段
 
@@ -71,3 +71,12 @@
 真实 Chrome + 假 Waline 弹窗：匿名草稿填写 → 登录作者 → 确认归属/继续草稿，标题与条目均保留 → 退出；检查 localStorage/sessionStorage 无 Waline token，榜单 session 为匿名。现有 E2E 的目录三设备、桌面草稿/排序/恢复用例通过（旧登录文案的两处断言更新后重跑通过），完整投稿丢失响应重试/退回重投/审批/上下架闭环通过。mock 只在测试目录，生产应用没有测试认证绕过。
 
 线上仅做只读协议检查：现有 `/api/token` 无 Origin 为 403，带正确博客 Origin 时匿名/无效凭据返回 200 空用户（适配层按无效身份处理）；`/ui/login` 为 200 且未设置阻断 opener 的 COOP。未使用真实登录凭据，不能把隔离账号通过等同于生产登录已经验收。旧基础设施 Docker 验证仍有效，本次 Waline 修订未重新打发布镜像。验收浏览器及本次本地服务收尾关闭，保留隔离测试数据库方便复查。
+
+### 生产切换准备
+
+- 用户授权生产部署，并指定唯一 Waline 管理账号；已只读核对稳定 objectId，按该身份预置内部用户映射，不读取密码/令牌、不模拟用户登录、不继承全部 Waline 管理员。
+- 风险 R3：首次静态镜像切换至 Node/SQLite。当前生产 `6c3c4aa7717e0b3479cd2e1de3bab839f9fb8dfc`，旧 compose、release、Caddy 博客路由和状态已备份到服务器受限目录 `/srv/backups/blog-ranking-rollout/20260913`。回滚须恢复旧 compose/release 并走旧发布检查；数据库保留。
+- 自动部署保护暂设 `DEPLOY_ENABLED=false`，待新镜像、数据库、备份恢复与停写上线检查完成后恢复；没有修改其他生产服务配置。
+- 已创建全新 `/var/lib/blog-ranking`（UID 1000/0700）和 `ranking.env`（0600、停写）。尚未切换运行服务。认证真实账号、公网缓存、投稿与审核仍待上线验收。
+- 小功能菜单已复现 ClientRouter 导航后失去事件绑定，改用一次性事件委托和现有 SVG chevron 图标；补测点击、键盘、Escape、外部点击/焦点及站内导航。精确根路径及编码别名补齐 no-store/308，针对测试先红后绿。
+- 整合后完整构建通过：Astro 175 文件无错误/警告，38 套 336 单测；新增别名回归 5/5 通过。发布前独立审查确认整合保留新旧功能与 BuildKit secret 边界，菜单无重要问题。备份脚本和最终浏览器验证进行中。

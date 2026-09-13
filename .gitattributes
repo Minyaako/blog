@@ -6,3 +6,7 @@ deploy/comments/server/*.cjs text eol=lf
 media/media.yaml text eol=lf
 media/media.lock.json text eol=lf
 public/robots.txt text eol=lf
+deploy/ranking/ranking-backup text eol=lf
+deploy/ranking/*.service text eol=lf
+deploy/ranking/*.timer text eol=lf
+tests/deploy/ranking-*.sh text eol=lf

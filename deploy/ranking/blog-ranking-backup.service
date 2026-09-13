@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up and verify the community ranking SQLite database
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+EnvironmentFile=-/etc/blog-ranking-backup.env
+ExecStart=/usr/local/sbin/ranking-backup backup
+TimeoutStartSec=10min
+Nice=10

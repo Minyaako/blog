@@ -25,6 +25,7 @@ jobs:
       - run: pnpm media:validate
       - run: sh -n deploy/bin/blog-release tests/deploy/blog-release.test.sh
       - run: pnpm test:deploy
+      - run: sudo sh tests/deploy/ranking-backup.test.sh
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
       - name: Run browser checks

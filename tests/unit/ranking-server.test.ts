@@ -29,6 +29,20 @@ it('serves liveness without DB and preserves security and static resource header
   expect(asset.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
   expect(asset.headers.get('cache-control')).toContain('immutable')
 })
+it('covers exact and encoded ranking roots without matching unrelated prefixes', async () => {
+  const origin = await serve()
+  for (const path of ['/ranking', '/%72anking', '/api/ranking', '/api/%72anking']) {
+    const response = await fetch(`${origin}${path}`, { method: 'POST', redirect: 'manual' })
+    expect(response.headers.get('cache-control')).toContain('no-store')
+    if (path.startsWith('/api/')) {
+      expect(response.status).toBe(308)
+      expect(response.headers.get('location')).toBe(`${path}/`)
+    }
+    await response.text()
+  }
+  const unrelated = await fetch(`${origin}/ranking-other`)
+  expect(unrelated.headers.get('cache-control')).toBeNull()
+})
 it('does not let untrusted forwarded headers bypass the request limiter', async () => {
   const origin = await serve()
   for (let i = 0; i < 60; i++) {

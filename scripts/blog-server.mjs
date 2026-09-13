@@ -16,7 +16,8 @@ export function createBlogHandler(handler, options = {}) {
       pathname = decodeURI(url.pathname)
       if (/[\u0000-\u001f\u007f]/.test(pathname)) throw new Error('Invalid path')
     } catch { res.writeHead(400); res.end('Bad request'); return }
-    const dynamic = pathname.startsWith('/ranking/') || pathname.startsWith('/api/ranking/')
+    const rankingApi = pathname === '/api/ranking' || pathname.startsWith('/api/ranking/')
+    const dynamic = pathname === '/ranking' || pathname.startsWith('/ranking/') || rankingApi
     if (dynamic) res.setHeader('Cache-Control', 'private, no-store')
     else if (pathname.startsWith('/_astro/') || pathname.startsWith('/pagefind/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
     if (pathname === '/healthz' || pathname === '/healthz/') {
@@ -25,7 +26,7 @@ export function createBlogHandler(handler, options = {}) {
     if (pathname === '/sitemap-index.xml' || pathname === '/sitemap-0.xml') {
       res.writeHead(308, { Location: '/sitemap.xml' }); res.end(); return
     }
-    if (pathname.startsWith('/api/ranking/')) {
+    if (rankingApi) {
       // Without this, the standalone static handler uses 301 even for POST.
       if (!pathname.endsWith('/')) {
         res.writeHead(308, { Location: `${url.pathname}/${url.search}` }); res.end(); return
