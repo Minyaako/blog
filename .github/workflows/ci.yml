@@ -5,12 +5,19 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      artifact_release_sha:
+        description: 'Optional verified main SHA to export as an image artifact without registry push'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.artifact_release_sha == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -111,6 +118,95 @@ jobs:
       - name: Verify immutable image exists
         if: ${{ github.event_name == 'workflow_dispatch' || github.run_attempt != 1 }}
         run: docker buildx imagetools inspect ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}
+
+  artifact-image:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_release_sha != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Require successful main verification and media publication
+        id: gate
+        uses: actions/github-script@v7
+        env:
+          RELEASE_SHA: ${{ inputs.artifact_release_sha }}
+        with:
+          script: |
+            const sha = process.env.RELEASE_SHA;
+            if (!/^[0-9a-f]{40}$/.test(sha || '')) {
+              throw new Error('artifact_release_sha must be a full lowercase commit SHA');
+            }
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              ...context.repo, workflow_id: 'ci.yml', event: 'push',
+              branch: 'main', head_sha: sha, per_page: 100,
+            });
+            for (const run of runs) {
+              if (run.head_sha !== sha || run.head_branch !== 'main' || run.event !== 'push') continue;
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                ...context.repo, run_id: run.id, filter: 'all', per_page: 100,
+              });
+              const attempts = new Map();
+              for (const job of jobs) {
+                if (job.conclusion !== 'success' || !Number.isInteger(job.run_attempt)) continue;
+                const names = attempts.get(job.run_attempt) || new Set();
+                names.add(job.name);
+                attempts.set(job.run_attempt, names);
+              }
+              for (const [attempt, names] of attempts) {
+                if (names.has('verify') && names.has('publish-media')) {
+                  core.info(`Verified main CI run ${run.id}, attempt ${attempt}; image publication need not be complete`);
+                  core.setOutput('sha', sha);
+                  return;
+                }
+              }
+            }
+            throw new Error('No main push CI attempt has successful verify and publish-media jobs for this SHA');
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.gate.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check exact source and main ancestry
+        env:
+          RELEASE_SHA: ${{ steps.gate.outputs.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          git merge-base --is-ancestor "$RELEASE_SHA" refs/remotes/origin/main
+          mkdir -p "$RUNNER_TEMP/ranking-image"
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image archive without registry push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ccr.ccs.tencentyun.com/minyako-blog/blog:${{ steps.gate.outputs.sha }}
+          outputs: type=docker,dest=${{ runner.temp }}/ranking-image/image.tar
+          secrets: |
+            youtube_data_api_key=${{ secrets.YOUTUBE_DATA_API_KEY }}
+      - name: Record image identity and archive checksums
+        env:
+          RELEASE_SHA: ${{ steps.gate.outputs.sha }}
+        run: |
+          image="ccr.ccs.tencentyun.com/minyako-blog/blog:$RELEASE_SHA"
+          cd "$RUNNER_TEMP/ranking-image"
+          docker load --input image.tar
+          docker image inspect "$image" --format '{{.Id}}' > image-id.txt
+          printf '%s\n' "$image" > image.txt
+          gzip -n image.tar
+          sha256sum image.tar.gz image.txt image-id.txt > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blog-image-${{ steps.gate.outputs.sha }}
+          path: |
+            ${{ runner.temp }}/ranking-image/image.tar.gz
+            ${{ runner.temp }}/ranking-image/image.txt
+            ${{ runner.temp }}/ranking-image/image-id.txt
+            ${{ runner.temp }}/ranking-image/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
 
   deploy-production:
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true' }}
