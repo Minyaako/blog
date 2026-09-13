@@ -49,45 +49,66 @@ test('motion foundation exposes computed timing semantics and page scope', async
   })
 })
 
-test('native page snapshots crossfade without movement or a color veil', async ({ page }) => {
+test('native page snapshots keep the restored slide amplitudes', async ({ page }) => {
+  await page.addInitScript(() => {
+    type MotionRecord = {
+      name: string
+      frames: Array<{ offset: number | null; opacity: string; transform: string }>
+    }
+    const view = window as Window & { __motionSnapshotFrames?: MotionRecord[] }
+    view.__motionSnapshotFrames = []
+
+    const nativeStart = Document.prototype.startViewTransition
+    if (typeof nativeStart !== 'function') return
+
+    Document.prototype.startViewTransition = function (updateCallback) {
+      const transition = nativeStart.call(this, updateCallback)
+      void transition.ready.then(() => {
+        const records = view.__motionSnapshotFrames ?? []
+        const getAnimations = document.getAnimations as unknown as (options: { subtree: boolean }) => Animation[]
+        for (const animation of getAnimations.call(document, { subtree: true })) {
+          if (!(animation instanceof CSSAnimation)) continue
+          if (animation.animationName !== 'motion-page-in' && animation.animationName !== 'motion-page-out') continue
+          const keyframes = (animation.effect as KeyframeEffect | null)?.getKeyframes() ?? []
+          records.push({
+            name: animation.animationName,
+            frames: keyframes.map((frame) => ({
+              offset: frame.offset,
+              opacity: String(frame.opacity ?? ''),
+              transform: String(frame.transform ?? ''),
+            })),
+          })
+        }
+        view.__motionSnapshotFrames = records
+      })
+      return transition
+    }
+  })
   await page.goto('/')
 
-  const styles = await page.locator('html').evaluate((root) => {
-    const read = (pseudo: string) => {
-      const computed = getComputedStyle(root, pseudo)
-      return {
-        animationName: computed.animationName,
-        animationDuration: computed.animationDuration,
-        animationTimingFunction: computed.animationTimingFunction,
-        mixBlendMode: computed.mixBlendMode,
-        opacity: computed.opacity,
-        transform: computed.transform,
-      }
-    }
-    return {
-      old: read('::view-transition-old(page-content)'),
-      next: read('::view-transition-new(page-content)'),
-      isolation: getComputedStyle(root, '::view-transition-image-pair(page-content)').isolation,
-    }
-  })
+  const nativeSupported = await page.evaluate(() => typeof Document.prototype.startViewTransition === 'function')
+  test.skip(!nativeSupported, 'View Transition API is unavailable in this browser')
 
-  expect(styles.old).toMatchObject({
-    animationName: 'motion-page-out',
-    animationTimingFunction: 'linear',
-    mixBlendMode: 'plus-lighter',
-    opacity: '1',
-    transform: 'none',
-  })
-  expect(durationInMilliseconds(styles.old.animationDuration)).toBe(160)
-  expect(styles.next).toMatchObject({
-    animationName: 'motion-page-in',
-    animationTimingFunction: 'linear',
-    mixBlendMode: 'plus-lighter',
-    opacity: '1',
-    transform: 'none',
-  })
-  expect(durationInMilliseconds(styles.next.animationDuration)).toBe(160)
-  expect(styles.isolation).toBe('isolate')
+  const navigation = page.waitForURL(/\/domains\/academic\/?$/)
+  await page.locator('.domain-card[data-domain="academic"]').click({ noWaitAfter: true })
+  await navigation
+
+  await expect.poll(() => page.evaluate(() => (
+    (window as Window & { __motionSnapshotFrames?: unknown[] }).__motionSnapshotFrames ?? []
+  ))).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      name: 'motion-page-in',
+      frames: expect.arrayContaining([
+        expect.objectContaining({ offset: 0, transform: expect.stringContaining('24px') }),
+      ]),
+    }),
+    expect.objectContaining({
+      name: 'motion-page-out',
+      frames: expect.arrayContaining([
+        expect.objectContaining({ offset: 1, transform: expect.stringContaining('-12px') }),
+      ]),
+    }),
+  ]))
 })
 
 test('fallback navigation swaps immediately without a page exit or color veil', async ({ page }) => {
