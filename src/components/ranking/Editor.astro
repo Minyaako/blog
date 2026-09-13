@@ -1,0 +1,64 @@
+---
+import { rankingCategories, type RankingPayload, type RankingSource } from '../../lib/ranking'
+interface Props {
+  payload: RankingPayload
+  source?: RankingSource
+  ownerId?: string
+  current?: boolean
+  start?: boolean
+  resume?: { rankingId: string; baseVersionId?: string; derivedFrom?: RankingSource }
+}
+const { payload, source, ownerId, current = false, start = false, resume } = Astro.props
+---
+<section class="ranking-editor" data-ranking-editor data-config={JSON.stringify({ payload, source, ownerId, current, start, resume })} aria-label="榜单内容与编辑">
+  <div class="ranking-toolbar ranking-js" data-read-actions>
+    <button type="button" class="ranking-primary" data-edit="derive">{resume ? '继续修改' : '创建我的榜单'}</button>
+    <button type="button" data-edit="update" hidden>更新我的榜单</button>
+    <span class="ranking-muted">可拖动试排，也可使用上移、下移按钮。</span>
+  </div>
+  <div class="ranking-edit-only" hidden>
+    <div class="ranking-draft-bar">
+      <strong data-draft-intent>正在编辑个人草稿</strong>
+      <span data-save-status>仅保存在此浏览器</span>
+      {!start && <button type="button" data-return>返回原榜</button>}
+    </div>
+    <div class="ranking-fields">
+      <label>榜单标题<input name="title" required maxlength="160" autocomplete="off" value={payload.title} /></label>
+      <label>分类<select name="categoryId">{rankingCategories.filter(c => c.active).map(c => <option value={c.id} selected={payload.categoryId === c.id}>{c.name}</option>)}</select></label>
+      <label class="ranking-field-wide">简介<textarea name="description" rows="3" maxlength="2000">{payload.description}</textarea></label>
+    </div>
+  </div>
+  <ol class="ranking-items" data-ranking-items aria-label="排序条目">
+    {payload.items.map((item, index) => (
+      <li class="ranking-row" data-item-id={item.itemId}>
+        <span class="ranking-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+        <div class="ranking-item-copy"><strong>{item.name}</strong>{item.note && <p>{item.note}</p>}</div>
+        <div class="ranking-row-actions ranking-js">
+          <button type="button" data-move="up" aria-label={`上移 ${item.name}`}>↑</button>
+          <button type="button" data-move="down" aria-label={`下移 ${item.name}`}>↓</button>
+          <button type="button" class="ranking-handle" data-handle aria-label={`排序 ${item.name}`} title="拖动排序；键盘空格抓取，方向键移动，Escape 取消">⠿</button>
+        </div>
+      </li>
+    ))}
+  </ol>
+  <div class="ranking-edit-only" hidden>
+    <button type="button" data-add>＋ 添加条目</button>
+    <label class="ranking-change-note">这次改了什么（选填）<textarea name="changeNote" rows="2" maxlength="1000">{payload.changeNote}</textarea></label>
+    <div class="ranking-toolbar">
+      <button type="button" class="ranking-primary" data-preview>预览并提交</button>
+      <button type="button" data-export>下载草稿</button>
+      <label class="ranking-file-button">恢复草稿<input type="file" accept="application/json,.json" data-import /></label>
+      <button type="button" data-discard>丢弃草稿</button>
+    </div>
+    <p class="ranking-muted">通过审核后公开。草稿仅在当前浏览器保存，登录不会自动改成更新原榜。</p>
+    <p data-submission-result></p>
+  </div>
+  <p class="ranking-status" role="status" aria-live="polite" aria-atomic="true" data-editor-status></p>
+  <noscript><p>开启 JavaScript 后可编辑和投稿；阅读榜单和历史不受影响。</p></noscript>
+  <dialog class="ranking-preview" data-preview-dialog aria-labelledby="ranking-preview-title">
+    <h2 id="ranking-preview-title">确认投稿</h2>
+    <div data-preview-content></div>
+    <p>通过审核后将公开；提交后如需修改，请先在投稿详情撤回。</p>
+    <div class="ranking-toolbar"><button type="button" class="ranking-primary" data-submit>提交审核</button><button type="button" data-close-preview>继续编辑</button></div>
+  </dialog>
+</section>

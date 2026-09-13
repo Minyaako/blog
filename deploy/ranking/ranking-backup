@@ -1,0 +1,166 @@
+#!/bin/sh
+set -eu
+umask 077
+
+backup_root=${RANKING_BACKUP_ROOT:-/srv/backups/blog-ranking}
+data_root=${RANKING_DATA_DIR:-/var/lib/blog-ranking}
+state_file=${RANKING_STATE_FILE:-/srv/apps/blog/state/current}
+docker_bin=${RANKING_DOCKER_BIN:-docker}
+image_repo=ccr.ccs.tencentyun.com/minyako-blog/blog
+stage=
+locked=false
+die() { printf 'ranking-backup: %s\n' "$*" >&2; exit 1; }
+
+directory() {
+  case "$1" in /*) ;; *) die 'directories must be absolute' ;; esac
+  case "$1" in *[!a-zA-Z0-9_./-]*) die 'unsupported directory characters' ;; esac
+  test -d "$1" && test ! -L "$1" || die 'directory must already exist, without symlinks'
+  test "$(realpath "$1")" = "$1" || die 'directory must be canonical without symlink parents'
+  test "$(stat -c %a "$1")" = 700 || die 'directory permissions must be 0700'
+}
+regular() { test -f "$1" && test ! -L "$1" || die 'expected a regular file'; }
+valid_image() {
+  case "$1" in
+    "$image_repo":*) value=${1#"$image_repo":}; pattern='^[0-9a-f]{40}$' ;;
+    "$image_repo"@sha256:*) value=${1#"$image_repo"@sha256:}; pattern='^[0-9a-f]{64}$' ;;
+    sha256:*) value=${1#sha256:}; pattern='^[0-9a-f]{64}$' ;;
+    *) die 'image must be an immutable blog SHA or digest' ;;
+  esac
+  printf '%s\n' "$value" | grep -Eq "$pattern" || die 'invalid immutable image identifier'
+}
+remove_archive() {
+  target=$1
+  test "$(realpath "$target")" = "$target" || die 'refusing redirected cleanup path'
+  case "$target" in "$backup_root"/daily/ranking-*|"$backup_root"/weekly/ranking-*|"$backup_root"/.work-*) ;; *) die 'refusing cleanup outside backup directories' ;; esac
+  for name in database.sqlite database.sqlite-wal database.sqlite-shm SHA256SUMS image.txt; do
+    test ! -L "$target/$name" || die 'refusing symlink in archive'
+    rm -f -- "$target/$name"
+  done
+  rmdir -- "$target"
+}
+cleanup() {
+  status=$?
+  trap - EXIT HUP INT TERM
+  if test -n "$stage"; then remove_archive "$stage" || status=1; fi
+  if test "$locked" = true; then rmdir "$backup_root/.lock" || status=1; fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+work_directory() {
+  stage=$(mktemp -d "$backup_root/.work-XXXXXXXX")
+  # The database CLI runs as the application's UID; only its isolated mount is writable.
+  chown 1000:1000 "$stage"
+}
+check_snapshot() {
+  "$docker_bin" run --rm --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --user 1000:1000 \
+    --mount "type=bind,src=$stage,dst=/snapshot,readonly" \
+    --env RANKING_DATABASE=/snapshot/database.sqlite --entrypoint node "$image" \
+    --experimental-transform-types scripts/ranking-db.ts check >/dev/null
+}
+normalize_snapshot() {
+  # SQLite backup preserves WAL mode. Convert ONLY the isolated copy to a
+  # self-contained rollback-journal file before read-only/offsite verification.
+  "$docker_bin" run --rm --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --user 1000:1000 \
+    --mount "type=bind,src=$stage,dst=/snapshot" --entrypoint node "$image" \
+    --input-type=module -e \
+    'import {DatabaseSync} from "node:sqlite"; const db=new DatabaseSync("/snapshot/database.sqlite"); try { db.exec("PRAGMA wal_checkpoint(TRUNCATE)"); if(db.prepare("PRAGMA journal_mode=DELETE").get().journal_mode!=="delete") throw new Error("Snapshot journal conversion failed"); } finally {db.close()}' >/dev/null
+}
+seal_archive() {
+  regular "$stage/database.sqlite"
+  (cd "$stage" && sha256sum database.sqlite > SHA256SUMS)
+  printf '%s\n' "$image" > "$stage/image.txt"
+  chown 0:0 "$stage" "$stage/database.sqlite" "$stage/SHA256SUMS" "$stage/image.txt"
+  chmod 700 "$stage"
+  chmod 600 "$stage/database.sqlite" "$stage/SHA256SUMS" "$stage/image.txt"
+}
+publish_archive() {
+  destination=$1
+  test ! -e "$destination" && test ! -L "$destination" || die 'archive already exists; refusing overwrite'
+  mv -T "$stage" "$destination"
+  stage=
+}
+prune() {
+  for kind in daily weekly; do
+    keep=14; test "$kind" != weekly || keep=8
+    find "$backup_root/$kind" -mindepth 1 -maxdepth 1 -type d -name 'ranking-*' -print | sort -r | awk -v keep="$keep" 'NR > keep' |
+      while IFS= read -r archive; do remove_archive "$archive"; done
+  done
+}
+
+test "$(id -u)" = 0 || die 'run as the trusted maintenance administrator (root)'
+directory "$backup_root"
+test "$(stat -c %u "$backup_root")" = 0 || die 'backup root must be root-owned'
+mkdir "$backup_root/.lock" 2>/dev/null || die 'another backup is active (inspect a stale lock before removing it)'
+locked=true
+
+case ${1:-} in
+  backup)
+    test "$#" -eq 1 || die 'backup accepts no arguments'
+    directory "$data_root"
+    regular "$data_root/ranking.sqlite"
+    test "$(stat -c %u "$data_root")" = 1000 || die 'data directory must belong to UID 1000'
+    test "$(stat -c %u "$data_root/ranking.sqlite")" = 1000 && test "$(stat -c %a "$data_root/ranking.sqlite")" = 600 || die 'database must be UID 1000 with mode 0600'
+    case "$backup_root/" in "$data_root/"*) die 'backups must be outside application data' ;; esac
+    case "$data_root/" in "$backup_root/"*) die 'application data must be outside backups' ;; esac
+    image=${RANKING_BACKUP_IMAGE:-}
+    if test -z "$image"; then
+      regular "$state_file"
+      sha=$(cat "$state_file")
+      test "$(wc -c < "$state_file")" -eq 41 || die 'invalid current release state'
+      image=$image_repo:$sha
+    fi
+    valid_image "$image"
+    for kind in daily weekly; do
+      test -e "$backup_root/$kind" || mkdir "$backup_root/$kind"
+      directory "$backup_root/$kind"
+      test "$(stat -c %u "$backup_root/$kind")" = 0 || die 'archive directories must be root-owned'
+    done
+    work_directory
+    "$docker_bin" run --rm --network none --read-only --cap-drop ALL \
+      --security-opt no-new-privileges --user 1000:1000 \
+      --mount "type=bind,src=$data_root,dst=/data,readonly" \
+      --mount "type=bind,src=$stage,dst=/snapshot" \
+      --env RANKING_DATABASE=/data/ranking.sqlite --entrypoint node "$image" \
+      --experimental-transform-types scripts/ranking-db.ts backup /snapshot/database.sqlite >/dev/null
+    normalize_snapshot
+    check_snapshot
+    seal_archive
+    suffix=${stage##*/.work-}
+    daily=$backup_root/daily/ranking-$(date -u +%Y%m%dT%H%M%SZ)-$suffix
+    publish_archive "$daily"
+    weekly=$backup_root/weekly/ranking-$(date -u +%GW%V)
+    if test ! -e "$weekly" && test ! -L "$weekly"; then
+      work_directory
+      cp "$daily/database.sqlite" "$stage/database.sqlite"
+      seal_archive
+      publish_archive "$weekly"
+    fi
+    prune
+    printf '%s\n' "$daily"
+    ;;
+  verify)
+    test "$#" -eq 2 || die 'verify requires one archive directory'
+    archive=$2
+    directory "$archive"
+    case "$archive" in "$backup_root"/daily/ranking-*|"$backup_root"/weekly/ranking-*) ;; *) die 'archive must be inside configured backups' ;; esac
+    for name in database.sqlite SHA256SUMS image.txt; do regular "$archive/$name"; done
+    grep -Eq '^[0-9a-f]{64}  database\.sqlite$' "$archive/SHA256SUMS" || die 'invalid checksum record'
+    test "$(wc -l < "$archive/SHA256SUMS")" -eq 1 || die 'invalid checksum record'
+    (cd "$archive" && sha256sum -c SHA256SUMS >/dev/null)
+    image=$(cat "$archive/image.txt")
+    valid_image "$image"
+    work_directory
+    cp "$archive/database.sqlite" "$stage/database.sqlite"
+    chown 1000:1000 "$stage/database.sqlite"
+    chmod 600 "$stage/database.sqlite"
+    check_snapshot
+    printf '%s\n' 'Isolated restore verification passed; live database was not mounted'
+    ;;
+  *) die 'usage: ranking-backup backup | verify /absolute/archive/directory' ;;
+esac

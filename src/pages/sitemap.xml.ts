@@ -2,7 +2,6 @@ import type { APIContext } from 'astro'
 import { SITE } from '../config/site'
 import { getPublishedMoments } from '../lib/moments'
 import { getPublishedPosts, toPostCard } from '../lib/posts'
-import { rankings } from '../lib/ranking-fixtures'
 import { buildSitemapEntries, renderSitemap } from '../lib/seo'
 
 export async function GET(context: APIContext) {
@@ -12,7 +11,7 @@ export async function GET(context: APIContext) {
   ])
   const entries = buildSitemapEntries({
     origin: context.site?.origin ?? SITE.origin,
-    rankingIds: rankings.map((ranking) => ranking.id),
+    rankingIds: [],
     posts: posts.map((post) => ({
       slug: toPostCard(post).slug,
       publishedAt: post.data.publishedAt,

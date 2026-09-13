@@ -15,17 +15,19 @@ interface Props {
   description?: string
   image?: string
   noindex?: boolean
+  canonicalUrl?: string
 }
 
 const {
   title,
   description = SITE.description,
   image,
-  noindex = false
+  noindex = false,
+  canonicalUrl,
 } = Astro.props
 
 const pageTitle = title ? `${title} · ${SITE.title}` : SITE.title
-const canonical = new URL(Astro.url.pathname, SITE.origin)
+const canonical = new URL(canonicalUrl ?? Astro.url.pathname, SITE.origin)
 const socialImage = image ? new URL(image, SITE.origin) : undefined
 const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
 const previewBranch = import.meta.env.PUBLIC_PREVIEW_BRANCH || 'editor-preview'

@@ -13,6 +13,12 @@ dist
 node_modules
 playwright-report
 test-results
+.playwright-cli
+output/playwright
 docs
 tests/e2e
 media/assets
+.ranking-data
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

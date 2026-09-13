@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24.18.0 <25"
   },
   "scripts": {
     "dev": "node scripts/ensure-content-cache-mode.mjs && astro dev",
@@ -19,14 +19,16 @@
     "media:validate": "media-publisher validate --manifest media/media.yaml --lock media/media.lock.json",
     "media:publish": "media-publisher publish --manifest media/media.yaml --lock media/media.lock.json --credentials github-oidc --bucket $MEDIA_COS_BUCKET --region $MEDIA_COS_REGION --report .media-publish-report.json",
     "media:verify": "media-publisher verify --lock media/media.lock.json --all",
-    "build:astro": "node scripts/ensure-content-cache-mode.mjs && astro build",
-    "build:search": "pagefind --site dist",
+    "build:astro": "node scripts/ensure-content-cache-mode.mjs && astro build && node scripts/ranking-preview.mjs",
+    "build:search": "pagefind --site dist/client",
     "build": "pnpm check && pnpm test:unit && pnpm build:astro && pnpm build:search",
-    "preview": "astro preview"
+    "preview": "node scripts/blog-server.mjs",
+    "ranking:db": "node --experimental-transform-types scripts/ranking-db.ts"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "7.2.1",
     "@astrojs/mdx": "7.0.2",
+    "@astrojs/node": "11.1.0",
     "@astrojs/rss": "4.0.19",
     "@fontsource-variable/manrope": "5.2.8",
     "@fontsource-variable/noto-sans-sc": "5.2.10",

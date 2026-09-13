@@ -1,0 +1,28 @@
+---
+import '../../styles/ranking.css'
+interface Props { renderedUser?: string }
+const { renderedUser } = Astro.props
+---
+<div class="ranking-app" data-ranking-rendered-user={renderedUser} data-pagefind-ignore>
+  <nav class="ranking-nav" aria-label="榜单导航">
+    <a href="/ranking/" data-astro-reload>全部榜单</a>
+    <a href="/ranking/new/" data-astro-reload>新建榜单</a>
+    <a href="/ranking/mine/" data-astro-reload>我的投稿</a>
+    <a href="/ranking/manage/" data-ranking-admin hidden data-astro-reload>审核管理</a>
+    <span class="ranking-account" data-ranking-account>访客可试排，登录后提交</span>
+  </nav>
+  <slot />
+</div>
+<script>
+  import { initRanking } from '../../scripts/ranking-client'
+  let dispose = () => {}
+  let mounted: Element | null = null
+  const init = () => {
+    const root = document.querySelector('.ranking-app')
+    if (root === mounted) return
+    dispose(); mounted = root; dispose = initRanking()
+  }
+  init()
+  document.addEventListener('astro:page-load', init)
+  document.addEventListener('astro:before-swap', () => { dispose(); mounted = null })
+</script>

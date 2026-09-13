@@ -1,0 +1,10 @@
+---
+interface Props { page: number; count: number; param?: string }
+const { page, count, param = 'page' } = Astro.props
+const link = (number: number) => { const url = new URL(Astro.url); url.searchParams.set(param, String(number)); return url.pathname + url.search }
+---
+{(page > 1 || count >= 20) && <nav class="ranking-pagination" aria-label="分页">
+  {page > 1 && <a href={link(page - 1)} data-astro-reload>← 上一页</a>}
+  <span>第 {page} 页</span>
+  {count >= 20 && <a href={link(page + 1)} data-astro-reload>下一页 →</a>}
+</nav>}

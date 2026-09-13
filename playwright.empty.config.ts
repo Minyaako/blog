@@ -9,10 +9,11 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    command: 'pnpm build && pnpm preview --host 127.0.0.1 --port 4322',
+    command: 'pnpm build && pnpm preview',
     url: 'http://127.0.0.1:4322',
+    timeout: 120_000,
     reuseExistingServer: !process.env.CI,
-    env: { BLOG_E2E_EMPTY_CONTENT: 'true' }
+    env: { BLOG_E2E_EMPTY_CONTENT: 'true', HOST: '127.0.0.1', PORT: '4322' }
   },
   projects: [
     {

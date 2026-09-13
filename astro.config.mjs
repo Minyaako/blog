@@ -6,17 +6,23 @@ import {
   transformerNotationHighlight,
   transformerRemoveLineBreak
 } from '@shikijs/transformers'
-import { defineConfig } from 'astro/config'
+import { defineConfig, sessionDrivers } from 'astro/config'
+import node from '@astrojs/node'
 import icon from 'astro-icon'
 import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
 import { transformerCodePanel } from './src/lib/code-panel-transformer.mjs'
+import { musicModelPlugin } from './scripts/music-model-plugin.mjs'
 import rehypeLinkCards from './src/lib/rehype-link-cards.mjs'
 
 export default defineConfig({
   site: 'https://gsk.minyako.top',
   output: 'static',
+  // Authentication uses SQLite sessions; avoid the adapter's unused filesystem store.
+  session: { driver: sessionDrivers.memory() },
+  adapter: node({ mode: 'standalone', bodySizeLimit: 256 * 1024, staticHeaders: true }),
   trailingSlash: 'always',
+  vite: { plugins: [musicModelPlugin()] },
   integrations: [
     mdx(),
     icon({

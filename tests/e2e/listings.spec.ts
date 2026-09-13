@@ -1,11 +1,38 @@
 import { expect, test } from './fixtures'
 
-test('small features permanently exposes the moments route', async ({ page }) => {
+test('small features stays accessible after client navigation and closes predictably', async ({ page }) => {
   await page.goto('/')
 
   const menu = page.locator('[data-small-features]')
-  await menu.getByRole('button', { name: '小功能' }).click()
+  const trigger = menu.getByRole('button', { name: '小功能' })
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
   await expect(menu.getByRole('link', { name: '动态' })).toHaveAttribute('href', '/moments/')
+  await expect(trigger.locator('svg')).toHaveAttribute('aria-hidden', 'true')
+  const icon = await trigger.locator('svg').boundingBox()
+  expect(icon?.width).toBeGreaterThanOrEqual(12)
+  expect(icon!.x + icon!.width).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth))
+  await page.getByRole('heading', { name: '四个内容领域' }).click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+
+  // This must be a ClientRouter navigation, not page.goto followed by a fresh script execution.
+  await page.getByRole('link', { name: '归档', exact: true }).click()
+  await expect(page).toHaveURL(/\/archives\/$/)
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  for (const key of ['Enter', 'Space', 'ArrowDown']) {
+    await trigger.focus()
+    await page.keyboard.press(key)
+    await expect(menu.getByRole('link', { name: '动态' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(trigger).toBeFocused()
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  }
+  await trigger.click()
+  await page.getByRole('button', { name: '切换主题' }).focus()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
 })
 
 test('archive cards keep images clipped and show the visual novel cover', async ({ page }) => {

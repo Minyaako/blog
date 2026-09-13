@@ -1,0 +1,10 @@
+---
+import type { RankingSubmission } from '../../lib/ranking'
+interface Props { entries: RankingSubmission[] }
+const { entries } = Astro.props
+const names = { pending: '待审核', published: '已发布', rejected: '已退回', withdrawn: '已撤回' }
+---
+{entries.length ? <ol class="ranking-directory">{entries.map(entry => <li>
+  <a href={`/ranking/submissions/${entry.id}/`} data-astro-reload><strong>{entry.payload.title}</strong><span class="ranking-badge">{names[entry.status]}</span><span class="ranking-muted"><time datetime={entry.submittedAt}>{new Date(entry.submittedAt).toLocaleString('zh-CN')}</time></span></a>
+  {entry.reason && <p class="ranking-reason">{entry.reason}</p>}
+</li>)}</ol> : <p class="ranking-empty">暂时没有投稿。</p>}

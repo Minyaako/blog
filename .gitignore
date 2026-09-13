@@ -6,6 +6,12 @@ dist/
 .superpowers/
 playwright-report/
 test-results/
+.playwright-cli/
+output/playwright/
 .media-publish-report.json
 .DS_Store
 Thumbs.db
+.ranking-data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
