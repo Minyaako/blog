@@ -4,7 +4,10 @@ RUN corepack enable && corepack prepare pnpm@11.7.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm build
+RUN --mount=type=secret,id=youtube_data_api_key \
+  if [ -f /run/secrets/youtube_data_api_key ]; then \
+    export YOUTUBE_DATA_API_KEY="$(cat /run/secrets/youtube_data_api_key)"; \
+  fi; pnpm build
 
 FROM caddy:2.10.2-alpine
 RUN setcap -r /usr/bin/caddy

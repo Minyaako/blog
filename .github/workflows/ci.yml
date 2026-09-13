@@ -105,6 +105,8 @@ jobs:
           context: .
           push: true
           tags: ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}
+          secrets: |
+            youtube_data_api_key=${{ secrets.YOUTUBE_DATA_API_KEY }}
       - name: Verify immutable image exists
         if: ${{ github.event_name == 'workflow_dispatch' || github.run_attempt != 1 }}
         run: docker buildx imagetools inspect ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}
