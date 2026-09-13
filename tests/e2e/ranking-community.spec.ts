@@ -210,15 +210,29 @@ test('touch body scrolls naturally while a 44px handle starts and cancels sortin
   const body = await items(page).first().locator('.ranking-item-copy').boundingBox()
   if (!body) throw new Error('Missing row body')
   const cdp = await page.context().newCDPSession(page)
+  const scrollBefore = await page.evaluate(() => scrollY)
+  // A native swipe can keep scrolling after touchEnd. Register before the swipe
+  // so the next gesture cannot race the compositor's remaining fling.
+  const bodyScroll = await page.evaluateHandle(() => ({
+    finished: new Promise<void>(resolve => document.addEventListener('scrollend', () => resolve(), { once: true })),
+  }))
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: body.x + 25, y: body.y + 20 }] })
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: body.x + 25, y: body.y - 45 }] })
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await bodyScroll.evaluate(state => state.finished)
+  await bodyScroll.dispose()
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(scrollBefore)
   await expect(page.locator('[data-draft-intent]')).not.toBeVisible()
   await expect(page.locator('.ranking-drag-ghost')).toHaveCount(0)
   await page.locator('[data-handle]').first().evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
+  await page.locator('[data-handle]').first().tap({ trial: true })
   const handle = await page.locator('[data-handle]').first().boundingBox()
   if (!handle) throw new Error('Missing touch handle')
   expect(handle.width).toBeGreaterThanOrEqual(44); expect(handle.height).toBeGreaterThanOrEqual(44)
+  expect(await page.locator('[data-handle]').first().evaluate(el => {
+    const rect = el.getBoundingClientRect()
+    return el.contains(document.elementFromPoint(rect.x + 20, rect.y + 20))
+  }), 'The touch start must hit the handle after native scrolling finishes').toBe(true)
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: handle.x + 20, y: handle.y + 20 }] })
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: handle.x + 20, y: handle.y + 32 }] })
   await editorReady(page)
