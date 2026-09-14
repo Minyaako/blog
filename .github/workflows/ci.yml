@@ -101,6 +101,7 @@ jobs:
           username: ${{ secrets.TCR_USERNAME }}
           password: ${{ secrets.TCR_PASSWORD }}
       - uses: docker/build-push-action@v6
+        timeout-minutes: 12
         if: ${{ github.event_name == 'push' && github.run_attempt == 1 }}
         with:
           context: .
