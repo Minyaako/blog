@@ -99,20 +99,35 @@ jobs:
             [system]
               maxRegistryConcurrency = 1
       - uses: docker/login-action@v3
-        if: ${{ github.event_name == 'push' && github.run_attempt == 1 }}
         with:
           registry: ccr.ccs.tencentyun.com
           username: ${{ secrets.TCR_USERNAME }}
           password: ${{ secrets.TCR_PASSWORD }}
-      - uses: docker/build-push-action@v6
+      - name: Install registry transport
+        timeout-minutes: 5
+        if: ${{ github.event_name == 'push' && github.run_attempt == 1 }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends skopeo
+      - name: Build OCI image
+        uses: docker/build-push-action@v6
         timeout-minutes: 12
         if: ${{ github.event_name == 'push' && github.run_attempt == 1 }}
         with:
           context: .
-          push: true
+          push: false
+          outputs: type=oci,dest=/tmp/blog-image.tar
+          provenance: mode=max
           tags: ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}
           secrets: |
             youtube_data_api_key=${{ secrets.YOUTUBE_DATA_API_KEY }}
+      - name: Publish verified OCI image
+        timeout-minutes: 12
+        if: ${{ github.event_name == 'push' && github.run_attempt == 1 }}
+        env:
+          BLOG_OCI_ARCHIVE: /tmp/blog-image.tar
+          BLOG_IMAGE: ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}
+        run: node scripts/publish-oci.mjs
       - name: Verify immutable image exists
         if: ${{ github.event_name == 'workflow_dispatch' || github.run_attempt != 1 }}
         run: docker buildx imagetools inspect ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}

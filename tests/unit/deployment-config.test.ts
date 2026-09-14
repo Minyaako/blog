@@ -92,24 +92,34 @@ describe('release trust boundaries', () => {
       with: { 'buildkitd-config-inline': '[system]\n  maxRegistryConcurrency = 1\n' },
     })
     expect(findAction('docker/login-action@v3')).toEqual({
-      uses: 'docker/login-action@v3', if: firstPush,
+      uses: 'docker/login-action@v3',
       with: {
         registry: 'ccr.ccs.tencentyun.com',
         username: '${{ secrets.TCR_USERNAME }}', password: '${{ secrets.TCR_PASSWORD }}',
       },
     })
     expect(findAction('docker/build-push-action@v6')).toEqual({
-      uses: 'docker/build-push-action@v6', if: firstPush,
+      name: 'Build OCI image', uses: 'docker/build-push-action@v6', if: firstPush,
       'timeout-minutes': 12,
-      with: { context: '.', push: true, tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
+      with: { context: '.', push: false, outputs: 'type=oci,dest=/tmp/blog-image.tar', provenance: 'mode=max',
+        tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
         secrets: 'youtube_data_api_key=${{ secrets.YOUTUBE_DATA_API_KEY }}\n' },
+    })
+    expect(image.steps.find((step: { name?: string }) => step.name === 'Install registry transport')).toEqual({
+      name: 'Install registry transport', 'timeout-minutes': 5, if: firstPush,
+      run: 'sudo apt-get update\nsudo apt-get install -y --no-install-recommends skopeo\n',
+    })
+    expect(image.steps.find((step: { name?: string }) => step.name === 'Publish verified OCI image')).toEqual({
+      name: 'Publish verified OCI image', 'timeout-minutes': 12, if: firstPush,
+      env: { BLOG_OCI_ARCHIVE: '/tmp/blog-image.tar', BLOG_IMAGE: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}' },
+      run: 'node scripts/publish-oci.mjs',
     })
     expect(image.steps.find((step: { name?: string }) => step.name === 'Verify immutable image exists')).toEqual({
       name: 'Verify immutable image exists',
       if: "${{ github.event_name == 'workflow_dispatch' || github.run_attempt != 1 }}",
       run: 'docker buildx imagetools inspect ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
     })
-    expect(image.steps).toHaveLength(5)
+    expect(image.steps).toHaveLength(7)
     const deployStep = jobs['deploy-production'].steps.find((step: { name?: string }) => step.name === 'Deploy immutable image')
     expect(deployStep.run).toContain('"deploy ${{ github.sha }}"')
     expect(deployStep.run).toContain('ssh -o BatchMode=yes')
