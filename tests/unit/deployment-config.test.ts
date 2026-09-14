@@ -97,6 +97,7 @@ describe('release trust boundaries', () => {
     })
     expect(findAction('docker/build-push-action@v6')).toEqual({
       uses: 'docker/build-push-action@v6', if: firstPush,
+      'timeout-minutes': 12,
       with: { context: '.', push: true, tags: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}',
         secrets: 'youtube_data_api_key=${{ secrets.YOUTUBE_DATA_API_KEY }}\n' },
     })
