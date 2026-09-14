@@ -13,6 +13,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
 import { transformerCodePanel } from './src/lib/code-panel-transformer.mjs'
 import { musicModelPlugin } from './scripts/music-model-plugin.mjs'
+import { walineDialogPlugin } from './scripts/waline-dialog-plugin.mjs'
 import rehypeLinkCards from './src/lib/rehype-link-cards.mjs'
 
 export default defineConfig({
@@ -22,7 +23,7 @@ export default defineConfig({
   session: { driver: sessionDrivers.memory() },
   adapter: node({ mode: 'standalone', bodySizeLimit: 256 * 1024, staticHeaders: true }),
   trailingSlash: 'always',
-  vite: { plugins: [musicModelPlugin()] },
+  vite: { plugins: [musicModelPlugin(), walineDialogPlugin()] },
   integrations: [
     mdx(),
     icon({

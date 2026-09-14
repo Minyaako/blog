@@ -17,6 +17,7 @@ describe('Waline comment provider', () => {
     expect(probe).toHaveBeenCalledOnce()
     expect(init).toHaveBeenCalledWith({
       ...WALINE_OPTIONS,
+      __blogDialogs: { alert: expect.any(Function), confirm: expect.any(Function), isActive: expect.any(Function), isCurrentUser: expect.any(Function) },
       el: target,
       path: 'engineering-astro-content-architecture'
     })

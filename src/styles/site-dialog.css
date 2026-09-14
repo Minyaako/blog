@@ -1,0 +1,36 @@
+.site-dialog {
+  box-sizing: border-box;
+  width: min(calc(100% - 2rem), 34rem);
+  max-width: calc(100% - 2rem);
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: clamp(1.25rem, 5vw, 2rem);
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--canvas);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+  font-family: var(--font-body);
+}
+.site-dialog::backdrop { background: rgb(9 8 12 / .72); }
+.site-dialog [hidden] { display: none !important; }
+.site-dialog h2 { margin: 0 0 1rem; font: 750 var(--text-title)/1.35 var(--font-display); overflow-wrap: anywhere; }
+.site-dialog-message { margin: 0 0 1.25rem; color: var(--text-muted); line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.site-dialog label { display: block; margin-bottom: .5rem; font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere; }
+.site-dialog input {
+  box-sizing: border-box;
+  width: 100%; min-width: 0; min-height: 44px;
+  padding: .7rem;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); font: inherit;
+}
+.site-dialog-error { margin: .5rem 0 0; color: var(--text); font-size: .85rem; line-height: 1.6; }
+.site-dialog input[aria-invalid=true] { border-width: 2px; }
+.site-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+.site-dialog button { min-width: 5.5rem; min-height: 44px; padding: .6rem 1rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: 500 .9rem/1.5 var(--font-body); cursor: pointer; overflow-wrap: anywhere; }
+.site-dialog button:hover { border-color: var(--accent); }
+.site-dialog .site-dialog-confirm { background: var(--accent); color: var(--canvas); border-color: var(--accent); }
+.site-dialog[data-danger=true] .site-dialog-confirm, .site-dialog button[data-danger=true] { border: 2px solid var(--text); }
+.site-dialog :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 24rem) { .site-dialog-actions { flex-direction: column-reverse; }.site-dialog button { width: 100%; } }

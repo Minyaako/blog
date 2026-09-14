@@ -3,6 +3,7 @@ import type { CommentProvider } from './contracts'
 
 import { COMMENT_SERVER_URL } from '../waline-config'
 import { restoreWalineTabLogin } from '../../scripts/ranking-waline'
+import { createWalineDialogs } from './waline-dialogs'
 const COMMENT_EMOJI_PATH = '/comments/emoji/tw-emoji'
 type EmojiPresetList = Exclude<WalineInitOptions['emoji'], boolean | undefined>
 type EmojiPreset = EmojiPresetList[number]
@@ -35,7 +36,7 @@ export const WALINE_OPTIONS = {
 } satisfies Omit<WalineInitOptions, 'el' | 'path'>
 
 type WalineModule = {
-  init(options: WalineInitOptions): { destroy(): void } | null
+  init(options: WalineInitOptions & { __blogDialogs: ReturnType<typeof createWalineDialogs> }): { destroy(): void } | null
 }
 
 export interface WalineDependencies {
@@ -62,17 +63,23 @@ export function createWalineProvider(
 ): CommentProvider {
   let instance: { destroy(): void } | undefined
   let mounting: Promise<void> | undefined
+  let lifecycle: AbortController | undefined
 
   return {
     mount(target, pageKey) {
       if (instance) return Promise.resolve()
       if (mounting) return mounting
 
-      mounting = (async () => {
+      const controller = new AbortController()
+      lifecycle = controller
+      const pending = (async () => {
         await dependencies.probe()
+        if (controller.signal.aborted) return
         const { init } = await dependencies.load()
+        if (controller.signal.aborted) return
         const mounted = init({
           ...WALINE_OPTIONS,
+          __blogDialogs: createWalineDialogs(controller.signal),
           emoji: [resolveEmojiPreset()],
           el: target,
           path: pageKey
@@ -81,12 +88,15 @@ export function createWalineProvider(
         instance = mounted
         if (typeof window !== 'undefined') restoreWalineTabLogin()
       })().finally(() => {
-        mounting = undefined
+        if (mounting === pending) mounting = undefined
       })
-
+      mounting = pending
       return mounting
     },
     dispose() {
+      lifecycle?.abort()
+      lifecycle = undefined
+      mounting = undefined
       instance?.destroy()
       instance = undefined
     }

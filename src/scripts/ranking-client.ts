@@ -1,6 +1,7 @@
 import { RANKING_BODY_LIMIT, rankingCategories, validateSubmissionInput, type RankingPayload, type RankingSource, type RankingSubmission, type RankingUser, type SubmissionInput } from '../lib/ranking'
 import { DraftConflict, RankingDraftStore, parseDraftImport, type RankingDraft } from './ranking-draft'
 import { rankingSort } from './ranking-sort'
+import { chooseDialog, confirmDialog, promptDialog } from './site-dialog'
 import { clearWalineCredential, readWalineCredential, receiveWalineLogin, reserveWalinePopup, storeWalineCredential, walineFingerprint, WALINE_USER_KEY, type WalineCredential } from './ranking-waline'
 
 type Session = { user: RankingUser | null; csrfToken: string | null; isAdmin: boolean; login: { label: string; url: string; serverURL: string } | null }
@@ -13,6 +14,8 @@ export function initRanking(): () => void {
   const root = document.querySelector<HTMLElement>('.ranking-app')
   if (!root) return () => {}
   const lifecycle = new AbortController(), signal = lifecycle.signal
+  const actionDialogs = new AbortController()
+  const actionSignal = AbortSignal.any([signal, actionDialogs.signal])
   const q = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)
   let session: Session = { user: null, csrfToken: null, isAdmin: false, login: null }
   let editor: ReturnType<typeof createEditor> | undefined
@@ -68,6 +71,7 @@ export function initRanking(): () => void {
   }
   const freezeIdentity = async () => {
     identityChanged = true
+    actionDialogs.abort()
     await editor?.suspend()
     hidePrivateContent()
     q('[data-ranking-account]')!.textContent = '账号已变化，旧草稿保留在原身份下。请刷新页面继续；也可先下载草稿。'
@@ -190,49 +194,67 @@ export function initRanking(): () => void {
   document.addEventListener('visibilitychange', () => void checkIdentity(), { signal })
   window.addEventListener('storage', event => { if (event.key === WALINE_USER_KEY || event.key === null) void checkIdentity() }, { signal })
 
+  let pendingAction = false
   root.addEventListener('click', async event => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-ranking-action]')
-    if (!button || button.disabled) return
+    if (!button || button.disabled || pendingAction) return
+    pendingAction = true
     await ready
+    if (signal.aborted || !button.isConnected) { pendingAction = false; return }
     const status = q('[data-action-status]')!
     const action = button.dataset.rankingAction!, id = button.dataset.id!
     let path: string, body: object
+    try {
     if (action === 'withdraw') {
-      if (!confirm('撤回这条待审投稿？撤回后可继续修改。')) return
+      if (!await confirmDialog({ title: '撤回投稿', message: '撤回这条待审投稿？撤回后可继续修改。', confirmLabel: '撤回投稿', signal: actionSignal })) return
       path = `/api/ranking/submissions/${id}/withdraw/`; body = {}
     } else if (action === 'approve' || action === 'reject') {
       const reason = q<HTMLTextAreaElement>('[data-review-reason]')?.value.trim() || ''
       if (action === 'reject' && !reason) { status.textContent = '请填写退回原因。'; q('[data-review-reason]')?.focus(); return }
-      if (action === 'approve' && !confirm('审核通过后将立即公开这份内容。确认发布？')) return
+      if (action === 'approve' && !await confirmDialog({ title: '发布榜单', message: '审核通过后将立即公开这份内容。确认发布？', confirmLabel: '确认发布', signal: actionSignal })) return
       path = `/api/ranking/manage/submissions/${id}/review/`; body = { decision: action, reason }
     } else {
-      const reason = prompt(action === 'hide' ? '填写下架原因（仅管理端记录）：' : '填写恢复原因（仅管理端记录）：')?.trim()
+      const reason = await promptDialog({ title: action === 'hide' ? '下架榜单' : '恢复榜单', message: '原因仅在管理端记录，不会公开。', label: action === 'hide' ? '下架原因' : '恢复原因', confirmLabel: action === 'hide' ? '确认下架' : '确认恢复', danger: action === 'hide', maxLength: 1000, signal: actionSignal })
       if (!reason) return
       path = `/api/ranking/manage/rankings/${id}/visibility/`; body = { hidden: action === 'hide', reason }
     }
+    if (signal.aborted) return
     button.disabled = true; status.textContent = '正在处理…'
-    try { await write(path, body); location.reload() }
-    catch (e) { status.textContent = e instanceof Error ? e.message : '操作失败，请重试。'; button.disabled = false }
+    await write(path, body); location.reload()
+    } catch (e) { if (!signal.aborted) status.textContent = e instanceof Error ? e.message : '操作失败，请重试。' }
+    finally { button.disabled = false; pendingAction = false }
   }, { signal })
 
   // Intercept links before Astro's router; a real navigation starts only after the draft transaction.
+  let leaving = false
   document.addEventListener('click', async event => {
     const anchor = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href]')
     if (!editor || !anchor || anchor.target === '_blank' || anchor.hasAttribute('download') || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0 || anchor.hash && anchor.pathname === location.pathname) return
     event.preventDefault(); event.stopImmediatePropagation()
-    if (await editor.beforeLeave()) location.assign(anchor.href)
+    if (leaving) return
+    leaving = true
+    try { if (await editor.beforeLeave() && !signal.aborted) location.assign(anchor.href) }
+    finally { leaving = false }
   }, { capture: true, signal })
   document.addEventListener('astro:before-preparation', (event: Event) => {
-    const navigation = event as Event & { loader?: () => Promise<unknown> }
+    const navigation = event as Event & { loader?: () => Promise<unknown>; signal?: AbortSignal }
     if (!editor || !navigation.loader) return
     const loader = navigation.loader
-    navigation.loader = async () => { await editor?.flush(); return loader() }
+    navigation.loader = async () => {
+      if (editor && !await editor.beforeLeave(navigation.signal)) { event.preventDefault(); return }
+      if (signal.aborted) { event.preventDefault(); return }
+      return loader()
+    }
   }, { signal })
-  window.addEventListener('beforeunload', event => { if (editor?.hasUnsaved()) event.preventDefault() }, { signal })
+  // Unload cannot await custom UI. Save early without a native browser prompt.
+  window.addEventListener('pagehide', () => { void editor?.flush() }, { signal })
+  document.addEventListener('visibilitychange', () => { if (document.hidden) void editor?.flush() }, { signal })
   return () => { void editor?.flush(); lifecycle.abort() }
 }
 
 function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown: () => boolean, write: <T>(url: string, body: unknown) => Promise<T>, signal: AbortSignal) {
+  const dialogs = new AbortController()
+  const dialogSignal = AbortSignal.any([signal, dialogs.signal])
   const config = JSON.parse(root.dataset.config!) as EditorConfig
   const q = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!
   const list = q('[data-ranking-items]'), status = q('[data-editor-status]'), saveStatus = q('[data-save-status]')
@@ -240,7 +262,7 @@ function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown
   const owner = sessionKnown() ? getSession().user?.id || 'anonymous' : `unverified-${crypto.randomUUID()}`
   const storage = new RankingDraftStore()
   let draft: RankingDraft | undefined, existing: RankingDraft | undefined, editing = false, starting = false, suspended = false
-  let revision = 0, slotId: string | undefined, dirty = false, unavailable = !sessionKnown(), conflict = false, saving: Promise<void> = Promise.resolve(), timer = 0, sending = false
+  let revision = 0, slotId: string | undefined, dirty = false, unavailable = !sessionKnown(), conflict = false, saving: Promise<void> = Promise.resolve(), sending = false
   let preview: SubmissionInput | undefined
   const announce = (message: string) => { status.textContent = message }
   const saveMessage = () => { saveStatus.textContent = conflict ? '自动保存已暂停：其他标签页已更新' : unavailable ? '当前草稿无法自动保存，请下载备份' : dirty ? '正在保存…' : '已保存到此浏览器' }
@@ -250,7 +272,7 @@ function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown
       existing = await storage.read(owner); revision = existing?.revision ?? 0; slotId = existing?.draftId
       if (!existing && owner !== 'anonymous') {
         const anonymous = await storage.read('anonymous')
-        if (anonymous && confirm('发现此浏览器的匿名草稿。要将它归入当前账号吗？')) {
+        if (anonymous && await confirmDialog({ title: '认领匿名草稿', message: '发现此浏览器的匿名草稿。要将它归入当前账号吗？', confirmLabel: '归入当前账号', signal: dialogSignal }) && !dialogSignal.aborted) {
           existing = { ...anonymous, owner, revision: 0 }; revision = await storage.write(existing, 0, undefined); existing.revision = revision; slotId = existing.draftId
           // Copy completed before deleting the anonymous slot; failure preserves both copies.
           await storage.remove('anonymous', anonymous.revision, anonymous.draftId)
@@ -259,7 +281,6 @@ function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown
     } catch (e) { unavailable = true; announce(e instanceof Error ? e.message : '草稿无法自动保存，请下载备份。') }
   })()
   const flush = async () => {
-    clearTimeout(timer)
     saving = saving.then(async () => {
       if (!draft || !dirty || unavailable || conflict) { saveMessage(); return }
       const snapshot = clone(draft)
@@ -272,11 +293,12 @@ function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown
     })
     await saving
   }
-  const changed = (immediate = false) => {
+  const changed = (_immediate = false) => {
     if (!draft) return
     draft.contentRevision++; draft.updatedAt = new Date().toISOString(); dirty = true; preview = undefined
-    saveMessage(); clearTimeout(timer)
-    if (immediate) void flush(); else timer = window.setTimeout(() => void flush(), 350)
+    saveMessage()
+    // Begin saving on every edit instead of relying on an unload warning.
+    void flush()
   }
   const submissionResult = () => {
     const result = q('[data-submission-result]'), button = q<HTMLButtonElement>('[data-preview]')
@@ -335,10 +357,13 @@ function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown
       if (draft) existing = draft
       let reuse = false
       if (existing) {
-        reuse = confirm('此浏览器已有一份草稿。确定：继续这份草稿；取消：选择重新开始。')
+        const choice = await chooseDialog({ title: '发现本地草稿', message: '此浏览器已有一份草稿。你想继续编辑，还是重新开始？', choices: [{ value: 'reuse', label: '继续草稿' }, { value: 'restart', label: '重新开始', danger: true }], signal: dialogSignal })
+        if (choice === null || dialogSignal.aborted) return false
+        reuse = choice === 'reuse'
         if (!reuse && existing.pending) { announce('请先继续草稿，确认上次投稿结果，再新建。'); return false }
-        if (!reuse && !confirm('重新开始会替换此账号的活动草稿。确认已下载或不再需要原草稿？')) return false
+        if (!reuse && !await confirmDialog({ title: '替换本地草稿', message: '重新开始会替换此账号的活动草稿。请确认已下载备份，或不再需要原草稿。', confirmLabel: '替换并新建', danger: true, signal: dialogSignal })) return false
       }
+      if (dialogSignal.aborted || suspended) return false
       if (reuse && existing) {
         draft = clone(existing)
         // A terminal submission page is server-authorized to resume this same target.
@@ -408,7 +433,8 @@ function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown
     if (button.hasAttribute('data-export')) { exportDraft(); return }
     if (button.hasAttribute('data-discard')) {
       if (draft.pending) { announce('请先确认上次投稿结果，或下载草稿留存，不能丢弃未确认请求。'); return }
-      if (!confirm('确认丢弃这份本地草稿？已经提交的投稿不受影响。')) return
+      if (!await confirmDialog({ title: '丢弃本地草稿', message: '确认丢弃这份本地草稿？已经提交的投稿不受影响。', confirmLabel: '丢弃草稿', danger: true, signal: dialogSignal }) || dialogSignal.aborted) return
+      if (draft.pending || sending) { announce('投稿仍在确认中，暂时不能丢弃草稿。'); return }
       sort.cancel(); await flush()
       if (conflict) { announce('请刷新载入另一标签页的草稿后再决定是否丢弃。'); return }
       try { if (!unavailable) await storage.remove(owner, revision, slotId) } catch (e) { announce(e instanceof Error ? e.message : '丢弃失败'); return }
@@ -468,7 +494,8 @@ function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown
       if (suspended) return
       // Imported content is a new local incarnation; keep only server request IDs stable.
       imported.draftId = crypto.randomUUID()
-      if (!confirm('恢复文件会替换当前本地草稿，确认继续？')) return
+      if (!await confirmDialog({ title: '恢复草稿文件', message: '恢复文件会替换当前本地草稿，请确认已经备份需要保留的内容。', confirmLabel: '恢复并替换', danger: true, signal: dialogSignal }) || dialogSignal.aborted) return
+      if (draft?.pending || sending) throw new Error('请先确认上次投稿结果，再恢复其他草稿。')
       sort.cancel(); await flush()
       if (conflict) throw new Error('存在多标签保存冲突，请刷新后恢复。')
       draft = imported; draft.revision = revision; dirty = true; editing = true; renderMode(); await flush(); announce('草稿已恢复。')
@@ -483,15 +510,16 @@ function createEditor(root: HTMLElement, getSession: () => Session, sessionKnown
     exportDraft,
     hasDraft: () => !!draft,
     suspend: async () => {
-      suspended = true; sort.cancel(); dialog.close()
+      suspended = true; dialogs.abort(); sort.cancel(); dialog.close()
       root.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLTextAreaElement | HTMLSelectElement>('input, button, textarea, select').forEach(control => { if (!control.hasAttribute('data-export')) control.disabled = true })
       await flush(); announce('账号已变化，编辑已暂停。草稿保留在原身份下，可下载备份后刷新。')
     },
     hasUnsaved: () => !!draft && (dirty || unavailable || conflict || sending),
-    beforeLeave: async () => {
+    beforeLeave: async (navigationSignal?: AbortSignal) => {
       sort.cancel(); await flush()
-      if (draft && (unavailable || conflict || dirty) && !confirm('当前草稿尚未安全保存。建议取消并先下载草稿；仍要离开吗？')) return false
-      return true
+      const leaveSignal = navigationSignal ? AbortSignal.any([signal, navigationSignal]) : signal
+      if (draft && (unavailable || conflict || dirty || sending) && !await confirmDialog({ title: '离开编辑页', message: '当前草稿或投稿尚未安全保存。建议留在此页并先下载草稿；仍要离开吗？', confirmLabel: '仍要离开', cancelLabel: '留在此页', danger: true, signal: leaveSignal })) return false
+      return !leaveSignal.aborted
     },
   }
 }

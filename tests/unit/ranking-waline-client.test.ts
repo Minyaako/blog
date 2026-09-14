@@ -2,10 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { webcrypto } from 'node:crypto'
 import { initRanking } from '../../src/scripts/ranking-client'
+import { confirmDialog } from '../../src/scripts/site-dialog'
 import { clearWalineCredential, parseWalineCredential, readWalineCredential, receiveWalineLogin, reserveWalinePopup, restoreWalineTabLogin, storeWalineCredential, WALINE_USER_KEY, type WalineStorage } from '../../src/scripts/ranking-waline'
 
 let dispose: (() => void) | undefined
+vi.mock('../../src/scripts/site-dialog', () => ({ confirmDialog: vi.fn(async () => true), promptDialog: vi.fn(async () => null), chooseDialog: vi.fn(async () => null) }))
 beforeEach(() => {
+  vi.mocked(confirmDialog).mockResolvedValue(true)
   localStorage.clear(); sessionStorage.clear()
   vi.stubGlobal('crypto', webcrypto)
   vi.spyOn(document, 'hidden', 'get').mockReturnValue(false)
@@ -177,7 +180,7 @@ describe('ranking identity reconciliation', () => {
       return new Response(JSON.stringify({ data: server }), { status: 200 })
     })
     vi.stubGlobal('fetch', request)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(confirmDialog).mockResolvedValue(true)
     localStorage.setItem(WALINE_USER_KEY, JSON.stringify({ token: 'token-a' }))
     mount()
     await vi.waitFor(() => expect(document.body.textContent).toContain('user-a'))
@@ -185,6 +188,58 @@ describe('ranking identity reconciliation', () => {
     localStorage.setItem(WALINE_USER_KEY, JSON.stringify({ token: 'token-b' }))
     document.querySelector<HTMLButtonElement>('[data-ranking-action]')!.click()
     await vi.waitFor(() => expect(document.body.textContent).toContain('旧草稿保留在原身份下'))
+    expect(request.mock.calls.some(([url]) => url.includes('/withdraw/'))).toBe(false)
+  })
+
+  it('does not act after cancelling a site confirmation or after the page was disposed while it was open', async () => {
+    const request = vi.fn(async () => new Response(JSON.stringify({ data: signedIn('user-a') }), { status: 200 }))
+    vi.stubGlobal('fetch', request)
+    localStorage.setItem(WALINE_USER_KEY, JSON.stringify({ token: 'token-a' }))
+    mount()
+    await vi.waitFor(() => expect(document.body.textContent).toContain('user-a'))
+    document.querySelector('.ranking-app')!.insertAdjacentHTML('beforeend', '<button data-ranking-action="withdraw" data-id="submission-1">撤回</button><p data-action-status></p>')
+    const button = document.querySelector<HTMLButtonElement>('[data-ranking-action]')!
+    let answer: (value: boolean) => void = () => undefined
+    vi.mocked(confirmDialog).mockImplementation(() => new Promise(resolve => { answer = resolve }))
+    const before = request.mock.calls.length
+    button.click()
+    await vi.waitFor(() => expect(vi.mocked(confirmDialog).mock.lastCall?.[0].title).toBe('撤回投稿'))
+    const dialogCalls = vi.mocked(confirmDialog).mock.calls.length
+    button.click()
+    await Promise.resolve()
+    expect(vi.mocked(confirmDialog).mock.calls.length).toBe(dialogCalls)
+    answer(false)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(request.mock.calls.length).toBe(before)
+    button.click()
+    await vi.waitFor(() => expect(vi.mocked(confirmDialog).mock.calls.length).toBe(dialogCalls + 1))
+    dispose?.(); dispose = undefined
+    answer(true)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(request.mock.calls.length).toBe(before)
+  })
+
+  it('aborts a pending management dialog when the shared account changes', async () => {
+    let server = signedIn('user-a')
+    const request = vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.endsWith('/auth/waline/') && JSON.parse(String(options?.body)).token === 'token-b') server = signedIn('user-b')
+      return new Response(JSON.stringify({ data: server }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', request)
+    localStorage.setItem(WALINE_USER_KEY, JSON.stringify({ token: 'token-a' }))
+    mount()
+    await vi.waitFor(() => expect(document.body.textContent).toContain('user-a'))
+    document.querySelector('.ranking-app')!.insertAdjacentHTML('beforeend', '<button data-ranking-action="withdraw" data-id="submission-1">撤回</button><p data-action-status></p>')
+    let pendingSignal: AbortSignal | undefined
+    vi.mocked(confirmDialog).mockImplementation(options => new Promise(resolve => {
+      pendingSignal = options.signal
+      options.signal?.addEventListener('abort', () => resolve(false), { once: true })
+    }))
+    document.querySelector<HTMLButtonElement>('[data-ranking-action]')!.click()
+    await vi.waitFor(() => expect(pendingSignal).toBeDefined())
+    localStorage.setItem(WALINE_USER_KEY, JSON.stringify({ token: 'token-b' }))
+    window.dispatchEvent(new StorageEvent('storage', { key: WALINE_USER_KEY }))
+    await vi.waitFor(() => expect(pendingSignal?.aborted).toBe(true))
     expect(request.mock.calls.some(([url]) => url.includes('/withdraw/'))).toBe(false)
   })
 
