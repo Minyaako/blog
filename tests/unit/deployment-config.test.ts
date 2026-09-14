@@ -87,7 +87,10 @@ describe('release trust boundaries', () => {
     const findAction = (uses: string) => image.steps.find((step: { uses?: string }) => step.uses === uses)
     const firstPush = "${{ github.event_name == 'push' && github.run_attempt == 1 }}"
     expect(findAction('actions/checkout@v4')).toBeDefined()
-    expect(findAction('docker/setup-buildx-action@v3')).toBeDefined()
+    expect(findAction('docker/setup-buildx-action@v3')).toEqual({
+      uses: 'docker/setup-buildx-action@v3',
+      with: { 'buildkitd-config-inline': '[system]\n  maxRegistryConcurrency = 1\n' },
+    })
     expect(findAction('docker/login-action@v3')).toEqual({
       uses: 'docker/login-action@v3', if: firstPush,
       with: {
