@@ -29,6 +29,9 @@ interface SitemapInput {
 const STATIC_PATHS = [
   '/',
   '/about/',
+  '/home/',
+  '/academic/',
+  '/friends/',
   '/archives/',
   '/moments/',
   '/projects/',

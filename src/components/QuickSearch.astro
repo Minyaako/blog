@@ -1,0 +1,27 @@
+<dialog class="quick-search" aria-labelledby="quick-search-title" data-search-dialog data-pagefind-ignore>
+  <header><h2 id="quick-search-title">找一点感兴趣的</h2><button type="button" data-search-close aria-label="关闭搜索">关闭 <kbd>Esc</kbd></button></header>
+  <p class="search-hint">文章、标签，或一个突然想到的关键词。</p>
+  <div id="quick-search-results"></div>
+  <p data-search-status role="status" aria-live="polite">正在准备搜索…</p>
+  <a class="search-more" href="/search/">打开完整搜索页 →</a>
+  <a class="search-more" href="/archives/" data-search-archives hidden>浏览文章归档 →</a>
+</dialog>
+<script>
+  import { initQuickSearch } from '../scripts/quick-search'
+  initQuickSearch()
+</script>
+<style>
+  .quick-search { width: min(40rem, calc(100% - 2rem)); max-height: min(75dvh, 44rem); margin: 12dvh auto auto; padding: clamp(1.25rem, 4vw, 2rem); overflow-y: auto; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow-soft); }
+  .quick-search::backdrop { background: rgb(20 15 18 / .45); }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  h2 { margin: 0; font: 700 1.3rem/1.4 var(--font-display); }
+  button { display: flex; align-items: center; gap: .6rem; min-height: 44px; padding: .5rem .7rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--canvas); cursor: pointer; }
+  kbd { font-size: .75rem; color: var(--text-muted); }
+  .search-hint, [data-search-status] { color: var(--text-muted); font-size: .85rem; margin-block: 1rem; }
+  .search-more { display: inline-block; margin-top: 1.5rem; font-size: .85rem; color: var(--accent); text-underline-offset: .25em; }
+  .search-more[hidden] { display: none; }
+  [data-search-archives] { margin-left: 1.5rem; }
+  .quick-search { --pagefind-ui-primary: var(--accent); --pagefind-ui-text: var(--text); --pagefind-ui-background: var(--surface); --pagefind-ui-border: var(--border); --pagefind-ui-tag: var(--canvas); --pagefind-ui-font: var(--font-body); --pagefind-ui-scale: .9; }
+  .quick-search :global(.pagefind-ui__search-input::placeholder) { color: var(--text-muted); opacity: 1; }
+  @media(max-width: 36rem) { .quick-search { margin-top: 5dvh; max-height: 88dvh; } h2 { font-size: 1.1rem; } }
+</style>

@@ -37,12 +37,15 @@ describe('search engine discovery', () => {
     expect(entries).toEqual([
       { url: 'https://example.com/' },
       { url: 'https://example.com/about/' },
+      { url: 'https://example.com/academic/' },
       { url: 'https://example.com/archives/' },
       { url: 'https://example.com/collections/favorites/' },
       { url: 'https://example.com/domains/engineering/' },
       { url: 'https://example.com/domains/engineering/devlogs/' },
       { url: 'https://example.com/domains/games/' },
       { url: 'https://example.com/domains/games/reviews/' },
+      { url: 'https://example.com/friends/' },
+      { url: 'https://example.com/home/' },
       { url: 'https://example.com/moments/' },
       {
         url: 'https://example.com/moments/20260804-120000-abcdef12/',

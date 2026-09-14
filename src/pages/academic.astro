@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+---
+<BaseLayout title="学术" description="Minyako 的研究兴趣：脉冲神经网络（SNN）与多智能体强化学习（MARL）。">
+  <div class="academic-page">
+    <header><p class="eyebrow">Notes from the lab</p><h1>学术</h1><p class="intro">从神经元的脉冲，到智能体之间的协作。<br />这里记录我正在关注的研究方向。</p></header>
+    <section class="research-interests" aria-labelledby="interests-title">
+      <h2 id="interests-title">研究兴趣 <span>01 / INTERESTS</span></h2>
+      <div class="interest">
+        <div class="interest-mark" aria-hidden="true"><svg viewBox="0 0 120 72" fill="none"><path d="M4 44h20l6-29 8 42 7-22 5 9h21l6-29 8 42 7-22 5 9h19" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><circle cx="30" cy="15" r="4" fill="currentColor"/><circle cx="77" cy="15" r="4" fill="currentColor"/></svg></div>
+        <div><p class="abbreviation">SNN</p><h3>脉冲神经网络</h3><p>Spiking Neural Networks</p><p class="interest-note">关注以离散脉冲传递信息的神经网络，探索时间信息与事件驱动计算。</p></div>
+      </div>
+      <div class="interest">
+        <div class="interest-mark" aria-hidden="true"><svg viewBox="0 0 120 72" fill="none"><path d="m23 36 38-23 36 23-36 24-38-24Zm38-23v47m-38-24h74" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 5"/><g fill="var(--surface)" stroke="currentColor" stroke-width="2.5"><circle cx="23" cy="36" r="7"/><circle cx="61" cy="13" r="7"/><circle cx="97" cy="36" r="7"/><circle cx="61" cy="60" r="7"/></g></svg></div>
+        <div><p class="abbreviation">MARL</p><h3>多智能体强化学习</h3><p>Multi-Agent Reinforcement Learning</p><p class="interest-note">关注多个智能体在共享环境中的学习、决策与协作。</p></div>
+      </div>
+    </section>
+    <section class="academic-writing" aria-labelledby="writing-title"><h2 id="writing-title">文章与研究记录 <span>02 / WRITING</span></h2><p>暂时留白，等新的想法慢慢长出来。</p></section>
+  </div>
+</BaseLayout>
+<style>
+  .academic-page { max-width: 54rem; margin: auto; padding-block: var(--space-6); }
+  .eyebrow { color: var(--academic); font: .75rem/1.5 var(--font-mono); text-transform: uppercase; letter-spacing: .13em; }
+  h1 { margin: 1rem 0 1.5rem; font: 760 clamp(2.8rem, 7vw, 4.5rem)/1.15 var(--font-display); }
+  .intro { color: var(--text-muted); line-height: 1.9; }
+  section { margin-top: 3.5rem; }
+  h2 { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .75rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-strong); font-size: 1.1rem; }
+  h2 span { color: var(--text-muted); font: .7rem/1.5 var(--font-mono); letter-spacing: .1em; }
+  .interest { display: grid; grid-template-columns: 8rem minmax(0, 1fr); align-items: center; gap: 2rem; padding: 2rem 0; border-bottom: 1px solid var(--border); }
+  .interest-mark { color: var(--academic); }
+  .abbreviation { color: var(--academic); font: 650 1.9rem/1.2 var(--font-display); margin-bottom: .75rem; }
+  h3 { display: inline; margin: 0; font-size: 1.1rem; }
+  h3 + p { margin: .4rem 0; color: var(--text-muted); font: .78rem/1.5 var(--font-mono); }
+  .interest-note, .academic-writing > p { margin: 1rem 0 0; color: var(--text-muted); font-size: .9rem; line-height: 1.9; }
+  @media(max-width: 38rem) { .interest { grid-template-columns: 4.5rem minmax(0, 1fr); gap: 1rem; } section { margin-top: 2.5rem; } }
+</style>

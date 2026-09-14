@@ -43,7 +43,7 @@ test('homepage presents identity, four domains, and recent writing', async ({ pa
   await expect(page.getByText('@minyako')).toBeVisible()
 
   for (const label of ['学术', '技术', '生活', '游戏']) {
-    await expect(page.getByRole('link', { name: new RegExp(label) })).toBeVisible()
+    await expect(page.locator('a.domain-card').filter({ hasText: label })).toBeVisible()
   }
 
   await expect(page.getByRole('heading', { name: '最新长文' })).toBeVisible()
