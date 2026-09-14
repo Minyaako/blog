@@ -8,6 +8,9 @@ async function stabilizePageScreenshot(page: Page): Promise<void> {
 
 const routes = {
   home: '/',
+  personalHome: '/home/',
+  academic: '/academic/',
+  friends: '/friends/',
   archive: '/archives/',
   article: '/posts/astro-content-architecture/',
   game: '/posts/visual-novel-memory/',
@@ -22,6 +25,10 @@ for (const theme of ['light', 'dark'] as const) {
   for (const [name, path] of Object.entries(routes)) {
     test(`${name} ${theme}`, async ({ page }) => {
       await page.addInitScript((value) => localStorage.setItem('minyako-theme', value), theme)
+      if (name === 'friends') {
+        await page.route('https://axi404.top/avatar/avatar.png', route => route.fulfill({ path: 'public/favicon.svg', contentType: 'image/svg+xml' }))
+        await page.route('**/friends/feeds.json', route => route.fulfill({ json: { generatedAt: '2026-07-12T00:00:00Z', failed: 0, articles: [] } }))
+      }
       if (name === 'momentDetail') {
         await page.addInitScript(() => sessionStorage.setItem('minyako-warning:20260823-143501-a7c31e4f', 'accepted'))
       }

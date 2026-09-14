@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
-for (const path of ['/', '/archives/', '/moments/', '/moments/20260823-143501-a7c31e4f/', '/posts/astro-content-architecture/', '/posts/embodied-ai-reading/', '/about/', '/404.html']) {
+for (const path of ['/', '/archives/', '/moments/', '/moments/20260823-143501-a7c31e4f/', '/posts/astro-content-architecture/', '/posts/embodied-ai-reading/', '/about/', '/academic/', '/home/', '/friends/', '/404.html']) {
   test(`has no serious accessibility violations: ${path}`, async ({ page }) => {
     const response = await page.goto(path)
     if (path === '/moments/20260823-143501-a7c31e4f/') {

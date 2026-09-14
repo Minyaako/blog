@@ -2,19 +2,24 @@
 import { SITE } from '../config/site'
 import SmallFeaturesMenu from './SmallFeaturesMenu.astro'
 import ThemeToggle from './ThemeToggle.astro'
+import AppIcon from './AppIcon.astro'
+const currentPath = Astro.url.pathname
 ---
 
 <header class="site-header" data-pagefind-ignore>
   <div class="site-shell header-inner">
-    <a class="brand" href="/" aria-label={`${SITE.title} 首页`}>{SITE.title.toUpperCase()}</a>
+    <a class="brand" href="/" aria-label={`${SITE.title} 首页`}><img src="/favicon.svg" width="34" height="34" alt="" />{SITE.title.toUpperCase()}</a>
     <nav class="primary-nav" aria-label="主导航">
       <ul class="nav-list">
         {SITE.navigation.map((item) => (
-          <li><a class="nav-link" href={item.href}>{item.label}</a></li>
+          <li><a class="nav-link" href={item.href} aria-current={currentPath === item.href ? 'page' : undefined}>{item.label}</a></li>
         ))}
         <SmallFeaturesMenu />
       </ul>
     </nav>
-    <ThemeToggle />
+    <div class="header-actions">
+      <a class="icon-button" href="/search/" aria-label="搜索" title="搜索（Ctrl K / ⌘ K）" aria-keyshortcuts="Control+k Meta+k" data-quick-search><AppIcon name="lucide:search" /></a>
+      <ThemeToggle />
+    </div>
   </div>
 </header>

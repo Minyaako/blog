@@ -84,6 +84,9 @@
   }
 
   .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
     font-family: var(--font-display);
     font-size: 1.05rem;
     font-weight: 750;
@@ -92,6 +95,8 @@
   }
 
   .primary-nav { justify-self: end; }
+  .header-actions { display: flex; align-items: center; gap: var(--space-2); }
+  .nav-link[aria-current='page'] { color: var(--accent); background: var(--surface); }
   .nav-list, .social-list {
     display: flex;
     align-items: center;
@@ -186,7 +191,8 @@
 
 @media (max-width: 48rem) {
   .header-inner { grid-template-columns: 1fr auto; }
-  .primary-nav { grid-column: 1 / -1; justify-self: stretch; }
+  .header-actions { grid-column: 2; grid-row: 1; }
+  .primary-nav { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; }
   .nav-list {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));

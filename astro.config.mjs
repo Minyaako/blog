@@ -28,7 +28,7 @@ export default defineConfig({
     mdx(),
     icon({
       include: {
-        lucide: ['archive', 'book-open', 'book-open-check', 'cpu', 'coffee', 'gamepad-2', 'chevron-down', 'chevron-up', 'external-link', 'house', 'moon', 'music-2', 'panel-right-close', 'panel-right-open', 'pause', 'play', 'rss', 'search', 'shapes', 'skip-back', 'skip-forward', 'sun', 'tags', 'volume-2'],
+        lucide: ['archive', 'book-open', 'book-open-check', 'cpu', 'coffee', 'gamepad-2', 'chevron-down', 'chevron-up', 'external-link', 'house', 'mail', 'message-circle', 'moon', 'music-2', 'panel-right-close', 'panel-right-open', 'pause', 'play', 'rss', 'search', 'shapes', 'skip-back', 'skip-forward', 'sun', 'tags', 'volume-2'],
         'simple-icons': ['github']
       }
     })

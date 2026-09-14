@@ -75,7 +75,9 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
     '}'
   ].join('\n'))
   await expect(page.locator('.katex').first()).toBeVisible()
-  await expect(page.locator('[data-page-key]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
+  await expect(page.locator('[data-comment-slot]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
+  await expect(page.locator('[data-article-views]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
+  await expect(page.locator('[data-article-views-value]')).toHaveText('预览不计数')
   await expect(page.getByRole('link', { name: '#Astro' })).toHaveAttribute('href', '/tags/astro/')
 })
 

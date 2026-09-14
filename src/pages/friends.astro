@@ -1,0 +1,54 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import { friends } from '../config/friends'
+import { publicHttpsUrl } from '../lib/friends-feeds'
+
+const links = friends.filter(friend => publicHttpsUrl(friend.url))
+const hasFeeds = links.some(friend => friend.feed)
+---
+<BaseLayout title="朋友们" description="友链与朋友圈：去朋友家坐坐，看看大家最近写了什么。">
+  <article class="friends-page">
+    <header class="friends-intro">
+      <p class="eyebrow">Friends & little stories</p>
+      <h1>朋友们<span aria-hidden="true"> ✧</span></h1>
+      <p class="intro-copy">在互联网的一隅，交换故事，也交换一点日常。</p>
+      <nav aria-label="朋友们页内导航"><a href="#links">友链</a><a href="#small-circle">朋友圈</a><a href="#exchange">交换友链</a></nav>
+    </header>
+
+    <section id="links" aria-labelledby="links-title">
+      <div class="section-heading"><h2 id="links-title">去朋友家坐坐</h2><span>{links.length} 位朋友</span></div>
+      {links.length ? <ul class="friend-grid">{links.map(friend => <li><a class="friend-card" href={friend.url} target="_blank" rel="noopener noreferrer">
+        {friend.avatar && publicHttpsUrl(friend.avatar) ? <img src={friend.avatar} alt="" width="52" height="52" loading="lazy" referrerpolicy="no-referrer" /> : <span class="friend-avatar" aria-hidden="true">{friend.name.slice(0, 1)}</span>}
+        <span><strong>{friend.name}</strong><span class="friend-description">{friend.description}</span></span><span class="arrow" aria-hidden="true">↗</span>
+      </a></li>)}</ul> : <div class="empty-note"><span class="cat-mark" aria-hidden="true">ฅ^•ﻌ•^ฅ</span><p>这里还留着一些空位。</p><span>等第一位朋友带着自己的小站来敲门。</span></div>}
+    </section>
+
+    <section id="small-circle" aria-labelledby="circle-title" data-friends-circle={hasFeeds ? '' : undefined}>
+      <div class="section-heading"><h2 id="circle-title">朋友圈</h2><span>最近的文字</span></div>
+      <p class="section-copy">把朋友们的近况，轻轻收进这一页。</p>
+      {hasFeeds ? <><p class="feed-status" data-feed-status role="status">正在整理朋友们的新文章…</p><ol class="feed-list" data-feed-list></ol><noscript><p>开启 JavaScript 后可以查看订阅动态，也可以直接访问上方友链。</p></noscript></> : <div class="circle-empty"><span aria-hidden="true">✉</span><p>还没有订阅的朋友。<br /><span>有了友链和 RSS，这里就会慢慢热闹起来。</span></p></div>}
+    </section>
+
+    <section id="exchange" class="exchange" aria-labelledby="exchange-title">
+      <div><p class="eyebrow">Say hello</p><h2 id="exchange-title">来交换一枚友链吧</h2><p>欢迎带着站点名称、地址、简介和头像来找我；如果有 RSS，也请一并告诉我。</p><p class="contact">QQ <span>810225302</span></p></div>
+      <div class="exchange-details"><dl><div><dt>名称</dt><dd>Minyako的幻想乡</dd></div><div><dt>地址</dt><dd><a href="https://gsk.minyako.top/">https://gsk.minyako.top</a></dd></div><div><dt>简介</dt><dd>真希望能悠闲度日</dd></div><div><dt>头像</dt><dd><a href="/favicon.svg">https://gsk.minyako.top/favicon.svg</a></dd></div><div><dt>订阅</dt><dd><a href="/rss.xml">RSS</a></dd></div></dl><button type="button" data-copy-friend>复制本站友链信息</button><p class="copy-status" data-copy-status role="status"></p><textarea class="copy-fallback" data-copy-fallback aria-label="本站友链信息，可手动复制" readonly hidden>名称：Minyako的幻想乡
+简介：真希望能悠闲度日
+地址：https://gsk.minyako.top
+头像：https://gsk.minyako.top/favicon.svg</textarea></div>
+    </section>
+  </article>
+</BaseLayout>
+<script>import '../scripts/friends-circle'</script>
+<style>
+  .friends-page{width:min(100% - 2rem,60rem);margin-inline:auto;padding-block:var(--space-8)}
+  .eyebrow{color:var(--accent);font:var(--text-caption)/1.5 var(--font-mono);letter-spacing:.1em;text-transform:uppercase}
+  h1{margin:var(--space-3) 0 var(--space-5);font:760 clamp(2.7rem,8vw,4.8rem)/1.15 var(--font-display);letter-spacing:-.04em}h1 span{color:var(--accent);font-weight:400;font-size:.55em;vertical-align:middle}
+  .intro-copy,.section-copy{color:var(--text-muted);line-height:1.8}.friends-intro nav{display:flex;gap:var(--space-5);margin-top:var(--space-6)}.friends-intro nav a{font-size:.875rem;text-underline-offset:6px;text-decoration-color:var(--border-strong)}
+  section{margin-top:var(--space-8);scroll-margin-top:7rem}.section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:var(--space-5)}h2{font-size:1.4rem;line-height:1.5;margin:0}.section-heading>span{color:var(--text-muted);font-size:.75rem;white-space:nowrap}
+  .friend-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.friend-card{display:flex;align-items:center;gap:1rem;height:100%;padding:1.25rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);text-decoration:none}.friend-card:hover{border-color:var(--accent)}.friend-card>span:nth-child(2){min-width:0}.friend-card strong{display:block;font-size:1rem;overflow-wrap:anywhere}.friend-avatar,.friend-card img{width:52px;height:52px;flex:none;border-radius:50%;object-fit:cover}.friend-avatar{display:grid;place-items:center;background:color-mix(in srgb,var(--accent),transparent 90%);color:var(--accent);font-size:1.2rem}.friend-description{display:block;color:var(--text-muted);font-size:.8rem;line-height:1.7;margin-top:.35rem;overflow-wrap:anywhere}.arrow{margin-left:auto;color:var(--accent)}
+  .empty-note{text-align:center;border:1px dashed var(--border-strong);border-radius:var(--radius-lg);padding:2.75rem 1rem;background:color-mix(in srgb,var(--surface),transparent 30%)}.cat-mark{display:block;color:var(--accent);font-size:1.7rem;margin-bottom:1rem}.empty-note p{margin-bottom:.6rem}.empty-note>span:last-child{font-size:.875rem;color:var(--text-muted);line-height:1.7}.circle-empty{display:flex;align-items:center;gap:1.25rem;padding:1.5rem 0;border-block:1px solid var(--border)}.circle-empty>span{font-size:2rem;color:var(--accent)}.circle-empty p{margin:0;line-height:1.9}.circle-empty p span{font-size:.875rem;color:var(--text-muted)}
+  .feed-status{font-size:.8rem;color:var(--text-muted);line-height:1.8}.feed-list{margin:0;padding:0;list-style:none}.feed-list :global(li){padding:1.25rem 0;border-bottom:1px solid var(--border)}.feed-list :global(p){font-size:.75rem;color:var(--text-muted);margin-bottom:.5rem}.feed-list :global(a){font-weight:600;text-decoration:none;line-height:1.7;overflow-wrap:anywhere}.feed-list :global(a:hover){color:var(--accent);text-decoration:underline;text-underline-offset:4px}
+  .exchange{display:grid;grid-template-columns:1.2fr 1fr;gap:2.5rem;border-top:1px solid var(--border);padding-top:var(--space-7)}.exchange h2{margin-bottom:1rem}.exchange p:not(.eyebrow){font-size:.875rem;line-height:1.9;color:var(--text-muted)}.exchange .contact{color:var(--accent)}.exchange a{text-underline-offset:4px}.exchange dl{margin:0;padding:1.5rem;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border);font-size:.8rem;align-self:start}.exchange dl div{display:grid;grid-template-columns:2.5rem 1fr;gap:1rem;margin-bottom:1rem;line-height:1.6}.exchange dl div:last-child{margin-bottom:0}.exchange dt{color:var(--text-muted)}.exchange dd{margin:0;overflow-wrap:anywhere}
+  .exchange-details{min-width:0}.exchange-details button{margin-top:1rem;padding:.7rem 1rem;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--accent);cursor:pointer}.copy-status{margin-top:.5rem;min-height:1.5em}.copy-fallback{width:100%;min-height:8rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:inherit;font-size:.8rem}
+  @media(max-width:40rem){.friends-page{padding-block:var(--space-7)}.friend-grid,.exchange{grid-template-columns:1fr}.exchange{gap:1rem}section{margin-top:var(--space-7)}.section-heading{gap:.5rem}.friends-intro nav{gap:1.25rem}}
+</style>

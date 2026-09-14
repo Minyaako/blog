@@ -7,6 +7,7 @@ import { SITE } from '../config/site'
 import musicLibrary from '../content/music/library.json'
 import SiteFooter from '../components/SiteFooter.astro'
 import SiteHeader from '../components/SiteHeader.astro'
+import QuickSearch from '../components/QuickSearch.astro'
 import { parseMusicLibrary } from '../lib/music'
 import '../styles/global.css'
 
@@ -45,6 +46,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#f4f0e9" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     {(noindex || isPreview) && <meta name="robots" content="noindex, noarchive" />}
     <link rel="canonical" href={canonical} />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.title} RSS`} href="/rss.xml" />
@@ -102,6 +104,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
       <slot />
     </main>
     <SiteFooter />
+    <QuickSearch />
     {MusicPlayer && <MusicPlayer />}
     <script>
       import { initPageMotion } from '../scripts/page-motion'

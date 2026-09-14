@@ -1,0 +1,18 @@
+---
+import { CONTACT } from '../config/site'
+import AppIcon from './AppIcon.astro'
+---
+<dl class="contact-links">
+  <div><dt><AppIcon name="lucide:message-circle" />QQ</dt><dd><span>{CONTACT.qq}</span></dd></div>
+  <div><dt><AppIcon name="lucide:mail" />邮箱</dt><dd>{CONTACT.emails.map(email => <a href={`mailto:${email}`}>{email}</a>)}</dd></div>
+  <div><dt><AppIcon name="simple-icons:github" />GitHub</dt><dd><a href="https://github.com/Minyaako">@Minyaako ↗</a></dd></div>
+</dl>
+<style>
+  .contact-links { margin: 0; }
+  .contact-links > div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); align-items: start; gap: 1rem; padding-block: 1rem; border-bottom: 1px solid var(--border); }
+  dt { display: flex; align-items: center; gap: .55rem; color: var(--text-muted); font-size: .85rem; padding-top: .65rem; }
+  dd { display: flex; flex-wrap: wrap; column-gap: 1.5rem; margin: 0; font: .95rem/1.8 var(--font-mono); overflow-wrap: anywhere; }
+  dd a, dd span { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: .3em; }
+  a:hover { color: var(--accent); }
+  @media(max-width: 30rem) { .contact-links > div { grid-template-columns: 4.75rem minmax(0, 1fr); gap: .5rem; } dd { font-size: .82rem; } }
+</style>
