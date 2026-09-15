@@ -1,0 +1,8 @@
+---
+import { Icon } from 'astro-icon/components'
+interface Props { name: string }
+const { name } = Astro.props
+---
+
+<!-- The player persists across navigation, so its icons must not reference page-owned symbols. -->
+<Icon name={name} is:inline size={18} aria-hidden="true" focusable="false" />

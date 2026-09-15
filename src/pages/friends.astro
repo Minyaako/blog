@@ -7,6 +7,7 @@ import { publicHttpsUrl } from '../lib/friends-feeds'
 const links = friends.filter(friend => publicHttpsUrl(friend.url))
 const hasFeeds = links.some(friend => friend.feed)
 const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
+const siteAvatar = 'https://pic.minyako.top/blog/site/profile/avatar-6f5db833ad02f4d0c0db3eef6fe866d4dfb9c44791a11c41cd32a87ad7268bf1.webp'
 ---
 <BaseLayout title="朋友们" description="友链与朋友圈：去朋友家坐坐，看看大家最近写了什么。">
   <article class="friends-page">
@@ -33,10 +34,10 @@ const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
 
     <section id="exchange" class="exchange" aria-labelledby="exchange-title">
       <div><p class="eyebrow">Say hello</p><h2 id="exchange-title">来交换一枚友链吧</h2><p>欢迎带着站点名称、地址、简介和头像来找我；如果有 RSS，也请一并告诉我。</p><p class="contact">QQ <span>810225302</span></p></div>
-      <div class="exchange-details"><dl><div><dt>名称</dt><dd>Minyako的幻想乡</dd></div><div><dt>地址</dt><dd><a href="https://gsk.minyako.top/">https://gsk.minyako.top</a></dd></div><div><dt>简介</dt><dd>真希望能悠闲度日</dd></div><div><dt>头像</dt><dd><a href="/favicon.svg">https://gsk.minyako.top/favicon.svg</a></dd></div><div><dt>订阅</dt><dd><a href="/rss.xml">RSS</a></dd></div></dl><button type="button" data-copy-friend>复制本站友链信息</button><p class="copy-status" data-copy-status role="status"></p><textarea class="copy-fallback" data-copy-fallback aria-label="本站友链信息，可手动复制" readonly hidden>名称：Minyako的幻想乡
+      <div class="exchange-details"><dl><div><dt>名称</dt><dd>Minyako的幻想乡</dd></div><div><dt>地址</dt><dd><a href="https://gsk.minyako.top/">https://gsk.minyako.top</a></dd></div><div><dt>简介</dt><dd>真希望能悠闲度日</dd></div><div><dt>头像</dt><dd><a href={siteAvatar}>{siteAvatar}</a></dd></div><div><dt>订阅</dt><dd><a href="/rss.xml">RSS</a></dd></div></dl><button type="button" data-copy-friend>复制本站友链信息</button><p class="copy-status" data-copy-status role="status"></p><textarea class="copy-fallback" data-copy-fallback aria-label="本站友链信息，可手动复制" readonly hidden>名称：Minyako的幻想乡
 简介：真希望能悠闲度日
 地址：https://gsk.minyako.top
-头像：https://gsk.minyako.top/favicon.svg</textarea></div>
+头像：{siteAvatar}</textarea></div>
     </section>
     {isPreview
       ? <p class="preview-comments">公开预览环境不加载评论。发布后可在这里留言交换友链。</p>

@@ -162,7 +162,7 @@ export function initMusicPlayer(root: ParentNode = document): void {
   const visibleIds = new Set(model.visibleGroups.map((entry) => entry.id))
   const activeTracks = [...model.initialTracks]
   const player = new APlayer({
-    container, audio: activeTracks.map(playerTrack), autoplay: false, lrcType: 1, volume: preferences.volume,
+    container, audio: activeTracks.map(playerTrack), autoplay: false, preload: 'none', lrcType: 1, volume: preferences.volume,
   }) as APlayerWithAudio
   const controller = new AbortController()
   document.addEventListener('astro:after-swap', loadPlayerStyle, { signal: controller.signal })

@@ -14,8 +14,8 @@
     --engineering: #955b18;
     --life: #70558a;
     --games: #97505f;
-    --font-display: 'Manrope Variable', 'Noto Sans SC Variable', sans-serif;
-    --font-body: 'Noto Sans SC Variable', 'Microsoft YaHei', sans-serif;
+    --font-display: 'Manrope Variable', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    --font-body: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
     --font-mono: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
     --text-caption: 0.75rem;
     --text-body: 1rem;

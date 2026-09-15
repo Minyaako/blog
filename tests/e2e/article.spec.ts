@@ -39,6 +39,52 @@ function findPublishedHostedMediaFigure() {
   throw new Error('Expected a published article containing a hosted MediaFigure fixture')
 }
 
+test('KaTeX styles load on SPA article entry and preserve typography through later pages', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => { (window as Window & { katexNavigationProbe?: string }).katexNavigationProbe = 'same-document' })
+  const bodyFont = await page.locator('body').evaluate(element => getComputedStyle(element).fontFamily)
+  const mathProbeFont = () => page.evaluate(() => {
+    const probe = document.createElement('span')
+    probe.className = 'katex'
+    probe.textContent = 'x'
+    document.body.append(probe)
+    const family = getComputedStyle(probe).fontFamily
+    probe.remove()
+    return family
+  })
+  expect(await mathProbeFont()).not.toContain('KaTeX_Main')
+  const verifySpaTypography = async () => {
+    expect(await page.evaluate(() => (window as Window & { katexNavigationProbe?: string }).katexNavigationProbe)).toBe('same-document')
+    await expect(page.locator('body')).toHaveCSS('font-family', bodyFont)
+  }
+  await Promise.all([
+    page.waitForURL('**/posts/astro-content-architecture/'),
+    page.locator('a[href="/posts/astro-content-architecture/"]').first().click(),
+  ])
+  await verifySpaTypography()
+  const formula = page.locator('.katex').first()
+  await expect(formula).toBeVisible()
+  await expect(formula).toHaveCSS('font-family', /KaTeX_Main/)
+  expect(await page.evaluate(async () => {
+    const faces = await document.fonts.load('16px KaTeX_Main', 'x')
+    return faces.length > 0 && faces.every(face => face.status === 'loaded')
+  })).toBe(true)
+  await Promise.all([
+    page.waitForURL('**/about/'),
+    page.locator('a[href="/about/"]').first().click(),
+  ])
+  await verifySpaTypography()
+  await expect(page.locator('h1')).toHaveText('关于这里')
+  await page.getByRole('button', { name: '小功能' }).click()
+  await Promise.all([
+    page.waitForURL('**/moments/'),
+    page.locator('#small-features-popover a[href="/moments/"]').click(),
+  ])
+  await verifySpaTypography()
+  await expect(page.locator('h1')).toHaveText('动态')
+  await expect(page.locator('[data-moment-card]').first()).toBeVisible()
+})
+
 test('technical article renders metadata, toc, code, and math', async ({ page }) => {
   await page.goto('/posts/astro-content-architecture/')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Astro')
@@ -75,6 +121,7 @@ test('technical article renders metadata, toc, code, and math', async ({ page })
     '}'
   ].join('\n'))
   await expect(page.locator('.katex').first()).toBeVisible()
+  await expect(page.locator('.katex').first()).toHaveCSS('font-family', /KaTeX_Main/)
   await expect(page.locator('[data-comment-slot]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
   await expect(page.locator('[data-article-views]')).toHaveAttribute('data-page-key', 'engineering-astro-content-architecture')
   await expect(page.locator('[data-article-views-value]')).toHaveText('预览不计数')

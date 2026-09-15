@@ -49,7 +49,7 @@ test('motion foundation exposes computed timing semantics and page scope', async
   })
 })
 
-test('native page snapshots keep the enhanced slide amplitudes', async ({ page }) => {
+test('native page snapshots hide the old content before the new page slides in', async ({ page }) => {
   await page.addInitScript(() => {
     type MotionRecord = {
       name: string
@@ -57,6 +57,8 @@ test('native page snapshots keep the enhanced slide amplitudes', async ({ page }
     }
     const view = window as Window & { __motionSnapshotFrames?: MotionRecord[] }
     view.__motionSnapshotFrames = []
+    const snapshotSamples: Array<{ phase: 'ready' | 'midpoint'; oldOpacity: string; newOpacity: string }> = []
+    ;(view as Window & { __motionSnapshotSamples?: typeof snapshotSamples }).__motionSnapshotSamples = snapshotSamples
 
     const nativeStart = Document.prototype.startViewTransition
     if (typeof nativeStart !== 'function') return
@@ -64,6 +66,14 @@ test('native page snapshots keep the enhanced slide amplitudes', async ({ page }
     Document.prototype.startViewTransition = function (updateCallback) {
       const transition = nativeStart.call(this, updateCallback)
       void transition.ready.then(() => {
+        const sample = (phase: 'ready' | 'midpoint') => {
+          const oldStyles = getComputedStyle(document.documentElement, '::view-transition-old(page-content)')
+          const newStyles = getComputedStyle(document.documentElement, '::view-transition-new(page-content)')
+          snapshotSamples.push({ phase, oldOpacity: oldStyles.opacity, newOpacity: newStyles.opacity })
+        }
+        sample('ready')
+        setTimeout(() => sample('midpoint'), 140)
+
         const records = view.__motionSnapshotFrames ?? []
         const getAnimations = document.getAnimations as unknown as (options: { subtree: boolean }) => Animation[]
         for (const animation of getAnimations.call(document, { subtree: true })) {
@@ -102,13 +112,22 @@ test('native page snapshots keep the enhanced slide amplitudes', async ({ page }
         expect.objectContaining({ offset: 0, transform: expect.stringContaining('48px') }),
       ]),
     }),
-    expect.objectContaining({
-      name: 'motion-page-out',
-      frames: expect.arrayContaining([
-        expect.objectContaining({ offset: 1, transform: expect.stringContaining('-20px') }),
-      ]),
-    }),
   ]))
+
+  expect(await page.evaluate(() => (
+    (window as Window & { __motionSnapshotFrames?: Array<{ name: string }> }).__motionSnapshotFrames ?? []
+  ).map(({ name }) => name))).not.toContain('motion-page-out')
+  await expect.poll(() => page.evaluate(() => (
+    (window as Window & { __motionSnapshotSamples?: Array<{ phase: string; oldOpacity: string }> }).__motionSnapshotSamples ?? []
+  ))).toEqual(expect.arrayContaining([
+    expect.objectContaining({ phase: 'ready', oldOpacity: '0' }),
+    expect.objectContaining({ phase: 'midpoint', oldOpacity: '0' }),
+  ]))
+  await expect.poll(() => page.evaluate(() => {
+    const sample = (window as Window & { __motionSnapshotSamples?: Array<{ phase: string; newOpacity: string }> }).__motionSnapshotSamples
+      ?.find(({ phase }) => phase === 'midpoint')
+    return Number(sample?.newOpacity ?? Number.NaN)
+  })).toBeGreaterThan(0)
 })
 
 test('fallback navigation swaps immediately without a page exit or color veil', async ({ page }) => {
