@@ -1,0 +1,15 @@
+---
+const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
+---
+<div class="site-views" data-site-views data-pagefind-ignore title="全站页面访问次数（PV），从本功能上线起累计；重复访问也会计入。">
+  <img src="/favicon.svg" alt="" width="32" height="32" aria-hidden="true" />
+  <span>本站访问</span>
+  <span class="count" data-site-views-value role="status" aria-live="polite">{isPreview ? '预览不计数' : '统计中…'}</span>
+  <noscript>（启用 JavaScript 后显示）</noscript>
+</div>
+<style>
+  .site-views{display:inline-flex;flex-wrap:wrap;align-items:center;gap:.5rem;max-width:100%;margin-top:.8rem;padding:.3rem .9rem .3rem .35rem;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--border));border-radius:1.25rem;background:color-mix(in srgb,var(--accent) 5%,var(--surface));color:var(--text-muted);font:.8rem/1.5 var(--font-body);vertical-align:middle}
+  .site-views img{display:block;flex:none;width:2rem;height:2rem;margin:0;border:0;border-radius:0}
+  .count{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+  noscript{font-size:.75rem}
+</style>

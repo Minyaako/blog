@@ -2,6 +2,7 @@
 import { SITE } from '../config/site'
 import { resolveMedia } from '../lib/media'
 import AppIcon from './AppIcon.astro'
+import SiteViews from './SiteViews.astro'
 const avatar = resolveMedia('profile-avatar')
 ---
 
@@ -13,6 +14,7 @@ const avatar = resolveMedia('profile-avatar')
       <span>{SITE.id}</span>
     </div>
     <p>{SITE.description}</p>
+    <SiteViews />
   </div>
   <ul aria-label="个人平台">
     {SITE.socials.map((social) => (

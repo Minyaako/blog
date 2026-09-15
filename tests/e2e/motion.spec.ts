@@ -44,12 +44,12 @@ test('motion foundation exposes computed timing semantics and page scope', async
     ease: cubicBezierValues(values.ease),
     scope: values.scope,
   }).toEqual({
-    micro: 220, enter: 0, page: 160, stagger: 0,
+    micro: 220, enter: 0, page: 320, stagger: 0,
     ease: [0.2, 0.8, 0.2, 1], scope: 'page-content',
   })
 })
 
-test('native page snapshots keep the restored slide amplitudes', async ({ page }) => {
+test('native page snapshots keep the enhanced slide amplitudes', async ({ page }) => {
   await page.addInitScript(() => {
     type MotionRecord = {
       name: string
@@ -99,13 +99,13 @@ test('native page snapshots keep the restored slide amplitudes', async ({ page }
     expect.objectContaining({
       name: 'motion-page-in',
       frames: expect.arrayContaining([
-        expect.objectContaining({ offset: 0, transform: expect.stringContaining('24px') }),
+        expect.objectContaining({ offset: 0, transform: expect.stringContaining('48px') }),
       ]),
     }),
     expect.objectContaining({
       name: 'motion-page-out',
       frames: expect.arrayContaining([
-        expect.objectContaining({ offset: 1, transform: expect.stringContaining('-12px') }),
+        expect.objectContaining({ offset: 1, transform: expect.stringContaining('-20px') }),
       ]),
     }),
   ]))
