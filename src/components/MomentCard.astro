@@ -3,20 +3,25 @@ import { render } from 'astro:content'
 import MediaFigure from './MediaFigure.astro'
 import MomentGallery from './MomentGallery.astro'
 import MomentTrackCard from './MomentTrackCard.astro'
+import MomentReactions from './MomentReactions.astro'
 import type { MomentView } from '../lib/moments'
 
 interface Props {
   moment: MomentView
   detail?: boolean
+  timeline?: boolean
 }
 
-const { moment, detail = false } = Astro.props
-const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(moment.publishedAt)
+const { moment, detail = false, timeline = false } = Astro.props
+const date = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Shanghai' }).format(moment.publishedAt)
+const day = new Intl.DateTimeFormat('zh-CN', { day: '2-digit', timeZone: 'Asia/Shanghai' }).format(moment.publishedAt).replace('日', '')
+const weekday = new Intl.DateTimeFormat('zh-CN', { weekday: 'short', timeZone: 'Asia/Shanghai' }).format(moment.publishedAt)
 const href = `/moments/${moment.id}/`
 const { Content } = await render(moment.entry)
 ---
 
-<article class="moment-card" data-moment-card data-moment-id={moment.id}>
+<article class="moment-card" data-moment-card data-moment-id={moment.id} data-timeline={timeline || undefined}>
+  {timeline && <span class="timeline-date" aria-hidden="true"><strong>{day}</strong><span>{weekday}</span></span>}
   <p class="moment-meta"><time datetime={moment.publishedAt.toISOString()}>{date}</time>{moment.pinned && <span>置顶</span>}</p>
   {moment.title && <h2 class="moment-title">{moment.title}</h2>}
   {moment.contentWarning && (
@@ -41,10 +46,14 @@ const { Content } = await render(moment.entry)
       <a href={`${href}#comments`}>评论</a>
     </div>
   </footer>
+  <MomentReactions id={moment.id} />
 </article>
 
 <style>
   .moment-card { overflow: clip; padding: clamp(1.25rem, 3vw, 2rem); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-soft); }
+  .moment-card[data-timeline] { position:relative; overflow:visible; margin-bottom:var(--space-6); box-shadow:none; }
+  .moment-card[data-timeline]::before { content:''; position:absolute; top:2rem; left:-2.95rem; width:.6rem; height:.6rem; border:2px solid var(--accent); border-radius:50%; background:var(--canvas); box-shadow:0 0 0 .35rem var(--canvas); }
+  .timeline-date { position:absolute; top:1.15rem; right:calc(100% + 3.75rem); display:grid; gap:.15rem; width:2rem; color:var(--text-muted); text-align:center; font:.68rem/1.4 var(--font-mono); }.timeline-date strong{color:var(--accent);font:650 1.55rem/1.15 var(--font-display)}
   .moment-meta { display: flex; gap: var(--space-3); margin: 0 0 var(--space-3); color: var(--text-muted); font: var(--text-caption)/1.4 var(--font-mono); letter-spacing: .04em; }
   .moment-meta span { color: var(--accent); }
   .moment-title { margin: 0 0 var(--space-3); color: var(--accent); font: 700 1.05rem/1.45 var(--font-display); }
@@ -62,4 +71,5 @@ const { Content } = await render(moment.entry)
   .moment-actions a { color: var(--text-muted); font-size: .78rem; text-underline-offset: .2em; }
   .moment-actions a:hover { color: var(--accent); }
   @media (max-width: 34rem) { .moment-footer { align-items: flex-start; flex-direction: column; } }
+  @media (max-width:40rem) { .timeline-date{display:none}.moment-card[data-timeline]::before{left:-1.2rem;top:1.5rem;width:.5rem;height:.5rem;box-shadow:0 0 0 .2rem var(--canvas)}.moment-card[data-timeline]{padding:1rem;margin-bottom:var(--space-5)} }
 </style>

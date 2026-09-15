@@ -8,29 +8,37 @@ interface Props {
 }
 
 const { moments, nextHref } = Astro.props
-const monthKey = (date: Date) => `${date.getFullYear()}-${date.getMonth() + 1}`
-const monthLabel = (date: Date) => new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(date)
+const monthKey = (date: Date) => new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', timeZone: 'Asia/Shanghai' }).format(date)
+const monthLabel = (date: Date) => new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', timeZone: 'Asia/Shanghai' }).format(date)
+const pinned = moments.filter(moment => moment.pinned)
+const chronological = moments.filter(moment => !moment.pinned)
 ---
 
 <div class="moment-stream" data-moment-stream>
   <div data-moment-page-items>
     {moments.length === 0 ? (
       <p class="empty">还没有公开的动态。</p>
-    ) : moments.map((moment, index) => (
+    ) : <>
+    {pinned.length > 0 && <h2 class="month-heading" data-month-key="pinned">留在最前面 · 置顶</h2>}
+    {pinned.map(moment => <MomentCard moment={moment} timeline />)}
+    {chronological.map((moment, index) => (
       <Fragment>
-        {(index === 0 || monthKey(moment.publishedAt) !== monthKey(moments[index - 1].publishedAt)) && (
+        {(index === 0 || monthKey(moment.publishedAt) !== monthKey(chronological[index - 1].publishedAt)) && (
           <h2 class="month-heading" data-month-key={monthKey(moment.publishedAt)}>{monthLabel(moment.publishedAt)}</h2>
         )}
-        <MomentCard moment={moment} />
+        <MomentCard moment={moment} timeline />
       </Fragment>
-    ))}
+    ))}</>}
   </div>
   {nextHref && <a class="next-page" data-next-page href={nextHref}>继续浏览更早的动态</a>}
 </div>
 
 <style>
-  .moment-stream { max-width: 48rem; margin-inline: auto; }
-  .month-heading { margin: 0 0 var(--space-5); color: var(--text-muted); font: 650 .8rem/1.4 var(--font-mono); letter-spacing: .08em; }
+  .moment-stream { max-width: 56rem; margin-inline: auto; }
+  [data-moment-page-items]{position:relative;padding-left:7rem}
+  [data-moment-page-items]:has([data-moment-card])::before{content:'';position:absolute;left:4.4rem;top:.5rem;bottom:1rem;width:1px;background:var(--border)}
+  .month-heading { position:relative; margin:var(--space-7) 0 var(--space-5); color:var(--accent); font:650 .82rem/1.4 var(--font-mono); letter-spacing:.05em; }.month-heading:first-child{margin-top:0}.month-heading::before{content:'';position:absolute;left:-2.95rem;top:.15rem;width:.65rem;height:.65rem;border-radius:.15rem;background:var(--accent);box-shadow:0 0 0 .35rem var(--canvas)}
   .empty { margin: 0; color: var(--text-muted); line-height: 1.7; }
   .next-page { display: inline-flex; min-height: 2.75rem; align-items: center; padding-inline: var(--space-4); border: 1px solid var(--border); border-radius: 99rem; color: var(--text-muted); font-size: .82rem; }
+  @media(max-width:40rem){[data-moment-page-items]{padding-left:1.25rem}[data-moment-page-items]:has([data-moment-card])::before{left:.3rem}.month-heading::before{left:-1.2rem;width:.5rem;height:.5rem;box-shadow:0 0 0 .2rem var(--canvas)}.month-heading{margin-top:var(--space-6)}}
 </style>
