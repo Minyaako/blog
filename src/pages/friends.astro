@@ -1,10 +1,12 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro'
+import CommentSection from '../components/CommentSection.astro'
 import { friends } from '../config/friends'
 import { publicHttpsUrl } from '../lib/friends-feeds'
 
 const links = friends.filter(friend => publicHttpsUrl(friend.url))
 const hasFeeds = links.some(friend => friend.feed)
+const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
 ---
 <BaseLayout title="朋友们" description="友链与朋友圈：去朋友家坐坐，看看大家最近写了什么。">
   <article class="friends-page">
@@ -26,7 +28,7 @@ const hasFeeds = links.some(friend => friend.feed)
     <section id="small-circle" aria-labelledby="circle-title" data-friends-circle={hasFeeds ? '' : undefined}>
       <div class="section-heading"><h2 id="circle-title">朋友圈</h2><span>最近的文字</span></div>
       <p class="section-copy">把朋友们的近况，轻轻收进这一页。</p>
-      {hasFeeds ? <><p class="feed-status" data-feed-status role="status">正在整理朋友们的新文章…</p><ol class="feed-list" data-feed-list></ol><noscript><p>开启 JavaScript 后可以查看订阅动态，也可以直接访问上方友链。</p></noscript></> : <div class="circle-empty"><span aria-hidden="true">✉</span><p>还没有订阅的朋友。<br /><span>有了友链和 RSS，这里就会慢慢热闹起来。</span></p></div>}
+      {hasFeeds ? <><p class="feed-status" data-feed-status role="status">正在整理朋友们的新文章…</p><ol id="circle-articles" class="feed-list" data-feed-list></ol><button class="feed-toggle" type="button" data-feed-toggle aria-controls="circle-articles" aria-expanded="false" hidden>展开更多</button><noscript><p>开启 JavaScript 后可以查看订阅动态，也可以直接访问上方友链。</p></noscript></> : <div class="circle-empty"><span aria-hidden="true">✉</span><p>还没有订阅的朋友。<br /><span>有了友链和 RSS，这里就会慢慢热闹起来。</span></p></div>}
     </section>
 
     <section id="exchange" class="exchange" aria-labelledby="exchange-title">
@@ -36,6 +38,13 @@ const hasFeeds = links.some(friend => friend.feed)
 地址：https://gsk.minyako.top
 头像：https://gsk.minyako.top/favicon.svg</textarea></div>
     </section>
+    {isPreview
+      ? <p class="preview-comments">公开预览环境不加载评论。发布后可在这里留言交换友链。</p>
+      : <CommentSection
+          pageKey="/friends/"
+          title="友链留言板"
+          description="留下站点名称、网址、简介和头像地址，也欢迎附上 RSS。确认后会加入上方友链。可匿名留言；邮箱选填且不会公开。"
+        />}
   </article>
 </BaseLayout>
 <script>import '../scripts/friends-circle'</script>
@@ -47,7 +56,8 @@ const hasFeeds = links.some(friend => friend.feed)
   section{margin-top:var(--space-8);scroll-margin-top:7rem}.section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:var(--space-5)}h2{font-size:1.4rem;line-height:1.5;margin:0}.section-heading>span{color:var(--text-muted);font-size:.75rem;white-space:nowrap}
   .friend-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.friend-card{display:flex;align-items:center;gap:1rem;height:100%;padding:1.25rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);text-decoration:none}.friend-card:hover{border-color:var(--accent)}.friend-card>span:nth-child(2){min-width:0}.friend-card strong{display:block;font-size:1rem;overflow-wrap:anywhere}.friend-avatar,.friend-card img{width:52px;height:52px;flex:none;border-radius:50%;object-fit:cover}.friend-avatar{display:grid;place-items:center;background:color-mix(in srgb,var(--accent),transparent 90%);color:var(--accent);font-size:1.2rem}.friend-description{display:block;color:var(--text-muted);font-size:.8rem;line-height:1.7;margin-top:.35rem;overflow-wrap:anywhere}.arrow{margin-left:auto;color:var(--accent)}
   .empty-note{text-align:center;border:1px dashed var(--border-strong);border-radius:var(--radius-lg);padding:2.75rem 1rem;background:color-mix(in srgb,var(--surface),transparent 30%)}.cat-mark{display:block;color:var(--accent);font-size:1.7rem;margin-bottom:1rem}.empty-note p{margin-bottom:.6rem}.empty-note>span:last-child{font-size:.875rem;color:var(--text-muted);line-height:1.7}.circle-empty{display:flex;align-items:center;gap:1.25rem;padding:1.5rem 0;border-block:1px solid var(--border)}.circle-empty>span{font-size:2rem;color:var(--accent)}.circle-empty p{margin:0;line-height:1.9}.circle-empty p span{font-size:.875rem;color:var(--text-muted)}
-  .feed-status{font-size:.8rem;color:var(--text-muted);line-height:1.8}.feed-list{margin:0;padding:0;list-style:none}.feed-list :global(li){padding:1.25rem 0;border-bottom:1px solid var(--border)}.feed-list :global(p){font-size:.75rem;color:var(--text-muted);margin-bottom:.5rem}.feed-list :global(a){font-weight:600;text-decoration:none;line-height:1.7;overflow-wrap:anywhere}.feed-list :global(a:hover){color:var(--accent);text-decoration:underline;text-underline-offset:4px}
+  .feed-status{font-size:.75rem;color:var(--text-muted);line-height:1.8}.feed-list{margin:0;padding:0;list-style:none}.feed-list :global(li){padding:.8rem 0;border-bottom:1px solid var(--border)}.feed-list :global(p){font-size:.7rem;color:var(--text-muted);margin:0 0 .25rem}.feed-list :global(a){font-size:.9rem;font-weight:600;text-decoration:none;line-height:1.6;overflow-wrap:anywhere}.feed-list :global(a:hover){color:var(--accent);text-decoration:underline;text-underline-offset:4px}
+  .feed-toggle{display:block;margin:1rem auto 0;padding:.6rem 1rem;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--accent);font:inherit;font-size:.8rem;cursor:pointer}.feed-toggle[hidden]{display:none}.preview-comments{color:var(--text-muted);margin-top:var(--space-7)}
   .exchange{display:grid;grid-template-columns:1.2fr 1fr;gap:2.5rem;border-top:1px solid var(--border);padding-top:var(--space-7)}.exchange h2{margin-bottom:1rem}.exchange p:not(.eyebrow){font-size:.875rem;line-height:1.9;color:var(--text-muted)}.exchange .contact{color:var(--accent)}.exchange a{text-underline-offset:4px}.exchange dl{margin:0;padding:1.5rem;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border);font-size:.8rem;align-self:start}.exchange dl div{display:grid;grid-template-columns:2.5rem 1fr;gap:1rem;margin-bottom:1rem;line-height:1.6}.exchange dl div:last-child{margin-bottom:0}.exchange dt{color:var(--text-muted)}.exchange dd{margin:0;overflow-wrap:anywhere}
   .exchange-details{min-width:0}.exchange-details button{margin-top:1rem;padding:.7rem 1rem;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--accent);cursor:pointer}.copy-status{margin-top:.5rem;min-height:1.5em}.copy-fallback{width:100%;min-height:8rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:inherit;font-size:.8rem}
   @media(max-width:40rem){.friends-page{padding-block:var(--space-7)}.friend-grid,.exchange{grid-template-columns:1fr}.exchange{gap:1rem}section{margin-top:var(--space-7)}.section-heading{gap:.5rem}.friends-intro nav{gap:1.25rem}}

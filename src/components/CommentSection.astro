@@ -3,9 +3,15 @@ import '@waline/client/waline.css'
 
 interface Props {
   pageKey: string
+  title?: string
+  description?: string
 }
 
-const { pageKey } = Astro.props
+const {
+  pageKey,
+  title = '评论',
+  description = '可匿名评论，也可登录同步昵称与头像；邮箱选填且不会公开。'
+} = Astro.props
 ---
 
 <section
@@ -16,8 +22,8 @@ const { pageKey } = Astro.props
   data-pagefind-ignore
 >
   <header class="comments-header">
-    <h2 id="comments-heading">评论</h2>
-    <p>可匿名评论，也可登录同步昵称与头像；邮箱选填且不会公开。</p>
+    <h2 id="comments-heading">{title}</h2>
+    <p>{description}</p>
   </header>
   <div data-comment-mount></div>
   <div class="comments-state" role="status" aria-live="polite" data-comment-status>评论加载中…</div>
@@ -28,61 +34,71 @@ const { pageKey } = Astro.props
   import { createWalineProvider } from '../lib/comments/waline'
   import { watchAnonymousAvatars } from '../lib/comments/avatar'
 
-  const section = document.querySelector<HTMLElement>('[data-comment-slot]:not([data-comment-ready])')
+  function mountComments() {
+    const section = document.querySelector<HTMLElement>('[data-comment-slot]:not([data-comment-ready])')
 
-  if (section) {
-    section.setAttribute('data-comment-ready', '')
-    const mountTarget = section.querySelector<HTMLElement>('[data-comment-mount]')
-    const status = section.querySelector<HTMLElement>('[data-comment-status]')
-    const retry = section.querySelector<HTMLButtonElement>('[data-comment-retry]')
-    const pageKey = section.dataset.pageKey
-    const provider = createWalineProvider()
-    let observer: IntersectionObserver | undefined
-    let stopAvatarWatch: (() => void) | undefined
-    let disposed = false
+    if (section) {
+      section.setAttribute('data-comment-ready', '')
+      const mountTarget = section.querySelector<HTMLElement>('[data-comment-mount]')
+      const status = section.querySelector<HTMLElement>('[data-comment-status]')
+      const retry = section.querySelector<HTMLButtonElement>('[data-comment-retry]')
+      const pageKey = section.dataset.pageKey
+      const provider = createWalineProvider()
+      let observer: IntersectionObserver | undefined
+      let stopAvatarWatch: (() => void) | undefined
+      let disposed = false
 
-    const mount = async () => {
-      if (!mountTarget || !status || !retry || !pageKey || disposed) return
-      status.hidden = false
-      status.textContent = '评论加载中…'
-      retry.hidden = true
-
-      try {
-        await provider.mount(mountTarget, pageKey)
-        stopAvatarWatch?.()
-        stopAvatarWatch = watchAnonymousAvatars(mountTarget)
-        status.hidden = true
-      } catch {
+      const mount = async () => {
+        if (!mountTarget || !status || !retry || !pageKey || disposed) return
         status.hidden = false
-        status.textContent = '评论暂时不可用，请稍后重试。'
-        retry.hidden = false
+        status.textContent = '评论加载中…'
+        retry.hidden = true
+
+        try {
+          await provider.mount(mountTarget, pageKey)
+          if (disposed) return
+          stopAvatarWatch?.()
+          stopAvatarWatch = watchAnonymousAvatars(mountTarget)
+          status.hidden = true
+        } catch {
+          if (disposed) return
+          status.hidden = false
+          status.textContent = '评论暂时不可用，请稍后重试。'
+          retry.hidden = false
+        }
       }
-    }
 
-    retry?.addEventListener('click', mount)
+      retry?.addEventListener('click', mount)
 
-    if ('IntersectionObserver' in window) {
-      observer = new IntersectionObserver((entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return
-        observer?.disconnect()
+      if ('IntersectionObserver' in window) {
+        observer = new IntersectionObserver((entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return
+          observer?.disconnect()
+          void mount()
+        }, { rootMargin: '400px 0px' })
+        observer.observe(section)
+      } else {
         void mount()
-      }, { rootMargin: '400px 0px' })
-      observer.observe(section)
-    } else {
-      void mount()
-    }
+      }
 
-    const dispose = () => {
-      if (disposed) return
-      disposed = true
-      observer?.disconnect()
-      stopAvatarWatch?.()
-      provider.dispose()
-    }
+      const dispose = () => {
+        if (disposed) return
+        disposed = true
+        document.removeEventListener('astro:before-swap', dispose)
+        window.removeEventListener('pagehide', dispose)
+        retry?.removeEventListener('click', mount)
+        observer?.disconnect()
+        stopAvatarWatch?.()
+        provider.dispose()
+      }
 
-    document.addEventListener('astro:before-swap', dispose, { once: true })
-    window.addEventListener('pagehide', dispose, { once: true })
+      document.addEventListener('astro:before-swap', dispose, { once: true })
+      window.addEventListener('pagehide', dispose, { once: true })
+    }
   }
+
+  mountComments()
+  document.addEventListener('astro:page-load', mountComments)
 </script>
 
 <style>
