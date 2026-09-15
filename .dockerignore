@@ -11,6 +11,8 @@
 .astro
 dist
 node_modules
+.runtime-node_modules
+.runtime-node_modules-*
 playwright-report
 test-results
 .playwright-cli
