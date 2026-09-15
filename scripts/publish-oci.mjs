@@ -116,7 +116,7 @@ export async function publishOci({ archive, image, dockerConfig = process.env.DO
     deps.log(`Publishing verified OCI image ${expected}`)
     const copy = await deps.run('skopeo', ['copy', '--all', '--preserve-digests', '--retry-times', '2',
       '--authfile', authfile, '--digestfile', digestfile, `oci-archive:${archive}`, `docker://${image}`],
-    { timeout: 660_000, maxBuffer: MAX_JSON, onProgress: deps.log })
+    { timeout: 1_440_000, maxBuffer: MAX_JSON, onProgress: deps.log })
     if (copy.code !== 0) throw new Error(copy.killed ? 'OCI publication exceeded its time limit' : 'OCI publication failed; no deployment allowed')
     const copied = (await deps.readFile(digestfile, 'utf8')).trim()
     if (copied !== expected) throw new Error('Published digest differs from the verified OCI archive')

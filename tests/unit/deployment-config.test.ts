@@ -110,7 +110,7 @@ describe('release trust boundaries', () => {
       run: 'sudo apt-get update\nsudo apt-get install -y --no-install-recommends skopeo\n',
     })
     expect(image.steps.find((step: { name?: string }) => step.name === 'Publish verified OCI image')).toEqual({
-      name: 'Publish verified OCI image', 'timeout-minutes': 12, if: firstPush,
+      name: 'Publish verified OCI image', 'timeout-minutes': 25, if: firstPush,
       env: { BLOG_OCI_ARCHIVE: '/tmp/blog-image.tar', BLOG_IMAGE: 'ccr.ccs.tencentyun.com/minyako-blog/blog:${{ github.sha }}' },
       run: 'node scripts/publish-oci.mjs',
     })

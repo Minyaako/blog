@@ -57,7 +57,7 @@ describe('OCI publication safety and identity', () => {
     expect(copies).toHaveLength(1)
     expect(copies[0]).toEqual(['skopeo', ['copy', '--all', '--preserve-digests', '--retry-times', '2',
       '--authfile', join(resolve('artifacts/auth-path-only'), 'config.json'), '--digestfile', join(f.temporary, 'digest'),
-      `oci-archive:${archive}`, `docker://${image}`], { timeout: 660_000, maxBuffer: 8 * 1024 * 1024, onProgress: f.deps.log }])
+      `oci-archive:${archive}`, `docker://${image}`], { timeout: 1_440_000, maxBuffer: 8 * 1024 * 1024, onProgress: f.deps.log }])
     expect(f.deps.readFile).toHaveBeenCalledExactlyOnceWith(join(f.temporary, 'digest'), 'utf8')
     expect(f.deps.rm).toHaveBeenCalledWith(f.temporary, { recursive: true, force: true })
   })
