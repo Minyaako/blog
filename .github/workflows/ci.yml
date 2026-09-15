@@ -122,7 +122,7 @@ jobs:
           secrets: |
             youtube_data_api_key=${{ secrets.YOUTUBE_DATA_API_KEY }}
       - name: Publish verified OCI image
-        timeout-minutes: 12
+        timeout-minutes: 25
         if: ${{ github.event_name == 'push' && github.run_attempt == 1 }}
         env:
           BLOG_OCI_ARCHIVE: /tmp/blog-image.tar
