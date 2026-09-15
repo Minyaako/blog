@@ -6,12 +6,18 @@ const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
 ---
 <div class="moment-reactions" data-moment-reactions data-reaction-id={id} data-preview={String(isPreview)} data-pagefind-ignore>
   <div class="reaction-buttons" role="group" aria-label="回应这条动态">
-    {MOMENT_REACTIONS.map((reaction, index) => <button type="button" class="reaction-button" data-reaction-index={index} disabled aria-pressed="false" aria-label={reaction.label} title={reaction.label}>
+    {MOMENT_REACTIONS.map((reaction, index) => <button type="button" class="reaction-button" data-reaction-index={index} hidden disabled aria-pressed="false" aria-label={reaction.label} title={reaction.label}>
       <span class="reaction-emoji" aria-hidden="true">{reaction.emoji}</span><span class="reaction-count" data-reaction-count aria-hidden="true">—</span>
     </button>)}
+    <button type="button" class="reaction-toggle" data-reaction-toggle aria-label="选择表情" aria-expanded="false" aria-controls={`reaction-picker-${id}`} title="选择表情"><span aria-hidden="true">＋</span></button>
+  </div>
+  <div class="reaction-picker" id={`reaction-picker-${id}`} data-reaction-picker hidden role="group" aria-label="选择一种表情" tabindex="-1">
+    <div class="reaction-options">
+      {MOMENT_REACTIONS.map((reaction, index) => <button type="button" class="reaction-button" data-reaction-choice={index} disabled aria-pressed="false" aria-label={reaction.label} title={reaction.label}><span class="reaction-emoji" aria-hidden="true">{reaction.emoji}</span></button>)}
+    </div>
+    <p class="reaction-note">选择表情回应 · 再次点击可取消</p>
   </div>
   <div class="reaction-feedback"><span role="status" data-reaction-status>正在读取回应…</span><button class="reaction-retry" type="button" data-reaction-retry hidden>刷新数量</button></div>
-  <p class="reaction-note">轻轻回应一下 · 选择仅保存在本机，可再次点击取消。</p>
   <noscript><p class="reaction-note">开启 JavaScript 后可以查看与发送回应。</p></noscript>
 </div>
 <script>
@@ -19,13 +25,15 @@ const isPreview = import.meta.env.PUBLIC_BLOG_PREVIEW === 'true'
   installMomentReactions()
 </script>
 <style>
-  .moment-reactions{margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px solid color-mix(in srgb,var(--border),transparent 30%)}
+  .moment-reactions{position:relative;margin-top:var(--space-5);padding-top:var(--space-4);border-top:1px solid color-mix(in srgb,var(--border),transparent 30%)}
   .reaction-buttons{display:flex;flex-wrap:wrap;gap:.4rem}.reaction-button{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.75rem;min-width:3.5rem;padding:.3rem .6rem;border:1px solid var(--border);border-radius:99rem;background:var(--canvas);color:var(--text-muted);font:600 .75rem/1 var(--font-mono);cursor:pointer;transition:background-color 140ms,border-color 140ms}
   .reaction-button:not(:disabled):hover,.reaction-button:focus-visible{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}.reaction-button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,var(--surface));color:var(--accent)}.reaction-button:disabled{cursor:default}.reaction-emoji{display:inline-block;font-size:1.2rem;line-height:1.2;transform-origin:50% 80%}.reaction-count{min-width:.6rem;font-variant-numeric:tabular-nums}
+  .reaction-toggle{display:inline-flex;align-items:center;justify-content:center;flex:none;width:2.75rem;height:2.75rem;padding:0;border:1px dashed var(--border-strong);border-radius:50%;background:transparent;color:var(--text-muted);font:400 1.35rem/1 var(--font-body);cursor:pointer}.reaction-toggle:hover,.reaction-toggle[aria-expanded="true"]{color:var(--accent);border-color:var(--accent);background:var(--surface)}
+  .reaction-picker{position:absolute;z-index:5;bottom:calc(100% - .25rem);left:0;width:max-content;max-width:100%;padding:.65rem;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--shadow-soft)}.reaction-options{display:grid;grid-template-columns:repeat(6,2.75rem);gap:.3rem}.reaction-options .reaction-button{min-width:2.75rem;padding:.3rem}.reaction-picker .reaction-note{margin:.5rem .2rem 0}
+  .reaction-button[hidden],.reaction-picker[hidden]{display:none}
   .reaction-button:not(:disabled):is(:hover,:focus-visible) .reaction-emoji{animation:reaction-wiggle 480ms ease-out}.reaction-button[data-pop] .reaction-emoji{animation:reaction-pop 520ms cubic-bezier(.2,.8,.2,1)}
   .reaction-feedback{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;min-height:1.4em;margin-top:.35rem;font-size:.7rem;line-height:1.6;color:var(--text-muted)}.reaction-feedback:has([data-reaction-status]:empty){min-height:0;margin-top:0}.reaction-retry{border:0;padding:.2rem 0;background:none;color:var(--accent);font-size:inherit;text-decoration:underline;text-underline-offset:.2em;cursor:pointer}.reaction-retry[hidden]{display:none}.reaction-note{margin:.4rem 0 0;color:var(--text-muted);font-size:.68rem;line-height:1.7}
   @keyframes reaction-wiggle{30%{transform:translateY(-3px) rotate(-12deg)}65%{transform:translateY(-2px) rotate(9deg)}}@keyframes reaction-pop{35%{transform:translateY(-7px) scale(1.3) rotate(-8deg)}70%{transform:translateY(1px) scale(.94)}100%{transform:none}}
   @media(prefers-reduced-motion:reduce){.reaction-button{transition:none}.reaction-button .reaction-emoji{animation:none!important}}
-  @media(max-width:26rem){.reaction-buttons{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.25rem}.reaction-button{min-width:2.75rem;padding-inline:.25rem;gap:.2rem}.reaction-emoji{font-size:1.05rem}}
-  @media(max-width:23.5rem){.reaction-buttons{grid-template-columns:repeat(3,minmax(0,1fr))}.reaction-emoji{font-size:1.2rem}}
+  @media(max-width:26rem){.reaction-buttons{gap:.3rem}.reaction-button{min-width:2.75rem;padding-inline:.4rem;gap:.25rem}.reaction-options{grid-template-columns:repeat(3,2.75rem)}}
 </style>
