@@ -16,7 +16,8 @@ const slides = [
 <figure class="hero-banner" data-hero-rotator>
   {slides.map((slide, index) => (
     <img
-      src={slide.url}
+      src={index === 0 ? slide.url : undefined}
+      data-hero-src={index === 0 ? undefined : slide.url}
       alt={slide.alt}
       width={slide.width}
       height={slide.height}
@@ -31,44 +32,8 @@ const slides = [
 </figure>
 
 <script>
-  const intervalMs = 60_000
-
-  document.querySelectorAll<HTMLElement>('[data-hero-rotator]').forEach((rotator) => {
-    if (rotator.dataset.initialized === 'true') return
-    rotator.dataset.initialized = 'true'
-
-    const slides = Array.from(rotator.querySelectorAll<HTMLElement>('[data-hero-slide]'))
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-    let activeIndex = 0
-    let timer: number | undefined
-
-    const show = (index: number) => {
-      activeIndex = index
-      slides.forEach((slide, slideIndex) => {
-        const active = slideIndex === activeIndex
-        slide.dataset.active = String(active)
-        slide.setAttribute('aria-hidden', String(!active))
-      })
-    }
-
-    const stop = () => {
-      if (timer !== undefined) window.clearInterval(timer)
-      timer = undefined
-    }
-
-    const start = () => {
-      stop()
-      if (reducedMotion.matches || document.hidden || slides.length < 2) return
-      timer = window.setInterval(() => show((activeIndex + 1) % slides.length), intervalMs)
-    }
-
-    document.addEventListener('visibilitychange', start)
-    reducedMotion.addEventListener('change', () => {
-      if (reducedMotion.matches) show(0)
-      start()
-    })
-    start()
-  })
+  import { installHeroRotators } from '../scripts/hero-rotator'
+  installHeroRotators()
 </script>
 
 <style>

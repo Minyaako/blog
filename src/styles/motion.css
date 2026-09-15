@@ -2,7 +2,7 @@
   view-transition-name: page-content;
 }
 
-/* Match both curves so their combined opacity stays at one throughout. */
+/* Keep the shell still while only the incoming page content animates. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
@@ -15,21 +15,18 @@
 
 ::view-transition-image-pair(page-content) {
   isolation: isolate;
+  background: var(--canvas);
 }
 
 ::view-transition-old(page-content) {
-  animation: motion-page-out var(--duration-page) linear both;
-  mix-blend-mode: plus-lighter;
+  animation: none;
+  opacity: 0;
+  transform: none;
 }
 
 ::view-transition-new(page-content) {
   animation: motion-page-in var(--duration-page) linear both;
-  mix-blend-mode: plus-lighter;
-}
-
-@keyframes motion-page-out {
-  from { opacity: 1; transform: none; }
-  to { opacity: 0; transform: translateY(-20px); }
+  mix-blend-mode: normal;
 }
 
 @keyframes motion-page-in {
@@ -123,6 +120,14 @@ a:focus-visible .motion-arrow {
   ::view-transition-old(page-content),
   ::view-transition-new(page-content) {
     animation: none;
+  }
+  ::view-transition-old(page-content) {
+    opacity: 0;
+    transform: none;
+  }
+  ::view-transition-new(page-content) {
+    opacity: 1;
+    transform: none;
   }
   .tag-filters button {
     transition: none !important;

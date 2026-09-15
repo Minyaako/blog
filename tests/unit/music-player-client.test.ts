@@ -5,7 +5,7 @@ const aplayer = vi.hoisted(() => {
   type Listener = (payload: unknown) => void
   const instances: Array<{
     audio: HTMLAudioElement
-    options: { audio: Array<{ cover?: string }> }
+    options: { audio: Array<{ cover?: string }>; preload?: string }
     emit: (event: string, payload: unknown) => void
     list: { add: ReturnType<typeof vi.fn>; switch: ReturnType<typeof vi.fn> }
     pause: ReturnType<typeof vi.fn>
@@ -23,7 +23,7 @@ const aplayer = vi.hoisted(() => {
     destroy = vi.fn()
     private listeners = new Map<string, Listener>()
 
-    options: { audio: Array<{ cover?: string }> }
+    options: { audio: Array<{ cover?: string }>; preload?: string }
 
     constructor(options: { container: HTMLElement; audio: Array<{ cover?: string }> }) {
       this.options = options
@@ -90,6 +90,11 @@ afterEach(() => {
 })
 
 describe('music player requests', () => {
+  it('does not preload audio before the user requests playback', () => {
+    const player = mount()
+    expect(player.options.preload).toBe('none')
+    expect(player.play).not.toHaveBeenCalled()
+  })
   it('uses the journey-begin artwork as the centered fallback cover', () => {
     const player = mount()
 

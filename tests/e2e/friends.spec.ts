@@ -13,7 +13,7 @@ const friendInfo = [
   '名称：Minyako的幻想乡',
   '简介：真希望能悠闲度日',
   '地址：https://gsk.minyako.top',
-  '头像：https://gsk.minyako.top/favicon.svg'
+  '头像：https://pic.minyako.top/blog/site/profile/avatar-6f5db833ad02f4d0c0db3eef6fe866d4dfb9c44791a11c41cd32a87ad7268bf1.webp'
 ].join('\n')
 
 test.beforeEach(async ({ page }) => {

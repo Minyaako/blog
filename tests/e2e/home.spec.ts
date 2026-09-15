@@ -71,11 +71,13 @@ test('homepage crossfades to the second image after one minute', async ({ page }
   await expect(slides).toHaveCount(2)
   await expect(slides.nth(0)).toHaveAttribute('data-active', 'true')
   await expect(slides.nth(1)).toHaveAttribute('data-active', 'false')
+  await expect(slides.nth(1)).not.toHaveAttribute('src', /.+/)
 
   await page.clock.fastForward(60_000)
 
   await expect(slides.nth(0)).toHaveAttribute('data-active', 'false')
   await expect(slides.nth(1)).toHaveAttribute('data-active', 'true')
+  await expect(slides.nth(1)).toHaveAttribute('src', /hero-02/)
 })
 
 test('homepage keeps the first image when reduced motion is requested', async ({ page }) => {
@@ -88,6 +90,43 @@ test('homepage keeps the first image when reduced motion is requested', async ({
 
   await expect(slides.nth(0)).toHaveAttribute('data-active', 'true')
   await expect(slides.nth(1)).toHaveAttribute('data-active', 'false')
+  await expect(slides.nth(1)).not.toHaveAttribute('src', /.+/)
+})
+
+test('an unavailable secondary banner keeps the first image visible', async ({ page }) => {
+  await page.route('**/*hero-02*', route => route.abort())
+  await page.goto('/')
+  await page.clock.fastForward(60_000)
+  const slides = page.locator('[data-hero-slide]')
+  await expect(slides.nth(0)).toHaveAttribute('data-active', 'true')
+  await expect(slides.nth(1)).toHaveAttribute('data-active', 'false')
+})
+
+test('leaving home stops background banner downloads and returning restarts rotation', async ({ page }) => {
+  const secondary: string[] = []
+  page.on('request', request => { if (request.url().includes('hero-02')) secondary.push(request.url()) })
+  await page.goto('/')
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '关于', exact: true }).click()
+  await expect(page).toHaveURL(/\/about\/$/)
+  await page.clock.fastForward(120_000)
+  expect(secondary).toEqual([])
+  await page.goBack()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.locator('[data-hero-rotator]')).toHaveAttribute('data-initialized', 'true')
+  await page.clock.fastForward(60_000)
+  await expect(page.locator('[data-hero-slide]').nth(1)).toHaveAttribute('data-active', 'true')
+})
+
+test('initial home load omits Chinese web fonts, math styles and the secondary banner', async ({ page }) => {
+  const requests: string[] = []
+  page.on('request', request => requests.push(request.url()))
+  await page.goto('/')
+  await page.evaluate(() => document.fonts.ready)
+  expect(requests.some(url => /noto-sans-sc|hero-02|\/music\/audio\//.test(url))).toBe(false)
+  const hasMathStyle = await page.evaluate(() => Array.from(document.styleSheets).some(sheet => {
+    try { return Array.from(sheet.cssRules).some(rule => rule.cssText.includes('.katex')) } catch { return false }
+  }))
+  expect(hasMathStyle).toBe(false)
 })
 
 test('homepage does not overflow horizontally', async ({ page }) => {

@@ -1,6 +1,53 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from './fixtures'
 
+test('play and pause graphics survive navigation without prefetching audio', async ({ page }, testInfo) => {
+  const audioRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('/music/audio/')) audioRequests.push(request.url())
+  })
+  // A long local WAV exercises actual media play/pause without downloading a song.
+  const samples = 8_000 * 30
+  const wav = Buffer.alloc(44 + samples * 2)
+  wav.write('RIFF', 0); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8)
+  wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22)
+  wav.writeUInt32LE(8_000, 24); wav.writeUInt32LE(16_000, 28); wav.writeUInt16LE(2, 32)
+  wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(samples * 2, 40)
+  await page.route('**/music/audio/**', route => route.fulfill({ body: wav, contentType: 'audio/wav' }))
+  await page.addInitScript(() => localStorage.setItem('minyako-music-player', JSON.stringify({ collapsed: false, minimized: false })))
+  // The first play symbol used to belong to a moment card rather than the persistent player.
+  await page.goto('/moments/')
+  const player = page.locator('[data-music-player]')
+  await expect(player.locator('[data-music-aplayer]')).toHaveClass(/\baplayer\b/u)
+  await player.evaluate(element => { element.dataset.navigationProbe = 'music-icons' })
+  await Promise.all([
+    page.waitForURL(/\/archives\/?$/),
+    page.locator('a[href="/archives/"]').first().click(),
+  ])
+  await expect(player).toHaveAttribute('data-navigation-probe', 'music-icons')
+  const button = player.locator('[data-music-play-pause]')
+  const assertPaintedIcon = async (state: 'play' | 'pause') => {
+    const icon = button.locator(`[data-music-icon="${state}"] svg`)
+    await expect(icon).toBeVisible()
+    expect(await icon.evaluate(element => {
+      const box = (element as SVGGraphicsElement).getBBox()
+      return box.width > 0 && box.height > 0
+    })).toBe(true)
+  }
+  await assertPaintedIcon('play')
+  expect(audioRequests).toEqual([])
+  await button.screenshot({ path: testInfo.outputPath('play-after-navigation.png') })
+  await button.click()
+  await expect(button).toHaveAttribute('aria-label', '暂停')
+  await expect.poll(() => audioRequests.length).toBeGreaterThan(0)
+  await assertPaintedIcon('pause')
+  await player.screenshot({ path: testInfo.outputPath('playing-pause-icon.png') })
+  await button.click()
+  await expect(button).toHaveAttribute('aria-label', '播放')
+  await assertPaintedIcon('play')
+  await player.screenshot({ path: testInfo.outputPath('paused-play-icon.png') })
+})
+
 test('internal navigation retains the active player instance and playback position', async ({ page }) => {
   await page.addInitScript(() => {
     const playbackPositions = new WeakMap<HTMLMediaElement, number>()
