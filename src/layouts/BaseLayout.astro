@@ -100,7 +100,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
       </aside>
     )}
     <SiteHeader />
-    <main class="page-main" id="main-content">
+    <main class="page-main" id="main-content" data-site-views-page data-preview={String(isPreview)}>
       <slot />
     </main>
     <SiteFooter />
@@ -108,6 +108,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
     {MusicPlayer && <MusicPlayer />}
     <script>
       import { initPageMotion } from '../scripts/page-motion'
+      import { installSiteViews } from '../scripts/site-views'
       import { initCodePanels } from '../scripts/code-panel'
       import { initRevealMotion } from '../scripts/motion'
       import { initMomentGalleries } from '../scripts/moment-gallery'
@@ -115,6 +116,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
       import { initMomentWarnings } from '../scripts/moment-warning'
       import { bindMusicPlayRequestButtons } from '../scripts/music-play-request'
       initPageMotion()
+      installSiteViews()
       initCodePanels()
       const initMomentEnhancements = (root: ParentNode = document) => {
         initMomentGalleries(root)

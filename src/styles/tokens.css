@@ -41,7 +41,7 @@
     --duration: 240ms;
     --duration-micro: 220ms;
     --duration-enter: 0ms;
-    --duration-page: 160ms;
+    --duration-page: 320ms;
     --duration-exit: 0ms;
     --stagger-step: 0ms;
     --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
