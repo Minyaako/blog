@@ -29,7 +29,30 @@ export function installMomentReactions(doc: Document = document, win: Window = w
       mounted.add(element)
       const status = element.querySelector<HTMLElement>('[data-reaction-status]')!
       const retry = element.querySelector<HTMLButtonElement>('[data-reaction-retry]')!
-      const buttons = Array.from(element.querySelectorAll<HTMLButtonElement>('[data-reaction-index]'))
+      const buttons = Array.from(element.querySelectorAll<HTMLButtonElement>('[data-reaction-index], [data-reaction-choice]'))
+      const toggle = element.querySelector<HTMLButtonElement>('[data-reaction-toggle]')!
+      const picker = element.querySelector<HTMLElement>('[data-reaction-picker]')!
+      const setOpen = (open: boolean, restoreFocus = false) => {
+        picker.hidden = !open
+        toggle.setAttribute('aria-expanded', String(open))
+        if (open) (picker.querySelector<HTMLButtonElement>('button:not(:disabled)') ?? picker).focus()
+        else if (restoreFocus && element.isConnected) toggle.focus()
+      }
+      const togglePicker = () => setOpen(Boolean(picker.hidden))
+      const outside = (event: Event) => { if (!element.contains(event.target as Node)) setOpen(false) }
+      const escape = (event: KeyboardEvent) => {
+        if (event.key === 'Escape' && !picker.hidden) { event.preventDefault(); event.stopPropagation(); setOpen(false, true) }
+      }
+      const focusOut = (event: FocusEvent) => { if (event.relatedTarget && !element.contains(event.relatedTarget as Node)) setOpen(false) }
+      toggle.addEventListener('click', togglePicker)
+      element.addEventListener('keydown', escape)
+      element.addEventListener('focusout', focusOut)
+      doc.addEventListener('click', outside)
+      disposePage.push(() => {
+        toggle.removeEventListener('click', togglePicker); element.removeEventListener('keydown', escape)
+        element.removeEventListener('focusout', focusOut); doc.removeEventListener('click', outside)
+        setOpen(false)
+      })
       if (element.dataset.preview === 'true' || win.location.origin !== SITE.origin) {
         element.dataset.reactionState = 'disabled'
         status.textContent = '预览中不读取或发送回应。'
@@ -46,20 +69,30 @@ export function installMomentReactions(doc: Document = document, win: Window = w
         element.setAttribute('aria-busy', String(state.phase === 'loading' || state.phase === 'saving'))
         status.textContent = state.message
         retry.hidden = !['error', 'uncertain'].includes(state.phase)
-        buttons.forEach((button, index) => {
+        buttons.forEach(button => {
+          const index = Number(button.dataset.reactionIndex ?? button.dataset.reactionChoice)
+          // Chromium drops focus when a button is disabled, before a later zero
+          // count hides it. Keep a stable focus target throughout the mutation.
+          if (state.phase !== 'ready' && doc.activeElement === button) toggle.focus()
           button.disabled = state.phase !== 'ready'
           const count = state.counts?.[index]
           const countText = typeof count === 'number' ? count.toLocaleString('zh-CN') : '—'
-          button.querySelector('[data-reaction-count]')!.textContent = countText
+          if (button.hasAttribute('data-reaction-index')) {
+            button.hidden = !(typeof count === 'number' && count > 0)
+            if (button.hidden && doc.activeElement === button) toggle.focus()
+          }
+          const output = button.querySelector('[data-reaction-count]')
+          if (output) output.textContent = countText
           button.setAttribute('aria-pressed', String(state.selected === index))
           button.setAttribute('aria-label', `${MOMENT_REACTIONS[index]!.label}${count !== undefined ? `，${countText} 次回应` : '，数量未读取'}${state.selected === index ? '，已选择，再次点击取消' : ''}`)
         })
       }
       disposePage.push(model.subscribe(render))
       const click = async (event: Event) => {
-        const button = (event.target as Element).closest<HTMLButtonElement>('[data-reaction-index]')
-        if (!button || !element.contains(button)) return
-        const index = Number(button.dataset.reactionIndex)
+        const button = (event.target as Element).closest<HTMLButtonElement>('[data-reaction-index], [data-reaction-choice]')
+        if (!button || !element.contains(button) || button.disabled) return
+        const index = Number(button.dataset.reactionIndex ?? button.dataset.reactionChoice)
+        if (button.hasAttribute('data-reaction-choice')) setOpen(false, true)
         const choose = () => model.choose(index)
         try {
           if (win.navigator.locks) {
@@ -70,7 +103,8 @@ export function installMomentReactions(doc: Document = document, win: Window = w
           } else await choose()
         } catch { status.textContent = '暂时无法开始回应，请稍后再试。' }
         if (model.state.phase === 'ready' && model.state.selected === index && element.isConnected) {
-          button.dataset.pop = ''
+          const summary = element.querySelector<HTMLElement>(`[data-reaction-index="${index}"]`)
+          if (summary) summary.dataset.pop = ''
         }
       }
       const animationEnd = (event: Event) => (event.target as Element).closest<HTMLElement>('[data-pop]')?.removeAttribute('data-pop')

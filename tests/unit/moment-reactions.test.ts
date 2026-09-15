@@ -149,7 +149,7 @@ describe('confirmed anonymous reaction choices', () => {
   })
 })
 
-const markup = (preview = false) => `<div data-moment-page-items><div data-moment-reactions data-reaction-id="${id}" data-preview="${preview}"><div>${counts.map((_, i) => `<button data-reaction-index="${i}" disabled><span data-reaction-count>—</span></button>`).join('')}</div><span data-reaction-status></span><button data-reaction-retry hidden>重试</button></div></div>`
+const markup = (preview = false) => `<div data-moment-page-items><div data-moment-reactions data-reaction-id="${id}" data-preview="${preview}"><div>${counts.map((_, i) => `<button data-reaction-index="${i}" disabled><span data-reaction-count>—</span></button>`).join('')}</div><button data-reaction-toggle aria-expanded="false">+</button><div data-reaction-picker hidden tabindex="-1">${counts.map((_, i) => `<button data-reaction-choice="${i}" disabled>选择</button>`).join('')}</div><span data-reaction-status></span><button data-reaction-retry hidden>重试</button></div></div>`
 function domFixture(origin = 'https://gsk.minyako.top', preview = false) {
   const f = fixture()
   const dom = new JSDOM(markup(preview), { url: `${origin}/moments/` })
@@ -158,6 +158,43 @@ function domFixture(origin = 'https://gsk.minyako.top', preview = false) {
 }
 
 describe('moment reaction UI lifecycle', () => {
+  it('collapses zero-count choices and restores focus when the last reaction is cancelled', async () => {
+    const f = domFixture()
+    await vi.waitFor(() => expect(f.doc.querySelector('[data-reaction-state="ready"]')).not.toBeNull())
+    const summary = f.doc.querySelector<HTMLButtonElement>('[data-reaction-index="2"]')!
+    const toggle = f.doc.querySelector<HTMLButtonElement>('[data-reaction-toggle]')!
+    const picker = f.doc.querySelector<HTMLElement>('[data-reaction-picker]')!
+    const choice = picker.querySelector<HTMLButtonElement>('[data-reaction-choice="2"]')!
+    expect(summary.hidden).toBe(true)
+    expect(picker.hidden).toBe(true)
+    toggle.click()
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(picker.hidden).toBe(false)
+    choice.click()
+    await vi.waitFor(() => expect(summary.hidden).toBe(false))
+    expect(picker.hidden).toBe(true)
+    expect(f.doc.activeElement).toBe(toggle)
+    summary.focus()
+    summary.click()
+    await vi.waitFor(() => expect(summary.hidden).toBe(true))
+    expect(f.doc.activeElement).toBe(toggle)
+    expect(f.update.mock.calls.map(call => call.slice(1))).toEqual([[2, 'inc'], [2, 'desc']])
+  })
+  it('closes the picker with Escape or an outside click without sending a reaction', async () => {
+    const f = domFixture()
+    await vi.waitFor(() => expect(f.doc.querySelector('[data-reaction-state="ready"]')).not.toBeNull())
+    const toggle = f.doc.querySelector<HTMLButtonElement>('[data-reaction-toggle]')!
+    const picker = f.doc.querySelector<HTMLElement>('[data-reaction-picker]')!
+    toggle.click()
+    picker.dispatchEvent(new f.dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(picker.hidden).toBe(true)
+    expect(f.doc.activeElement).toBe(toggle)
+    toggle.click()
+    f.doc.body.click()
+    expect(picker.hidden).toBe(true)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(f.update).not.toHaveBeenCalled()
+  })
   it.each([['http://localhost:4321', false], ['https://preview.gsk.minyako.top', false], ['https://gsk.minyako.top', true]] as const)('does not read or write production counters from %s (preview=%s)', async (origin, preview) => {
     const f = domFixture(origin, preview)
     expect(f.doc.querySelector('[data-reaction-state="disabled"]')).not.toBeNull()

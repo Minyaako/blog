@@ -5,7 +5,7 @@ const localOrigin = process.env.RANKING_E2E_ORIGIN || 'http://127.0.0.1:4321'
 const initialCounts = [7, 2, 0, 1, 0, 0]
 type Mutation = { path: string; type: string; action: 'inc' | 'desc' }
 
-async function isolatedProduction(page: Page) {
+async function isolatedProduction(page: Page, defaultCounts: readonly number[] = initialCounts) {
   // Serve the local build under the production origin so that the production-only
   // guard is exercised. Every counter request is intercepted before it can leave.
   await page.route(`${productionOrigin}/**`, async route => {
@@ -32,7 +32,7 @@ async function isolatedProduction(page: Page) {
       }
       mutations.push(body)
       const index = Number(body.type.replace('reaction', ''))
-      const current = counts.get(body.path) ?? [...initialCounts]
+      const current = counts.get(body.path) ?? [...defaultCounts]
       current[index] = Math.max(0, current[index]! + (body.action === 'desc' ? -1 : 1))
       counts.set(body.path, current)
       if (options.loseWriteResponse) await route.abort('failed')
@@ -45,7 +45,7 @@ async function isolatedProduction(page: Page) {
       await route.fulfill({ status: 503, body: 'Unavailable' })
       return
     }
-    const current = counts.get(id) ?? [...initialCounts]
+    const current = counts.get(id) ?? [...defaultCounts]
     await route.fulfill({ json: { errno: 0, data: [Object.fromEntries(current.map((count, index) => [`reaction${index}`, count]))] } })
   })
   return { counts, mutations, reads, options }
@@ -62,6 +62,10 @@ test('timeline reactions use confirmed counts and support switching, cancellatio
   await reactions.scrollIntoViewIfNeeded()
   await expect(reactions).toHaveAttribute('data-reaction-state', 'ready')
   await expect(reactions.getByRole('button', { name: '赞，7 次回应', exact: true })).toBeVisible()
+  await expect(reactions.locator('[data-reaction-index]:visible')).toHaveCount(3)
+  await expect(reactions.locator('[data-reaction-index="2"]')).toBeHidden()
+  await expect(reactions.locator('[data-reaction-toggle]')).toBeVisible()
+  await expect(reactions.locator('[data-reaction-picker]')).toBeHidden()
   expect(service.mutations).toEqual([])
 
   await reactions.getByRole('button', { name: '赞，7 次回应', exact: true }).click()
@@ -87,6 +91,65 @@ test('timeline reactions use confirmed counts and support switching, cancellatio
   await expect(detail.locator('[data-reaction-index="1"]')).toContainText('2')
   expect(service.mutations).toHaveLength(4)
   expect(service.mutations[3]).toEqual({ path: id, type: 'reaction1', action: 'desc' })
+})
+
+test('zero reactions show only the picker toggle and a confirmed choice appears until its count returns to zero', async ({ page }) => {
+  const service = await isolatedProduction(page, [0, 0, 0, 0, 0, 0])
+  await page.goto(`${productionOrigin}/moments/`)
+  const reactions = page.locator('[data-moment-reactions]').first()
+  await reactions.scrollIntoViewIfNeeded()
+  await expect(reactions).toHaveAttribute('data-reaction-state', 'ready')
+  await expect(reactions.locator('[data-reaction-index]:visible')).toHaveCount(0)
+  const toggle = reactions.locator('[data-reaction-toggle]')
+  const picker = reactions.locator('[data-reaction-picker]')
+  await expect(toggle).toBeVisible()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(picker).toBeHidden()
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(picker).toBeVisible()
+  await expect(picker.locator('[data-reaction-choice]')).toHaveCount(6)
+  await expect(picker.locator('[data-reaction-count]')).toHaveCount(0)
+  await picker.locator('[data-reaction-choice="2"]').click()
+  const chosen = reactions.locator('[data-reaction-index="2"]')
+  await expect(chosen).toBeVisible()
+  await expect(chosen).toHaveAttribute('aria-pressed', 'true')
+  await expect(chosen.locator('[data-reaction-count]')).toHaveText('1')
+  await expect(reactions.locator('[data-reaction-index]:visible')).toHaveCount(1)
+  await expect(picker).toBeHidden()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(toggle).toBeFocused()
+  await chosen.click()
+  await expect(chosen).toBeHidden()
+  await expect(reactions.locator('[data-reaction-index]:visible')).toHaveCount(0)
+  await expect(toggle).toBeVisible()
+  await expect(toggle).toBeFocused()
+  expect(service.mutations.map(value => [value.type, value.action])).toEqual([
+    ['reaction2', 'inc'], ['reaction2', 'desc']
+  ])
+})
+
+test('Escape and outside clicks dismiss the picker without changing a reaction', async ({ page }) => {
+  const service = await isolatedProduction(page)
+  await page.goto(`${productionOrigin}/moments/`)
+  const card = page.locator('[data-moment-card]').first()
+  const reactions = card.locator('[data-moment-reactions]')
+  await reactions.scrollIntoViewIfNeeded()
+  await expect(reactions).toHaveAttribute('data-reaction-state', 'ready')
+  const toggle = reactions.locator('[data-reaction-toggle]')
+  const picker = reactions.locator('[data-reaction-picker]')
+  await toggle.click()
+  await picker.locator('[data-reaction-choice="0"]').focus()
+  await page.keyboard.press('Escape')
+  await expect(picker).toBeHidden()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(toggle).toBeFocused()
+  await toggle.click()
+  await expect(picker).toBeVisible()
+  await card.locator('.moment-meta').click()
+  await expect(picker).toBeHidden()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  expect(service.mutations).toEqual([])
 })
 
 test('a lost mutation response never triggers a duplicate vote after refresh', async ({ page }) => {
@@ -121,6 +184,11 @@ test('failed count reads show unavailable values and recover through a read-only
   await expect(reactions).toHaveAttribute('data-reaction-state', 'error')
   await expect(reactions.locator('[data-reaction-count]').first()).toHaveText('—')
   await expect(reactions.locator('[data-reaction-index="0"]')).toBeDisabled()
+  await expect(reactions.locator('[data-reaction-index]:visible')).toHaveCount(0)
+  await reactions.locator('[data-reaction-toggle]').click()
+  await expect(reactions.locator('[data-reaction-picker]')).toBeVisible()
+  await expect(reactions.locator('[data-reaction-choice="0"]')).toBeDisabled()
+  await page.keyboard.press('Escape')
   service.options.failRead = false
   await reactions.getByRole('button', { name: '刷新数量', exact: true }).click()
   await expect(reactions).toHaveAttribute('data-reaction-state', 'ready')
@@ -140,26 +208,37 @@ test('local previews leave production reaction counters untouched', async ({ pag
   await reactions.scrollIntoViewIfNeeded()
   await expect(reactions).toHaveAttribute('data-reaction-state', 'disabled')
   await expect(reactions.locator('[data-reaction-index="0"]')).toBeDisabled()
+  await reactions.locator('[data-reaction-toggle]').click()
+  await expect(reactions.locator('[data-reaction-picker]')).toBeVisible()
+  await expect(reactions.locator('[data-reaction-choice="0"]')).toBeDisabled()
   expect(requests.filter(url => url.includes('reaction'))).toEqual([])
 })
 
-test('reaction controls retain touch targets and stay still with reduced motion', async ({ page }) => {
+test('reaction picker retains touch targets, uses a compact 3 by 2 grid and honors reduced motion', async ({ page }) => {
   await isolatedProduction(page)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto(`${productionOrigin}/moments/`)
   const reactions = page.locator('[data-moment-reactions]').first()
   await reactions.scrollIntoViewIfNeeded()
   await expect(reactions).toHaveAttribute('data-reaction-state', 'ready')
-  const button = reactions.locator('[data-reaction-index="0"]')
+  const toggle = reactions.locator('[data-reaction-toggle]')
+  await toggle.click()
+  const picker = reactions.locator('[data-reaction-picker]')
+  await expect(picker).toBeVisible()
+  const button = picker.locator('[data-reaction-choice="0"]')
   await button.focus()
   await expect(button.locator('.reaction-emoji')).toHaveCSS('animation-name', 'none')
   const dimensions = await button.boundingBox()
   expect(dimensions!.height).toBeGreaterThanOrEqual(44)
   expect(dimensions!.width).toBeGreaterThanOrEqual(44)
+  const toggleDimensions = await toggle.boundingBox()
+  expect(toggleDimensions!.height).toBeGreaterThanOrEqual(44)
+  expect(toggleDimensions!.width).toBeGreaterThanOrEqual(44)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await picker.screenshot({ path: `output/playwright/moment-reaction-picker-${test.info().project.name}.png`, animations: 'disabled' })
   await page.setViewportSize({ width: 320, height: 760 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  const compact = await reactions.locator('[data-reaction-index]').evaluateAll(buttons => buttons.map(button => {
+  const compact = await picker.locator('[data-reaction-choice]').evaluateAll(buttons => buttons.map(button => {
     const bounds = button.getBoundingClientRect()
     return { top: bounds.top, width: bounds.width, height: bounds.height }
   }))
@@ -167,6 +246,8 @@ test('reaction controls retain touch targets and stay still with reduced motion'
   expect(compact.every(bounds => bounds.width >= 44 && bounds.height >= 44)).toBe(true)
   expect(compact[0]!.top).toBe(compact[2]!.top)
   expect(compact[3]!.top).toBeGreaterThan(compact[0]!.top)
+  expect(compact[3]!.top).toBe(compact[5]!.top)
+  await picker.screenshot({ path: `output/playwright/moment-reaction-picker-narrow-${test.info().project.name}.png`, animations: 'disabled' })
 })
 
 test('an appended page retains the timeline, removes a repeated month heading and initializes new reactions', async ({ page }) => {
@@ -186,7 +267,7 @@ test('an appended page retains the timeline, removes a repeated month heading an
   })
   await page.route(`${productionOrigin}/moments/page/2/`, route => route.fulfill({
     contentType: 'text/html',
-    body: `<div data-moment-page-items><h2 data-month-key="${month}">同一个月</h2><article data-moment-card data-moment-id="${existingId}">不应重复追加</article><article data-moment-card data-moment-id="${addedId}" data-timeline="true"><p>同月更早的一条动态</p><div data-moment-reactions data-reaction-id="${addedId}" data-preview="false">${initialCounts.map((_, index) => `<button data-reaction-index="${index}" disabled><span data-reaction-count>—</span></button>`).join('')}<span data-reaction-status></span><button data-reaction-retry hidden>刷新数量</button></div></article></div>`
+    body: `<div data-moment-page-items><h2 data-month-key="${month}">同一个月</h2><article data-moment-card data-moment-id="${existingId}">不应重复追加</article><article data-moment-card data-moment-id="${addedId}" data-timeline="true"><p>同月更早的一条动态</p><div data-moment-reactions data-reaction-id="${addedId}" data-preview="false">${initialCounts.map((_, index) => `<button data-reaction-index="${index}" disabled hidden><span data-reaction-count>—</span></button>`).join('')}<button data-reaction-toggle aria-label="添加回应" aria-expanded="false" aria-controls="appended-reaction-picker">+</button><div id="appended-reaction-picker" data-reaction-picker hidden>${['👍', '❤️', '😆', '😮', '🤔', '🎉'].map((emoji, index) => `<button data-reaction-choice="${index}" disabled><span class="reaction-emoji">${emoji}</span></button>`).join('')}</div><span data-reaction-status></span><button data-reaction-retry hidden>刷新数量</button></div></article></div>`
   }))
   await page.goto(`${productionOrigin}/moments/`)
   expect(month).toMatch(/^\d{4}-\d{2}$/)
@@ -200,6 +281,11 @@ test('an appended page retains the timeline, removes a repeated month heading an
   await expect(page.getByText('不应重复追加')).toHaveCount(0)
   await added.scrollIntoViewIfNeeded()
   await expect(added.locator('[data-moment-reactions]')).toHaveAttribute('data-reaction-state', 'ready')
+  await expect(added.locator('[data-reaction-index]:visible')).toHaveCount(3)
+  await added.locator('[data-reaction-toggle]').click()
+  await expect(added.locator('[data-reaction-picker]')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(added.locator('[data-reaction-picker]')).toBeHidden()
   expect(service.reads).toContain(addedId)
   expect(service.mutations).toEqual([])
   expect(await page.locator('[data-moment-page-items]').evaluate(element => getComputedStyle(element, '::before').content)).not.toBe('none')
