@@ -1,5 +1,7 @@
 import type { FriendArticle } from '../lib/friends-feed-parser'
 
+const INITIAL_ARTICLE_COUNT = 6
+
 function mountFriendCopy() {
   const button = document.querySelector<HTMLButtonElement>('[data-copy-friend]')
   if (!button || button.dataset.mounted) return
@@ -26,6 +28,7 @@ async function mountFriendsCircle() {
   root.dataset.mounted = 'true'
   const status = root.querySelector<HTMLElement>('[data-feed-status]')!
   const list = root.querySelector<HTMLOListElement>('[data-feed-list]')!
+  const toggle = root.querySelector<HTMLButtonElement>('[data-feed-toggle]')!
   try {
     const response = await fetch('/friends/feeds.json', { signal: AbortSignal.timeout(8000) })
     if (!response.ok) throw new Error('Feed snapshot unavailable')
@@ -33,6 +36,7 @@ async function mountFriendsCircle() {
     const { articles, failed } = snapshot
     for (const article of articles) {
       const item = document.createElement('li')
+      item.hidden = list.children.length >= INITIAL_ARTICLE_COUNT
       const link = document.createElement('a')
       link.href = article.url
       link.target = '_blank'
@@ -48,6 +52,20 @@ async function mountFriendsCircle() {
       }
       item.append(meta, link)
       list.append(item)
+    }
+    if (articles.length > INITIAL_ARTICLE_COUNT) {
+      toggle.hidden = false
+      const remaining = articles.length - INITIAL_ARTICLE_COUNT
+      toggle.textContent = `展开更多（${remaining} 篇）`
+      toggle.addEventListener('click', () => {
+        const expanded = toggle.getAttribute('aria-expanded') !== 'true'
+        toggle.setAttribute('aria-expanded', String(expanded))
+        toggle.textContent = expanded ? '收起动态' : `展开更多（${remaining} 篇）`
+        Array.from(list.children).forEach((item, index) => {
+          (item as HTMLElement).hidden = !expanded && index >= INITIAL_ARTICLE_COUNT
+        })
+        if (!expanded) toggle.scrollIntoView({ block: 'nearest' })
+      })
     }
     const updated = new Date(snapshot.generatedAt)
     const date = Number.isFinite(updated.getTime()) ? new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai' }).format(updated) : ''

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 const snapshot = {
   generatedAt: '2026-09-14T08:00:00.000Z',
@@ -74,6 +74,55 @@ test('a failed snapshot shows a useful fallback and preserves the friend link', 
   await expect(page.locator('[data-feed-status]')).toHaveText('朋友圈暂时未能加载，可以先从上方友链去朋友家坐坐。')
   await expect(page.locator('[data-feed-list] > li')).toHaveCount(0)
   await expect(page.locator('.friend-card', { hasText: "Axi's Blog" })).toBeVisible()
+})
+
+test('the compact circle reveals all remaining articles and collapses again', async ({ page }) => {
+  const articles = Array.from({ length: 9 }, (_, index) => ({
+    ...snapshot.articles[0]!, title: `动态 ${index + 1}`, url: `https://axi404.top/blog/story-${index}`
+  }))
+  await page.route('**/friends/feeds.json', route => route.fulfill({ json: { ...snapshot, articles } }))
+  await page.goto('/friends/')
+  const visibleItems = page.locator('[data-feed-list] > li:visible')
+  const toggle = page.locator('[data-feed-toggle]')
+  await expect(visibleItems).toHaveCount(6)
+  await expect(toggle).toHaveText('展开更多（3 篇）')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(visibleItems).toHaveCount(9)
+  await expect(visibleItems.last()).toContainText('动态 9')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(visibleItems).toHaveCount(6)
+  await expect(toggle).toBeFocused()
+})
+
+test('friend submissions keep their own comment thread after client navigation', async ({ page }) => {
+  const paths: string[] = []
+  page.on('request', request => {
+    const url = new URL(request.url())
+    if (url.hostname === 'comments.minyako.top' && url.pathname === '/api/comment') {
+      paths.push(url.searchParams.get('path') ?? '')
+    }
+  })
+  await page.goto('/friends/')
+  const comments = page.locator('[data-comment-slot]')
+  await expect(comments).toHaveAttribute('data-page-key', '/friends/')
+  await expect(comments.getByRole('heading', { name: '友链留言板' })).toHaveCount(1)
+  await comments.scrollIntoViewIfNeeded()
+  await expect(comments.locator('.wl-editor')).toBeVisible()
+  await comments.locator('.wl-editor').fill('站点名称：测试小站\n网址：https://example.com/')
+  await expect(comments.locator('.wl-editor')).toHaveValue(/测试小站/)
+  await expect(page.locator('[data-feed-toggle]')).toBeHidden()
+  await page.evaluate(() => { (window as Window & { __commentVisit?: boolean }).__commentVisit = true })
+  await page.getByRole('link', { name: 'Minyako 首页', exact: true }).click()
+  await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/)
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '朋友们', exact: true }).click()
+  await comments.scrollIntoViewIfNeeded()
+  await expect(comments.locator('.wl-editor')).toHaveCount(1)
+  await expect(comments.locator('.wl-editor')).toBeVisible()
+  await expect.poll(() => paths.length).toBe(2)
+  expect(paths).toEqual(['/friends/', '/friends/'])
+  expect(await page.evaluate(() => (window as Window & { __commentVisit?: boolean }).__commentVisit)).toBe(true)
 })
 
 for (const copyFails of [false, true]) {
