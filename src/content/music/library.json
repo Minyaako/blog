@@ -244,6 +244,37 @@
         "bytes": 54000,
         "url": "https://pic.minyako.top/blog/music/covers/e1/e11caffd2967d8c2981257c6fa16fa31688e66083d3b898fa0fa54cc776eb178.webp"
       }
+    },
+    {
+      "id": "track_OzLw3DYPWhuSQ_XMKNHUwQ99",
+      "groupId": "1",
+      "title": "青春コンプレックス",
+      "artists": [
+        "結束バンド"
+      ],
+      "album": "青春コンプレックス",
+      "duration": 205.16571428571427,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/b4/b4b4e30c09520fa0ff46c8fae262257fefd5c7c7573387f21ac110902218d703.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "b4b4e30c09520fa0ff46c8fae262257fefd5c7c7573387f21ac110902218d703",
+        "bytes": 8208990
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/46/46de470dc390aca2565a8b05e04024a8079d513f248964f94e3b727e03654019.lrc",
+        "contentType": "text/plain",
+        "sha256": "46de470dc390aca2565a8b05e04024a8079d513f248964f94e3b727e03654019",
+        "bytes": 1557
+      },
+      "cover": {
+        "sourceImageId": "img_1Q3pH_lWt-_jORbOmVsZH9XJ",
+        "contentType": "image/webp",
+        "sha256": "352389ff8d33f6c928e19b1dcfdb52c6bf871129a9889fb5abee599ce2c08543",
+        "width": 800,
+        "height": 800,
+        "bytes": 89434,
+        "url": "https://pic.minyako.top/blog/music/covers/35/352389ff8d33f6c928e19b1dcfdb52c6bf871129a9889fb5abee599ce2c08543.webp"
+      }
     }
   ]
 }
