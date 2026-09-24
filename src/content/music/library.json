@@ -275,6 +275,37 @@
         "bytes": 89434,
         "url": "https://pic.minyako.top/blog/music/covers/35/352389ff8d33f6c928e19b1dcfdb52c6bf871129a9889fb5abee599ce2c08543.webp"
       }
+    },
+    {
+      "id": "track_YrKQbmMn0FwH9dzFIzyu-KTx",
+      "groupId": "1",
+      "title": "僕が最高だから",
+      "artists": [
+        "ハコニワリリィ"
+      ],
+      "album": "Lily's Plage",
+      "duration": 169.35183673469388,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/96/960d838ab5823ae9655f37ff51a35fcf54c49b5ee7d880e03275f29f605cc0a2.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "960d838ab5823ae9655f37ff51a35fcf54c49b5ee7d880e03275f29f605cc0a2",
+        "bytes": 6776409
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/10/106a0873860e68eedfdacb70ef4c8fda14a53557300333014444d68e715000e8.lrc",
+        "contentType": "text/plain",
+        "sha256": "106a0873860e68eedfdacb70ef4c8fda14a53557300333014444d68e715000e8",
+        "bytes": 3176
+      },
+      "cover": {
+        "sourceImageId": "img_vvmLzVqaI6VGoSg6lgnF1obt",
+        "contentType": "image/webp",
+        "sha256": "04af2040a196ed16901c9a9d1d99e1badf9dd789a396158da76b486ab04dda53",
+        "width": 800,
+        "height": 800,
+        "bytes": 140770,
+        "url": "https://pic.minyako.top/blog/music/covers/04/04af2040a196ed16901c9a9d1d99e1badf9dd789a396158da76b486ab04dda53.webp"
+      }
     }
   ]
 }
