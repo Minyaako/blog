@@ -306,6 +306,37 @@
         "bytes": 140770,
         "url": "https://pic.minyako.top/blog/music/covers/04/04af2040a196ed16901c9a9d1d99e1badf9dd789a396158da76b486ab04dda53.webp"
       }
+    },
+    {
+      "id": "track_NoG39S3NBXkPhE1Ub7o-yaeC",
+      "groupId": "2",
+      "title": "月が綺麗ねと言われたい！",
+      "artists": [
+        "柿崎ユウタ"
+      ],
+      "album": "月が綺麗ねと言われたい！",
+      "duration": 147.2261224489796,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/74/74a5127deaaba4f92112623e4752568768e6488e345fb1a6547822ecf535db99.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "74a5127deaaba4f92112623e4752568768e6488e345fb1a6547822ecf535db99",
+        "bytes": 5891418
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/fa/faa89322de3f974eacfb8d02772e8460ab70850f5f37f9dbf42a49a8ff8d92b0.lrc",
+        "contentType": "text/plain",
+        "sha256": "faa89322de3f974eacfb8d02772e8460ab70850f5f37f9dbf42a49a8ff8d92b0",
+        "bytes": 2199
+      },
+      "cover": {
+        "sourceImageId": "img_uqXOwfKr7FvSB_3cagsaRlNS",
+        "contentType": "image/webp",
+        "sha256": "48e03fe0aa6d846ca085027250623e693a6f26972ec82da07bda129caaf7e62e",
+        "width": 800,
+        "height": 800,
+        "bytes": 5968,
+        "url": "https://pic.minyako.top/blog/music/covers/48/48e03fe0aa6d846ca085027250623e693a6f26972ec82da07bda129caaf7e62e.webp"
+      }
     }
   ]
 }
