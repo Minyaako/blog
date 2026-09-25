@@ -337,6 +337,38 @@
         "bytes": 5968,
         "url": "https://pic.minyako.top/blog/music/covers/48/48e03fe0aa6d846ca085027250623e693a6f26972ec82da07bda129caaf7e62e.webp"
       }
+    },
+    {
+      "id": "track_Ffwu71O_VNunttL_pb1QJNmq",
+      "groupId": "1",
+      "title": "月 feat. ヰ世界情緒",
+      "artists": [
+        "Guiano",
+        "ヰ世界情緒"
+      ],
+      "album": "花鳥風月",
+      "duration": 214.3869387755102,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/2f/2fa38db0316feaf2eaab982e676fb83029eeed720061ed28d1abc96d17d1f7d8.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "2fa38db0316feaf2eaab982e676fb83029eeed720061ed28d1abc96d17d1f7d8",
+        "bytes": 8577851
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/37/3786d8c29959c0b1d2eea64a959712c05401f99c739b196e37d47f1d7d87d985.lrc",
+        "contentType": "text/plain",
+        "sha256": "3786d8c29959c0b1d2eea64a959712c05401f99c739b196e37d47f1d7d87d985",
+        "bytes": 1775
+      },
+      "cover": {
+        "sourceImageId": "img_yyHC4yjuTwGRtXZNVcLl23jO",
+        "contentType": "image/webp",
+        "sha256": "cdfeb29daabf933d0500279f88c7e4b2b818250a697ee2be3a7478a3356237bb",
+        "width": 800,
+        "height": 800,
+        "bytes": 141472,
+        "url": "https://pic.minyako.top/blog/music/covers/cd/cdfeb29daabf933d0500279f88c7e4b2b818250a697ee2be3a7478a3356237bb.webp"
+      }
     }
   ]
 }
