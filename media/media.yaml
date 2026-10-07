@@ -138,3 +138,8 @@ assets:
     provider: minyako-image
     providerId: img_vvmLzVqaI6VGoSg6lgnF1obt
     name: ハコニワリリィ - 僕が最高だから cover
+  - id: cover-boki
+    mode: hosted
+    provider: minyako-image
+    providerId: img_1Q3pH_lWt-_jORbOmVsZH9XJ
+    name: 結束バンド - 青春コンプレックス cover

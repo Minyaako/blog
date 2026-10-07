@@ -311,6 +311,20 @@
       "frames": 1,
       "url": "https://pic.minyako.top/blog/44/4463a3a744c9be61a61a07f366cd57311fe13b26656c86e4faea710f93d75b5c.webp",
       "createdAt": "2026-09-24T15:05:34.259Z"
+    },
+    {
+      "id": "cover-boki",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_1Q3pH_lWt-_jORbOmVsZH9XJ",
+      "sha256": "501769aa1cf33c79f5a635742a95a30dfda63978bc08fb1bf783045700f2f149",
+      "bytes": 133884,
+      "contentType": "image/webp",
+      "width": 960,
+      "height": 960,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/50/501769aa1cf33c79f5a635742a95a30dfda63978bc08fb1bf783045700f2f149.webp",
+      "createdAt": "2026-09-21T14:26:38.291Z"
     }
   ]
 }
