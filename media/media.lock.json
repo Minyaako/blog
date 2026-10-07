@@ -339,6 +339,20 @@
       "frames": 1,
       "url": "https://pic.minyako.top/blog/6d/6de6376163bbc1072ccc688f4cca3a719534f841a00f72aafd0a56aa836be730.webp",
       "createdAt": "2026-09-25T15:14:04.059Z"
+    },
+    {
+      "id": "cover-poaql",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_RyyNxvViDw0vwslf5QY6lEGQ",
+      "sha256": "3a6ed3755ca2a3b82012550e7ca2215a26d812dd83eb6f8a9e93a839dcd59e9c",
+      "bytes": 187086,
+      "contentType": "image/webp",
+      "width": 1960,
+      "height": 1101,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/3a/3a6ed3755ca2a3b82012550e7ca2215a26d812dd83eb6f8a9e93a839dcd59e9c.webp",
+      "createdAt": "2026-10-07T11:48:20.354Z"
     }
   ]
 }

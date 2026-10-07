@@ -148,3 +148,8 @@ assets:
     provider: minyako-image
     providerId: img_uqXOwfKr7FvSB_3cagsaRlNS
     name: 柿崎ユウタ - 月が綺麗ねと言われたい！ cover
+  - id: cover-poaql
+    mode: hosted
+    provider: minyako-image
+    providerId: img_RyyNxvViDw0vwslf5QY6lEGQ
+    rights: 允许署名转载
