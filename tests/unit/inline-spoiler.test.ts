@@ -34,7 +34,7 @@ describe('inline hidden text', () => {
     const dom = new JSDOM('<button data-inline-spoiler aria-expanded="false"><span data-spoiler-content aria-hidden="true">答案</span></button>')
     const prior = { Element: globalThis.Element, Node: globalThis.Node, window: globalThis.window }
     Object.assign(globalThis, { Element: dom.window.Element, Node: dom.window.Node, window: dom.window })
-    dom.window.matchMedia = (() => ({ matches: true })) as typeof window.matchMedia
+    Object.defineProperty(dom.window, 'matchMedia', { configurable: true, value: () => ({ matches: true }) })
     const button = dom.window.document.querySelector('button')!
     const dispose = installInlineSpoilers(dom.window.document)
     const pointer = (type: string, pointerType: string) => {
