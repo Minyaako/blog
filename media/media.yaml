@@ -133,3 +133,8 @@ assets:
     provider: minyako-image
     providerId: img_yyHC4yjuTwGRtXZNVcLl23jO
     name: Guiano,ヰ世界情緒 - 月 feat. ヰ世界情緒 cover
+  - id: cover
+    mode: hosted
+    provider: minyako-image
+    providerId: img_vvmLzVqaI6VGoSg6lgnF1obt
+    name: ハコニワリリィ - 僕が最高だから cover
