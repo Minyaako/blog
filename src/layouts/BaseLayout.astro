@@ -108,6 +108,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
       import { initPageMotion } from '../scripts/page-motion'
       import { installSiteViews } from '../scripts/site-views'
       import { initCodePanels } from '../scripts/code-panel'
+      import { installInlineSpoilers } from '../scripts/inline-spoiler'
       import { initRevealMotion } from '../scripts/motion'
       import { initMomentGalleries } from '../scripts/moment-gallery'
       import { initMomentStream } from '../scripts/moment-stream'
@@ -116,6 +117,7 @@ const MusicPlayer = musicEnabled ? (await import('../components/MusicPlayer.astr
       initPageMotion()
       installSiteViews()
       initCodePanels()
+      installInlineSpoilers()
       const initMomentEnhancements = (root: ParentNode = document) => {
         initMomentGalleries(root)
         initMomentWarnings(root)
