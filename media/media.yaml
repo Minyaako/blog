@@ -157,3 +157,7 @@ assets:
     mode: hosted
     provider: minyako-image
     providerId: img_2uOvVHqH3bv-qMIpjVRa6yV9
+  - id: poaql-content-2
+    mode: hosted
+    provider: minyako-image
+    providerId: img_2YIo2A5s12fD0qVp21dy7ruh
