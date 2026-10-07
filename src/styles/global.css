@@ -2,6 +2,7 @@
 @import './tokens.css' layer(tokens);
 @import './prose.css' layer(components);
 @import './link-cards.css' layer(components);
+@import './inline-spoiler.css' layer(components);
 @import './motion.css' layer(components);
 
 @layer reset {

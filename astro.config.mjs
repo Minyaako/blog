@@ -15,6 +15,7 @@ import { transformerCodePanel } from './src/lib/code-panel-transformer.mjs'
 import { musicModelPlugin } from './scripts/music-model-plugin.mjs'
 import { walineDialogPlugin } from './scripts/waline-dialog-plugin.mjs'
 import rehypeLinkCards from './src/lib/rehype-link-cards.mjs'
+import remarkInlineSpoiler from './src/lib/remark-inline-spoiler.mjs'
 
 export default defineConfig({
   site: 'https://gsk.minyako.top',
@@ -35,7 +36,7 @@ export default defineConfig({
   ],
   markdown: {
     processor: unified({
-      remarkPlugins: [remarkMath],
+      remarkPlugins: [remarkMath, remarkInlineSpoiler],
       rehypePlugins: [rehypeKatex, rehypeLinkCards]
     }),
     shikiConfig: {
