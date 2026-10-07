@@ -1,0 +1,18 @@
+.inline-spoiler {
+  display: inline;
+  padding: .04em .18em;
+  border: 0;
+  border-radius: .2em;
+  background: var(--text, #26313c);
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.inline-spoiler [data-spoiler-content][aria-hidden="true"] { visibility: hidden; }
+.inline-spoiler[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--text, #26313c) 12%, transparent);
+}
+.inline-spoiler:focus-visible { outline: 2px solid var(--focus, #586bda); outline-offset: 3px; }
