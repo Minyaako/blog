@@ -325,6 +325,20 @@
       "frames": 1,
       "url": "https://pic.minyako.top/blog/50/501769aa1cf33c79f5a635742a95a30dfda63978bc08fb1bf783045700f2f149.webp",
       "createdAt": "2026-09-21T14:26:38.291Z"
+    },
+    {
+      "id": "cover-tsuki",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_uqXOwfKr7FvSB_3cagsaRlNS",
+      "sha256": "6de6376163bbc1072ccc688f4cca3a719534f841a00f72aafd0a56aa836be730",
+      "bytes": 8908,
+      "contentType": "image/webp",
+      "width": 960,
+      "height": 960,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/6d/6de6376163bbc1072ccc688f4cca3a719534f841a00f72aafd0a56aa836be730.webp",
+      "createdAt": "2026-09-25T15:14:04.059Z"
     }
   ]
 }

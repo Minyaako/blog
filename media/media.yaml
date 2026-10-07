@@ -143,3 +143,8 @@ assets:
     provider: minyako-image
     providerId: img_1Q3pH_lWt-_jORbOmVsZH9XJ
     name: 結束バンド - 青春コンプレックス cover
+  - id: cover-tsuki
+    mode: hosted
+    provider: minyako-image
+    providerId: img_uqXOwfKr7FvSB_3cagsaRlNS
+    name: 柿崎ユウタ - 月が綺麗ねと言われたい！ cover
