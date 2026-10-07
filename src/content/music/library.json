@@ -369,6 +369,38 @@
         "bytes": 141472,
         "url": "https://pic.minyako.top/blog/music/covers/cd/cdfeb29daabf933d0500279f88c7e4b2b818250a697ee2be3a7478a3356237bb.webp"
       }
+    },
+    {
+      "id": "track_KQ6KphDp2iovZKLD_xw8Y9O8",
+      "groupId": "2",
+      "title": "キャットラビング",
+      "artists": [
+        "香椎モイミ",
+        "可不"
+      ],
+      "album": "絢爛のアシンメトリー",
+      "duration": 117.62938775510204,
+      "audio": {
+        "url": "https://pic.minyako.top/blog/music/audio/0d/0d8f02d6d2711a0743c2767473b07609d2714e0b15f765517000940f610652ab.mp3",
+        "contentType": "audio/mpeg",
+        "sha256": "0d8f02d6d2711a0743c2767473b07609d2714e0b15f765517000940f610652ab",
+        "bytes": 4707543
+      },
+      "lyrics": {
+        "url": "https://pic.minyako.top/blog/music/lyrics/d8/d85ad61f9868a68e20b6e17bf4d24429d0b6ec7742d69948202fd109363353a7.lrc",
+        "contentType": "text/plain",
+        "sha256": "d85ad61f9868a68e20b6e17bf4d24429d0b6ec7742d69948202fd109363353a7",
+        "bytes": 2310
+      },
+      "cover": {
+        "sourceImageId": "img_zlV7SFHOd8CCPtcz8v4yE-M5",
+        "contentType": "image/webp",
+        "sha256": "60091110c901848f5ac3df0a071b8b6baa9136cf6850de5020af71afb46e2c0b",
+        "width": 800,
+        "height": 800,
+        "bytes": 76806,
+        "url": "https://pic.minyako.top/blog/music/covers/60/60091110c901848f5ac3df0a071b8b6baa9136cf6850de5020af71afb46e2c0b.webp"
+      }
     }
   ]
 }

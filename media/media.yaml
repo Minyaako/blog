@@ -123,3 +123,49 @@ assets:
     mode: hosted
     provider: minyako-image
     providerId: img_jdd9v4-lbPL5Y7VlF4jcEt9O
+  - id: cover-zyz-humaniod
+    mode: hosted
+    provider: minyako-image
+    providerId: img_5Oceki4N1lyTylQkssNixXhJ
+    name: ずっと真夜中でいいのに。 - ヒューマノイド cover
+  - id: cover-niu-tsuki
+    mode: hosted
+    provider: minyako-image
+    providerId: img_yyHC4yjuTwGRtXZNVcLl23jO
+    name: Guiano,ヰ世界情緒 - 月 feat. ヰ世界情緒 cover
+  - id: cover
+    mode: hosted
+    provider: minyako-image
+    providerId: img_vvmLzVqaI6VGoSg6lgnF1obt
+    name: ハコニワリリィ - 僕が最高だから cover
+  - id: cover-boki
+    mode: hosted
+    provider: minyako-image
+    providerId: img_1Q3pH_lWt-_jORbOmVsZH9XJ
+    name: 結束バンド - 青春コンプレックス cover
+  - id: cover-tsuki
+    mode: hosted
+    provider: minyako-image
+    providerId: img_uqXOwfKr7FvSB_3cagsaRlNS
+    name: 柿崎ユウタ - 月が綺麗ねと言われたい！ cover
+  - id: cover-poaql
+    mode: hosted
+    provider: minyako-image
+    providerId: img_RyyNxvViDw0vwslf5QY6lEGQ
+    rights: 允许署名转载
+  - id: poaql-content-1
+    mode: hosted
+    provider: minyako-image
+    providerId: img_2uOvVHqH3bv-qMIpjVRa6yV9
+  - id: poaql-content-2
+    mode: hosted
+    provider: minyako-image
+    providerId: img_2YIo2A5s12fD0qVp21dy7ruh
+  - id: poaql-content-3
+    mode: hosted
+    provider: minyako-image
+    providerId: img_--m52RmmolyqHrESn8gNAEaC
+  - id: poaql-content-4
+    mode: hosted
+    provider: minyako-image
+    providerId: img_qHiiBsP-hvZnkE3XDZWSVdqC
