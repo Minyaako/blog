@@ -283,6 +283,20 @@
       "frames": 1,
       "url": "https://pic.minyako.top/blog/23/234762e51cf555f8a59e1b44559167523f635e2d7bc9b114e35ffb444c2be2f8.webp",
       "createdAt": "2026-09-12T14:03:48.127Z"
+    },
+    {
+      "id": "cover-niu-tsuki",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_yyHC4yjuTwGRtXZNVcLl23jO",
+      "sha256": "d785c2d6ac426cd13c7a2de5afef4c50305432c9af774fba7c6d1acd86ebb3cb",
+      "bytes": 221960,
+      "contentType": "image/webp",
+      "width": 960,
+      "height": 960,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/d7/d785c2d6ac426cd13c7a2de5afef4c50305432c9af774fba7c6d1acd86ebb3cb.webp",
+      "createdAt": "2026-09-25T15:14:33.391Z"
     }
   ]
 }

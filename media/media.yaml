@@ -128,3 +128,8 @@ assets:
     provider: minyako-image
     providerId: img_5Oceki4N1lyTylQkssNixXhJ
     name: ずっと真夜中でいいのに。 - ヒューマノイド cover
+  - id: cover-niu-tsuki
+    mode: hosted
+    provider: minyako-image
+    providerId: img_yyHC4yjuTwGRtXZNVcLl23jO
+    name: Guiano,ヰ世界情緒 - 月 feat. ヰ世界情緒 cover
