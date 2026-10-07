@@ -269,6 +269,20 @@
       "frames": 1,
       "url": "https://pic.minyako.top/blog/94/94131141d9528508139d3a3ac611ce29201071f9f0a927e5ee3fb690a140c357.webp",
       "createdAt": "2026-09-25T15:23:07.786Z"
+    },
+    {
+      "id": "cover-zyz-humaniod",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_5Oceki4N1lyTylQkssNixXhJ",
+      "sha256": "234762e51cf555f8a59e1b44559167523f635e2d7bc9b114e35ffb444c2be2f8",
+      "bytes": 90700,
+      "contentType": "image/webp",
+      "width": 960,
+      "height": 960,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/23/234762e51cf555f8a59e1b44559167523f635e2d7bc9b114e35ffb444c2be2f8.webp",
+      "createdAt": "2026-09-12T14:03:48.127Z"
     }
   ]
 }

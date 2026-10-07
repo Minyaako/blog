@@ -123,3 +123,8 @@ assets:
     mode: hosted
     provider: minyako-image
     providerId: img_jdd9v4-lbPL5Y7VlF4jcEt9O
+  - id: cover-zyz-humaniod
+    mode: hosted
+    provider: minyako-image
+    providerId: img_5Oceki4N1lyTylQkssNixXhJ
+    name: ずっと真夜中でいいのに。 - ヒューマノイド cover
