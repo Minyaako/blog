@@ -28,3 +28,11 @@ Measured against production `dd7e94c98639a26646d6f9fdd2fa0e84f23fc4cc` with thre
 - The old page initiated audio loading; unfinished transfers are not included in the byte totals. Do not interpret these totals as the full audio download size.
 
 Post-deployment results belong in the release handoff after the same live measurement is repeated. Source changes alone are not evidence of a production speedup.
+
+## 2026-10-07 CI sampling regression
+
+- Failed run: https://github.com/Minyaako/blog/actions/runs/37632748841, main `4c933f902b79b2f003c81a037fa43f7fc9138b3e`. The native transition test sampled zero incoming opacity using a fixed 140 ms timeout; subsequent polling only reread that frozen sample.
+- The test now pauses the actual `motion-page-in` CSSAnimation, seeks to half its computed duration, waits for rendering frames, samples computed opacity, and resumes in `finally`. Async sampling errors are surfaced explicitly.
+- Existing keyframe and outgoing-opacity assertions remain. Incoming midpoint opacity must now be both greater than zero and less than one. No runtime or animation CSS changed.
+- Focused desktop test passed five consecutive runs on the final completion/error-latch implementation. Fixture production build passed. Independent review found no blocking issues. Astro check identified only an unnecessary `await` on `play()`, which was removed before submission.
+- This fix is submitted separately; merging and production deployment are not part of this authorization.

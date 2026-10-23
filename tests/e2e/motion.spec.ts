@@ -55,28 +55,44 @@ test('native page snapshots hide the old content before the new page slides in',
       name: string
       frames: Array<{ offset: number | null; opacity: string; transform: string }>
     }
-    const view = window as Window & { __motionSnapshotFrames?: MotionRecord[] }
+    type MotionSample = { phase: 'ready' | 'midpoint'; oldOpacity: string; newOpacity: string }
+    type MotionSnapshotWindow = Window & {
+      __motionSnapshotFrames?: MotionRecord[]
+      __motionSnapshotSamples?: MotionSample[]
+      __motionSnapshotDone?: boolean
+      __motionSnapshotError?: string | null
+    }
+    const view = window as MotionSnapshotWindow
     view.__motionSnapshotFrames = []
-    const snapshotSamples: Array<{ phase: 'ready' | 'midpoint'; oldOpacity: string; newOpacity: string }> = []
-    ;(view as Window & { __motionSnapshotSamples?: typeof snapshotSamples }).__motionSnapshotSamples = snapshotSamples
+    const snapshotSamples: MotionSample[] = []
+    view.__motionSnapshotSamples = snapshotSamples
+    view.__motionSnapshotDone = false
+    view.__motionSnapshotError = null
 
     const nativeStart = Document.prototype.startViewTransition
     if (typeof nativeStart !== 'function') return
 
     Document.prototype.startViewTransition = function (updateCallback) {
       const transition = nativeStart.call(this, updateCallback)
-      void transition.ready.then(() => {
+      view.__motionSnapshotDone = false
+      view.__motionSnapshotError = null
+      void transition.ready.then(async () => {
         const sample = (phase: 'ready' | 'midpoint') => {
           const oldStyles = getComputedStyle(document.documentElement, '::view-transition-old(page-content)')
           const newStyles = getComputedStyle(document.documentElement, '::view-transition-new(page-content)')
           snapshotSamples.push({ phase, oldOpacity: oldStyles.opacity, newOpacity: newStyles.opacity })
         }
         sample('ready')
-        setTimeout(() => sample('midpoint'), 140)
 
         const records = view.__motionSnapshotFrames ?? []
         const getAnimations = document.getAnimations as unknown as (options: { subtree: boolean }) => Animation[]
-        for (const animation of getAnimations.call(document, { subtree: true })) {
+        const animations = getAnimations.call(document, { subtree: true })
+        const pageIn = animations.find((animation): animation is CSSAnimation => (
+          animation instanceof CSSAnimation && animation.animationName === 'motion-page-in'
+        ))
+        if (!pageIn) throw new Error('Expected a motion-page-in CSSAnimation')
+
+        for (const animation of animations) {
           if (!(animation instanceof CSSAnimation)) continue
           if (animation.animationName !== 'motion-page-in' && animation.animationName !== 'motion-page-out') continue
           const keyframes = (animation.effect as KeyframeEffect | null)?.getKeyframes() ?? []
@@ -90,6 +106,26 @@ test('native page snapshots hide the old content before the new page slides in',
           })
         }
         view.__motionSnapshotFrames = records
+
+        const duration = pageIn.effect?.getComputedTiming().duration
+        if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
+          throw new Error(`Expected a finite motion-page-in duration, received ${String(duration)}`)
+        }
+
+        const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        pageIn.pause()
+        try {
+          pageIn.currentTime = duration / 2
+          await nextFrame()
+          await nextFrame()
+          sample('midpoint')
+        } finally {
+          pageIn.play()
+        }
+      }).catch((error: unknown) => {
+        view.__motionSnapshotError = error instanceof Error ? error.message : String(error)
+      }).finally(() => {
+        view.__motionSnapshotDone = true
       })
       return transition
     }
@@ -102,6 +138,11 @@ test('native page snapshots hide the old content before the new page slides in',
   const navigation = page.waitForURL(/\/domains\/academic\/?$/)
   await page.locator('.domain-card[data-domain="academic"]').click({ noWaitAfter: true })
   await navigation
+
+  await expect.poll(() => page.evaluate(() => {
+    const view = window as Window & { __motionSnapshotDone?: boolean; __motionSnapshotError?: string | null }
+    return { done: view.__motionSnapshotDone ?? false, error: view.__motionSnapshotError ?? null }
+  })).toEqual({ done: true, error: null })
 
   await expect.poll(() => page.evaluate(() => (
     (window as Window & { __motionSnapshotFrames?: unknown[] }).__motionSnapshotFrames ?? []
@@ -128,6 +169,11 @@ test('native page snapshots hide the old content before the new page slides in',
       ?.find(({ phase }) => phase === 'midpoint')
     return Number(sample?.newOpacity ?? Number.NaN)
   })).toBeGreaterThan(0)
+  await expect.poll(() => page.evaluate(() => {
+    const sample = (window as Window & { __motionSnapshotSamples?: Array<{ phase: string; newOpacity: string }> }).__motionSnapshotSamples
+      ?.find(({ phase }) => phase === 'midpoint')
+    return Number(sample?.newOpacity ?? Number.NaN)
+  })).toBeLessThan(1)
 })
 
 test('fallback navigation swaps immediately without a page exit or color veil', async ({ page }) => {
