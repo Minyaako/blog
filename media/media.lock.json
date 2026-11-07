@@ -451,6 +451,20 @@
       "frames": 1,
       "url": "https://pic.minyako.top/blog/2c/2cca0dca98f34beb770b3a3ddb6969f9ae327e666fa9529f7080702466e4efa1.webp",
       "createdAt": "2026-11-07T09:08:31.163Z"
+    },
+    {
+      "id": "post-komorebi-4",
+      "mode": "hosted",
+      "provider": "minyako-image",
+      "providerId": "img_JIMI8B1Os81pn_ap2CBlmD15",
+      "sha256": "3e2fc41e79d40ec320a739bf639d85528c7052176867627ed15e507e890ab9ee",
+      "bytes": 61776,
+      "contentType": "image/webp",
+      "width": 1440,
+      "height": 960,
+      "frames": 1,
+      "url": "https://pic.minyako.top/blog/3e/3e2fc41e79d40ec320a739bf639d85528c7052176867627ed15e507e890ab9ee.webp",
+      "createdAt": "2026-11-07T09:08:43.347Z"
     }
   ]
 }

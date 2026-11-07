@@ -181,3 +181,7 @@ assets:
     mode: hosted
     provider: minyako-image
     providerId: img_fOYjH0hW168Zp3szjW1S4Tns
+  - id: post-komorebi-4
+    mode: hosted
+    provider: minyako-image
+    providerId: img_JIMI8B1Os81pn_ap2CBlmD15
