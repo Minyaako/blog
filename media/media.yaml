@@ -169,3 +169,19 @@ assets:
     mode: hosted
     provider: minyako-image
     providerId: img_qHiiBsP-hvZnkE3XDZWSVdqC
+  - id: post-komorebi-1
+    mode: hosted
+    provider: minyako-image
+    providerId: img_aLNKzFjgtqRD09xm2Mbqhmei
+  - id: post-komorebi-2
+    mode: hosted
+    provider: minyako-image
+    providerId: img_oF1rOYohSXMW2NG5xsDzIoiQ
+  - id: post-komorebi-3
+    mode: hosted
+    provider: minyako-image
+    providerId: img_fOYjH0hW168Zp3szjW1S4Tns
+  - id: post-komorebi-4
+    mode: hosted
+    provider: minyako-image
+    providerId: img_JIMI8B1Os81pn_ap2CBlmD15
