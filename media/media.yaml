@@ -177,3 +177,7 @@ assets:
     mode: hosted
     provider: minyako-image
     providerId: img_oF1rOYohSXMW2NG5xsDzIoiQ
+  - id: post-komorebi-3
+    mode: hosted
+    provider: minyako-image
+    providerId: img_fOYjH0hW168Zp3szjW1S4Tns
